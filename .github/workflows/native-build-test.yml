@@ -2,7 +2,7 @@ name: Native CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, feature/native-init ]
   pull_request:
     branches: [ main ]
 
