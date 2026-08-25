@@ -1,0 +1,32 @@
+name: Native CI
+
+on:
+  push:
+    branches: [ main, feature/native-init ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: sudo apt-get update && sudo apt-get install -y g++ make libgtest-dev
+
+    - name: Build
+      working-directory: ./native
+      run: make all
+
+    - name: Run test
+      working-directory: ./native
+      run: make helloworld/run
+
+    - name: Clean
+      working-directory: ./native
+      run: make clean
+
+
