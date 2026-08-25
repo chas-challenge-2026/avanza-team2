@@ -3,7 +3,7 @@
 PROJECT_NAME := avanza-2-native
 
 # Modules to build. Update this list if you add subdirectories.
-MODULES := helloworld 
+MODULES := helloworld jna_poc
 
 # Include paths for root-level headers
 export CFLAGS += -I./include
