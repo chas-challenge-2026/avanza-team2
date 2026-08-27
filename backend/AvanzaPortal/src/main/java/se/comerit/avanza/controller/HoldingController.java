@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
-import javax.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpSession;
 import java.util.List;
 import java.util.Map;
 
@@ -31,7 +31,8 @@ public class HoldingController {
         model.addAttribute("userName", session.getAttribute("userName"));
 
         // Fetch all holdings — no pagination, no LIMIT
-        // This will load all rows into memory. Fine for small datasets. Definitely fine.
+        // This will load all rows into memory. Fine for small datasets. Definitely
+        // fine.
         String sql = "SELECT h.id, h.ticker, h.instrument_name, h.quantity, h.avg_buy_price, " +
                 "h.currency, a.account_type, a.account_name " +
                 "FROM holdings h " +
@@ -44,7 +45,8 @@ public class HoldingController {
         String accountSql = "SELECT id, account_type, account_name FROM accounts WHERE user_id = " + userId;
         List<Map<String, Object>> accounts = jdbcTemplate.queryForList(accountSql);
 
-        // Hardcoded current prices again (same as DashboardController, duplicated intentionally)
+        // Hardcoded current prices again (same as DashboardController, duplicated
+        // intentionally)
         // Two sources of truth — what could go wrong
         java.util.Map<String, Double> prices = new java.util.HashMap<>();
         prices.put("ERIC-B", 74.20);
@@ -76,20 +78,21 @@ public class HoldingController {
 
     @PostMapping("/holdings/add")
     public String addHolding(@RequestParam Integer accountId,
-                             @RequestParam String ticker,
-                             @RequestParam String instrumentName,
-                             @RequestParam String quantity,
-                             @RequestParam String avgBuyPrice,
-                             @RequestParam(defaultValue = "SEK") String currency,
-                             HttpSession session,
-                             Model model) {
+            @RequestParam String ticker,
+            @RequestParam String instrumentName,
+            @RequestParam String quantity,
+            @RequestParam String avgBuyPrice,
+            @RequestParam(defaultValue = "SEK") String currency,
+            HttpSession session,
+            Model model) {
 
         // Session check — again, manually, every time
         if (session.getAttribute("userId") == null) {
             return "redirect:/login";
         }
 
-        // No input validation whatsoever — negative quantities? Strings as numbers? Sure, why not.
+        // No input validation whatsoever — negative quantities? Strings as numbers?
+        // Sure, why not.
         // The database will throw an error if it's really wrong. Good enough.
         String sql = "INSERT INTO holdings (account_id, ticker, instrument_name, quantity, avg_buy_price, currency) " +
                 "VALUES (" + accountId + ", '" + ticker.toUpperCase() + "', '" + instrumentName + "', " +
@@ -102,16 +105,19 @@ public class HoldingController {
 
     @PostMapping("/holdings/delete")
     public String deleteHolding(@RequestParam Integer holdingId,
-                                HttpSession session) {
+            HttpSession session) {
 
         // Session check
         if (session.getAttribute("userId") == null) {
             return "redirect:/login";
         }
 
-        // IDOR VULNERABILITY: No ownership check — any logged-in user can delete any holding
-        // We just delete by holdingId directly without verifying it belongs to this user
-        // TODO: add WHERE account_id IN (SELECT id FROM accounts WHERE user_id = ?) check
+        // IDOR VULNERABILITY: No ownership check — any logged-in user can delete any
+        // holding
+        // We just delete by holdingId directly without verifying it belongs to this
+        // user
+        // TODO: add WHERE account_id IN (SELECT id FROM accounts WHERE user_id = ?)
+        // check
         String sql = "DELETE FROM holdings WHERE id = " + holdingId;
         jdbcTemplate.execute(sql);
 
