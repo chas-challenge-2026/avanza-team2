@@ -1,6 +1,10 @@
 package se.comerit.avanza.controller;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import java.util.List;
+import java.util.Map;
+
+import javax.servlet.http.HttpSession;
+
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -8,15 +12,20 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
-import javax.servlet.http.HttpSession;
-import java.util.List;
-import java.util.Map;
+import se.comerit.avanza.service.HoldingService;
 
 @Controller
 public class HoldingController {
 
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
+    private final JdbcTemplate jdbcTemplate;
+
+    private final HoldingService holdingService;
+
+    public HoldingController(JdbcTemplate jdbcTemplate, HoldingService holdingService) {
+        this.jdbcTemplate = jdbcTemplate;
+        this.holdingService = holdingService;
+    }
+
 
     @GetMapping("/holdings")
     public String listHoldings(HttpSession session, Model model) {
@@ -30,15 +39,9 @@ public class HoldingController {
         Integer userId = (Integer) session.getAttribute("userId");
         model.addAttribute("userName", session.getAttribute("userName"));
 
-        // Fetch all holdings — no pagination, no LIMIT
-        // This will load all rows into memory. Fine for small datasets. Definitely fine.
-        String sql = "SELECT h.id, h.ticker, h.instrument_name, h.quantity, h.avg_buy_price, " +
-                "h.currency, a.account_type, a.account_name " +
-                "FROM holdings h " +
-                "JOIN accounts a ON h.account_id = a.id " +
-                "WHERE a.user_id = " + userId + " " +
-                "ORDER BY a.account_type, h.ticker";
-        List<Map<String, Object>> holdings = jdbcTemplate.queryForList(sql);
+        List<Map<String, Object>> holdings = holdingService.getHoldingsForUser(userId);
+
+        
 
         // Fetch accounts for the "add holding" dropdown
         String accountSql = "SELECT id, account_type, account_name FROM accounts WHERE user_id = " + userId;
