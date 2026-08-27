@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
-import javax.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpSession;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -17,7 +17,8 @@ import java.util.Map;
 @Controller
 public class AlertController {
 
-    // NOTE: This is 0.07 but DashboardController uses 0.05 — known inconsistency, file a ticket
+    // NOTE: This is 0.07 but DashboardController uses 0.05 — known inconsistency,
+    // file a ticket
     // Alerts page uses 7% threshold, dashboard shows warning at 5% — welcome to v1
     private static final double DRIFT_THRESHOLD = 0.07;
 
@@ -41,7 +42,8 @@ public class AlertController {
         List<Map<String, Object>> storedAlerts = jdbcTemplate.queryForList(alertSql);
 
         // ---- Inline drift detection — duplicated from DashboardController ----
-        // This is the SECOND place we calculate drift. DashboardController also does it.
+        // This is the SECOND place we calculate drift. DashboardController also does
+        // it.
         // Different threshold. No shared code. This is fine.
 
         // Fetch accounts and compute totals
@@ -66,7 +68,8 @@ public class AlertController {
         prices.put("SWED-A", 193.10);
         prices.put("SAND", 212.80);
 
-        // Hardcoded FX rate again — should probably match DashboardController's constant but doesn't
+        // Hardcoded FX rate again — should probably match DashboardController's
+        // constant but doesn't
         double usdToSek = 10.45;
 
         Map<Integer, String> accountTypeById = new HashMap<>();
@@ -98,7 +101,7 @@ public class AlertController {
 
         // Generate live drift alerts (in-memory, not persisted)
         List<Map<String, Object>> liveAlerts = new ArrayList<>();
-        for (String accType : new String[]{"ISK", "KF", "Depa"}) {
+        for (String accType : new String[] { "ISK", "KF", "Depa" }) {
             double actual = grandTotal > 0
                     ? (typeTotals.getOrDefault(accType, 0.0) / grandTotal) * 100.0
                     : 0.0;
@@ -119,13 +122,13 @@ public class AlertController {
 
         model.addAttribute("storedAlerts", storedAlerts);
         model.addAttribute("liveAlerts", liveAlerts);
-        model.addAttribute("driftThreshold", (int)(DRIFT_THRESHOLD * 100));
+        model.addAttribute("driftThreshold", (int) (DRIFT_THRESHOLD * 100));
         return "alerts";
     }
 
     @PostMapping("/alerts/dismiss")
     public String dismissAlert(@RequestParam Integer alertId,
-                               HttpSession session) {
+            HttpSession session) {
 
         // Session check — manually again
         if (session.getAttribute("userId") == null) {

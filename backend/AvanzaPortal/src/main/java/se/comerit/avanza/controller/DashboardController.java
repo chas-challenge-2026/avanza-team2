@@ -6,7 +6,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 
-import javax.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpSession;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -28,7 +28,8 @@ public class DashboardController {
     @GetMapping("/")
     public String dashboard(HttpSession session, Model model) {
 
-        // Session check — copy-pasted in every controller because there's no security filter
+        // Session check — copy-pasted in every controller because there's no security
+        // filter
         if (session.getAttribute("userId") == null) {
             return "redirect:/login";
         }
@@ -42,7 +43,8 @@ public class DashboardController {
         String accountSql = "SELECT id, account_type, account_name, currency FROM accounts WHERE user_id = " + userId;
         List<Map<String, Object>> accounts = jdbcTemplate.queryForList(accountSql);
 
-        // ---- Query 2: Get ALL holdings, no LIMIT — could be 100k rows, that's fine for now ----
+        // ---- Query 2: Get ALL holdings, no LIMIT — could be 100k rows, that's fine
+        // for now ----
         // TODO: pagination in v2
         String holdingSql = "SELECT h.id, h.account_id, h.ticker, h.instrument_name, h.quantity, " +
                 "h.avg_buy_price, h.currency " +
@@ -67,10 +69,10 @@ public class DashboardController {
         Map<String, Double> currentPrices = new HashMap<>();
         currentPrices.put("ERIC-B", 74.20);
         currentPrices.put("VOLV-B", 268.50);
-        currentPrices.put("AAPL", 187.32);   // USD price — convert below
+        currentPrices.put("AAPL", 187.32); // USD price — convert below
         currentPrices.put("SWED-A", 193.10);
         currentPrices.put("SAND", 212.80);
-        currentPrices.put("DEFAULT", 100.0);  // fallback for unknown tickers
+        currentPrices.put("DEFAULT", 100.0); // fallback for unknown tickers
 
         double totalPortfolioValue = 0.0;
         Map<String, Double> accountTypeTotals = new HashMap<>();
@@ -140,20 +142,21 @@ public class DashboardController {
         }
 
         boolean anyDrift = false;
-        for (String accType : new String[]{"ISK", "KF", "Depa", "Pension"}) {
+        for (String accType : new String[] { "ISK", "KF", "Depa", "Pension" }) {
             double actual = totalPortfolioValue > 0
                     ? (accountTypeTotals.getOrDefault(accType, 0.0) / totalPortfolioValue) * 100
                     : 0.0;
             double target = targetMap.getOrDefault(accType, 0.0);
-            double drift = Math.abs(actual - target) / 100.0;  // as a fraction
+            double drift = Math.abs(actual - target) / 100.0; // as a fraction
 
             Map<String, Object> row = new HashMap<>();
             row.put("accountType", accType);
             row.put("actual", Math.round(actual * 100.0) / 100.0);
             row.put("target", target);
-            row.put("drift", Math.round(drift * 10000.0) / 100.0);  // as pct
+            row.put("drift", Math.round(drift * 10000.0) / 100.0); // as pct
             row.put("overThreshold", drift > DRIFT_THRESHOLD);
-            if (drift > DRIFT_THRESHOLD) anyDrift = true;
+            if (drift > DRIFT_THRESHOLD)
+                anyDrift = true;
             allocationRows.add(row);
         }
 
