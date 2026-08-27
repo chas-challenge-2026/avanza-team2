@@ -1,9 +1,6 @@
 package se.comerit.avanza.entity;
 
-<<<<<<< HEAD
 import jakarta.persistence.FetchType;
-=======
->>>>>>> 678c97e00e138db96ef69607aca01d6dfe8e02e8
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -12,7 +9,6 @@ import jakarta.persistence.Table;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.JoinColumn;
 
-<<<<<<< HEAD
 /**
  * JPA Entity representing a target allocation for a user in the Avanza
  * portfolio system.
@@ -23,8 +19,6 @@ import jakarta.persistence.JoinColumn;
  * <p/>
  * - Many TargetAllocations belong to one User
  */
-=======
->>>>>>> 678c97e00e138db96ef69607aca01d6dfe8e02e8
 @Entity
 @Table(name = "target_allocations")
 public class TargetAllocations {
@@ -37,11 +31,7 @@ public class TargetAllocations {
     private Double target_pct;
 
     // Relationships
-<<<<<<< HEAD
     @ManyToOne(fetch = FetchType.LAZY)
-=======
-    @ManyToOne
->>>>>>> 678c97e00e138db96ef69607aca01d6dfe8e02e8
     @JoinColumn(name = "user_id")
     private User user;
 

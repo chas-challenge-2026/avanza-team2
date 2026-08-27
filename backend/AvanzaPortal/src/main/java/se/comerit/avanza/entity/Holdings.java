@@ -1,9 +1,6 @@
 package se.comerit.avanza.entity;
 
-<<<<<<< HEAD
 import jakarta.persistence.FetchType;
-=======
->>>>>>> 678c97e00e138db96ef69607aca01d6dfe8e02e8
 import jakarta.persistence.Table;
 import jakarta.persistence.Id;
 import jakarta.persistence.ManyToOne;
@@ -12,7 +9,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.JoinColumn;
 
-<<<<<<< HEAD
 /**
  * JPA Entity representing a holding for an account in the Avanza portfolio
  * system.
@@ -23,8 +19,6 @@ import jakarta.persistence.JoinColumn;
  * <p/>
  * - Many Holdings belong to one Account
  */
-=======
->>>>>>> 678c97e00e138db96ef69607aca01d6dfe8e02e8
 @Entity
 @Table(name = "holdings")
 public class Holdings {
@@ -40,11 +34,7 @@ public class Holdings {
     private String currency;
 
     // Relationships
-<<<<<<< HEAD
     @ManyToOne(fetch = FetchType.LAZY)
-=======
-    @ManyToOne
->>>>>>> 678c97e00e138db96ef69607aca01d6dfe8e02e8
     @JoinColumn(name = "account_id")
     private Account account;
 
@@ -63,7 +53,6 @@ public class Holdings {
     }
 
     // Getters and Setters
-<<<<<<< HEAD
     public Long getId() {
         return id;
     }
@@ -72,8 +61,6 @@ public class Holdings {
         this.id = id;
     }
 
-=======
->>>>>>> 678c97e00e138db96ef69607aca01d6dfe8e02e8
     public String getTicker() {
         return ticker;
     }
@@ -114,7 +101,6 @@ public class Holdings {
         this.currency = currency;
     }
 
-<<<<<<< HEAD
     public Account getAccount() {
         return account;
     }
@@ -123,13 +109,3 @@ public class Holdings {
         this.account = account;
     }
 }
-=======
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-}
->>>>>>> 678c97e00e138db96ef69607aca01d6dfe8e02e8

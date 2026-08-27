@@ -1,9 +1,6 @@
 package se.comerit.avanza.entity;
 
-<<<<<<< HEAD
 import jakarta.persistence.FetchType;
-=======
->>>>>>> 678c97e00e138db96ef69607aca01d6dfe8e02e8
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import jakarta.persistence.Id;
@@ -15,7 +12,6 @@ import jakarta.persistence.CascadeType;
 import java.util.List;
 import jakarta.persistence.JoinColumn;
 
-<<<<<<< HEAD
 /**
  * JPA Entity representing an account for a user in the Avanza portfolio system.
  * <p/>
@@ -26,8 +22,6 @@ import jakarta.persistence.JoinColumn;
  * - Many Accounts belong to one User
  * - One Account can have many Holdings
  */
-=======
->>>>>>> 678c97e00e138db96ef69607aca01d6dfe8e02e8
 @Entity
 @Table(name = "accounts")
 public class Account {
@@ -41,11 +35,7 @@ public class Account {
     private String account_number;
 
     // Relationships
-<<<<<<< HEAD
     @ManyToOne(fetch = FetchType.LAZY)
-=======
-    @ManyToOne
->>>>>>> 678c97e00e138db96ef69607aca01d6dfe8e02e8
     @JoinColumn(name = "user_id")
     private User user;
 

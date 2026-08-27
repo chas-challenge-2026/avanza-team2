@@ -9,7 +9,6 @@ import jakarta.persistence.Table;
 import jakarta.persistence.CascadeType;
 import java.util.List;
 
-<<<<<<< HEAD
 /**
  * JPA Entity representing a user account in the Avanza portfolio system.
  * Maps to the 'users' table in PostgreSQL.
@@ -25,8 +24,6 @@ import java.util.List;
  * 
  * Note: Password field will be migrated from MD5 to BCrypt.
  */
-=======
->>>>>>> 678c97e00e138db96ef69607aca01d6dfe8e02e8
 @Entity
 @Table(name = "users")
 public class User {
