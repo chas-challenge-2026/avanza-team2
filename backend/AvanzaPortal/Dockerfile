@@ -9,14 +9,14 @@ WORKDIR /native
 COPY native/ .
 RUN make -C jna_poc
 
-FROM maven:3.8-openjdk-11 AS build
+FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /app
 COPY backend/AvanzaPortal/pom.xml .
 RUN mvn dependency:resolve -q
 COPY backend/AvanzaPortal/src ./src
 RUN mvn package -DskipTests -q
 
-FROM eclipse-temurin:11-jre-jammy
+FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 COPY --from=build /app/target/avanza-portal-1.0-SNAPSHOT.jar app.jar
 COPY --from=native /native/jna_poc/libpoc.so /app/libpoc.so
