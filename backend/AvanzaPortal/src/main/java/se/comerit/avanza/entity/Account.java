@@ -32,7 +32,7 @@ public class Account {
 
     private String account_type;
     private String account_name;
-    private String account_number;
+    private String currency;
 
     // Relationships
     @ManyToOne(fetch = FetchType.LAZY)
@@ -46,11 +46,11 @@ public class Account {
     public Account() {
     }
 
-    public Account(String account_type, String account_name, String account_number, User user,
+    public Account(String account_type, String account_name, String currency, User user,
             List<Holdings> holdings) {
         this.account_type = account_type;
         this.account_name = account_name;
-        this.account_number = account_number;
+        this.currency = currency;
         this.user = user;
         this.holdings = holdings;
     }
@@ -80,12 +80,12 @@ public class Account {
         this.account_name = account_name;
     }
 
-    public String getAccount_number() {
-        return account_number;
+    public String getCurrency() {
+        return currency;
     }
 
-    public void setAccount_number(String account_number) {
-        this.account_number = account_number;
+    public void setCurrency(String currency) {
+        this.currency = currency;
     }
 
     public User getUser() {
