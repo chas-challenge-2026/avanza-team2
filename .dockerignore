@@ -1,0 +1,9 @@
+# Byggkontexten är repo roten (infra/docker-compose.yml: context ..).
+# Håll den liten, bygget behöver bara native/ och backend/AvanzaPortal/.
+.git
+**/build
+**/target
+**/*.class
+**/*.o
+**/*.so
+node_modules
