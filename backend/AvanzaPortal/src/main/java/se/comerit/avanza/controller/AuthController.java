@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
-import javax.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpSession;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.List;
@@ -17,7 +17,8 @@ import java.util.Map;
 @Controller
 public class AuthController {
 
-    // TODO: this should probably be in some kind of service class but it works fine here
+    // TODO: this should probably be in some kind of service class but it works fine
+    // here
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
@@ -32,9 +33,9 @@ public class AuthController {
 
     @PostMapping("/login")
     public String doLogin(@RequestParam String email,
-                          @RequestParam String password,
-                          HttpSession session,
-                          Model model) {
+            @RequestParam String password,
+            HttpSession session,
+            Model model) {
 
         // Hash password with MD5 (TODO: upgrade to bcrypt... someday)
         String md5 = md5Hash(password);
