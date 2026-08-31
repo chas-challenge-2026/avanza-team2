@@ -2,9 +2,9 @@ name: Native CI
 
 on:
   push:
-    branches: [ main, feature/native-init ]
+    branches: [ main, develop ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, develop ]
 
 jobs:
   build-and-test:
@@ -15,18 +15,21 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Install dependencies
-      run: sudo apt-get update && sudo apt-get install -y g++ make libgtest-dev
+      run: sudo apt-get update && sudo apt-get install -y build-essential
 
     - name: Build
       working-directory: ./native
       run: make all
 
-    - name: Run test
+    - name: Run risk test
       working-directory: ./native
-      run: make helloworld/run
+      run: make risk/run
+
+    - name: Build JNA PoC
+      working-directory: ./native
+      run: make jna_poc/install
 
     - name: Clean
       working-directory: ./native
       run: make clean
-
 
