@@ -19,7 +19,7 @@ SRC_DIR := src
 SRC := $(shell find -L $(SRC_DIR) -type f -name '*.c')
 
 # Linked libraries (directories containing 'src' and 'include')
-LIBS := common utils
+LIBS := common/utils common/modules common/config
 
 # ----- Library Source Processing -----
 LIB_SRC_DIRS := $(foreach lib,$(LIBS),$(ROOT_DIR)/$(lib)/src)
