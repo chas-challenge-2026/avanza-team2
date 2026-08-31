@@ -21,7 +21,7 @@ int main(void)
     exit(1);
 
   printf("Generating an array of %ld results\n", arr_n);
-  generate_sample_arr_double(arr, 
+  test_gen_sample_arr_double(arr, 
                       arr_n, 
                       arr_base_start, 
                       arr_base_step, 
