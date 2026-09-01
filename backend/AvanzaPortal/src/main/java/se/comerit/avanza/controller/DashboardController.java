@@ -1,18 +1,20 @@
 package se.comerit.avanza.controller;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
-
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 import jakarta.servlet.http.HttpSession;
+import se.comerit.avanza.service.DashboardService;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@Controller
+@RestController
+@RequestMapping("/api")
 public class DashboardController {
 
     // TODO: fetch from API someday
@@ -22,10 +24,13 @@ public class DashboardController {
     // NOTE: AlertController uses 0.07 — inconsistency is known, fix in v2
     private static final double DRIFT_THRESHOLD = 0.05;
 
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
+    private final DashboardService dashboardService;
 
-    @GetMapping("/")
+    public DashboardController(DashboardService dashboardService) {
+        this.dashboardService = dashboardService;
+    }
+
+    @GetMapping("/portfolio")
     public String dashboard(HttpSession session, Model model) {
 
         // Session check — copy-pasted in every controller because there's no security
