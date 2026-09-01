@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import jakarta.servlet.http.HttpSession;
 import se.comerit.avanza.service.DashboardService;
+import se.comerit.avanza.service.PortfolioService;
 
 import java.util.ArrayList;
 import java.util.HashMap;
