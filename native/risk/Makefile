@@ -27,7 +27,7 @@ LIB_SRC := $(shell find -L $(LIB_SRC_DIRS) -type f -name '*.c' 2>/dev/null)
 LIB_INCLUDES := $(foreach lib,$(LIBS),-I$(ROOT_DIR)/$(lib)/include)
 
 # Compilation flags
-CFLAGS := -std=c11 -MMD -MP -Wall -Wextra -Wfatal-errors -g -lm \
+CFLAGS := -std=c11 -MMD -MP -Wall -Wextra -Wfatal-errors -g \
 	-Iinclude $(LIB_INCLUDES)
 
 ## DETECT AVX version and add flags accordingly
@@ -84,7 +84,7 @@ all: $(BIN)
 $(BIN): $(OBJ)
 	@echo "Linking..."
 	@mkdir -p $(dir $@)
-	@$(CC) $(LDFLAGS) $(OBJ) -o $@
+	@$(CC) $(OBJ) $(LDFLAGS) -o $@
 
 asan: clean
 	@echo "Building ASan binary..."

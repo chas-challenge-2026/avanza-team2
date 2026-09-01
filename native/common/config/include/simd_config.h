@@ -142,6 +142,26 @@
   #define SIMD_F_STORE    _mm256_store_ps
   #define SIMD_F_ZERO     _mm256_setzero_pd
 
+  #define SIMD_I32_LOADU  _mm256_loadu_si256
+  #define SIMD_I32_LOAD   _mm256_load_si256
+  #define SIMD_I32_SET1   _mm256_set1_epi32
+  #define SIMD_I32_SUB    _mm256_sub_epi32
+  #define SIMD_I32_MUL    _mm256_mullo_epi32
+  #define SIMD_I32_ADD    _mm256_add_epi32
+  #define SIMD_I32_STOREU _mm256_storeu_si256
+  #define SIMD_I32_STORE  _mm256_store_si256
+  #define SIMD_I32_ZERO   _mm256_setzero_si256
+
+  #define SIMD_I64_LOADU  _mm256_loadu_si256
+  #define SIMD_I64_LOAD   _mm256_load_si256
+  #define SIMD_I64_SET1   _mm256_set1_epi64x
+  #define SIMD_I64_SUB    _mm256_sub_epi64
+  #define SIMD_I64_MUL    _mm256_mullo_epi64
+  #define SIMD_I64_ADD    _mm256_add_epi64
+  #define SIMD_I64_STOREU _mm256_storeu_si256
+  #define SIMD_I64_STORE  _mm256_store_si256
+  #define SIMD_I64_ZERO   _mm256_setzero_si256
+
   // Integer Functions (AVX2 supports full integer set)
   #if defined(__AVX2__)
     #define SIMD_LEVEL      "AVX2"
@@ -165,26 +185,6 @@
     #define SIMD_I16_STOREU _mm256_storeu_si256
     #define SIMD_I16_STORE  _mm256_store_si256
     #define SIMD_I16_ZERO   _mm256_setzero_si256
-
-    #define SIMD_I32_LOADU  _mm256_loadu_si256
-    #define SIMD_I32_LOAD   _mm256_load_si256
-    #define SIMD_I32_SET1   _mm256_set1_epi32
-    #define SIMD_I32_SUB    _mm256_sub_epi32
-    #define SIMD_I32_MUL    _mm256_mullo_epi32
-    #define SIMD_I32_ADD    _mm256_add_epi32
-    #define SIMD_I32_STOREU _mm256_storeu_si256
-    #define SIMD_I32_STORE  _mm256_store_si256
-    #define SIMD_I32_ZERO   _mm256_setzero_si256
-
-    #define SIMD_I64_LOADU  _mm256_loadu_si256
-    #define SIMD_I64_LOAD   _mm256_load_si256
-    #define SIMD_I64_SET1   _mm256_set1_epi64x
-    #define SIMD_I64_SUB    _mm256_sub_epi64
-    #define SIMD_I64_MUL    _mm256_mullo_epi64
-    #define SIMD_I64_ADD    _mm256_add_epi64
-    #define SIMD_I64_STOREU _mm256_storeu_si256
-    #define SIMD_I64_STORE  _mm256_store_si256
-    #define SIMD_I64_ZERO   _mm256_setzero_si256
 
   #else // AVX only has limited integer support
     #define SIMD_LEVEL      "AVX"
@@ -210,8 +210,6 @@
   // Lengths
   #define SIMD_D_LEN      2
   #define SIMD_F_LEN      4
-  #define SIMD_I32_LEN    4
-  #define SIMD_I64_LEN    2
 
   // Double Functions (SSE2 only)
   #if defined(__SSE2__)
@@ -241,10 +239,12 @@
   #define SIMD_F_STORE    _mm_store_ps
   #define SIMD_F_ZERO     _mm_setzero_ps
 
-  // Integer Functions (SSE2)
+  // Integer Functions (SSE2 only)
   #if defined(__SSE2__)
     #define SIMD_I8_LEN     16
     #define SIMD_I16_LEN    8
+    #define SIMD_I32_LEN    4
+    #define SIMD_I64_LEN    2
     
     #define SIMD_I8_LOADU   _mm_loadu_si128
     #define SIMD_I8_LOAD    _mm_load_si128
@@ -284,7 +284,6 @@
     #define SIMD_I64_STORE  _mm_store_si128
     #define SIMD_I64_ZERO   _mm_setzero_si128
   #endif
-
 
 // ============================================================================
 // Scalar (No SIMD)
