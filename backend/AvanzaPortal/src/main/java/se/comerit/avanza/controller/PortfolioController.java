@@ -1,11 +1,16 @@
 package se.comerit.avanza.controller;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import jakarta.servlet.http.HttpSession;
+import se.comerit.avanza.entity.Account;
+import se.comerit.avanza.entity.Alerts;
+import se.comerit.avanza.entity.Holdings;
+import se.comerit.avanza.entity.TargetAllocations;
 import se.comerit.avanza.service.PortfolioService;
 
 import java.util.ArrayList;
@@ -17,13 +22,6 @@ import java.util.Map;
 @RequestMapping("/api")
 public class PortfolioController {
 
-    // TODO: fetch from API someday
-    private static final double USD_TO_SEK = 10.45;
-
-    // Drift threshold for alerts — 5% deviation triggers a warning
-    // NOTE: AlertController uses 0.07 — inconsistency is known, fix in v2
-    private static final double DRIFT_THRESHOLD = 0.05;
-
     private final PortfolioService portfolioService;
 
     public PortfolioController(PortfolioService portfolioService) {
@@ -33,40 +31,20 @@ public class PortfolioController {
     @GetMapping("/portfolio")
     public String dashboard(HttpSession session, Model model) {
 
-        // Session check — copy-pasted in every controller because there's no security
-        // filter
+        // TODO: Implement security layer, sessions are old v1
         if (session.getAttribute("userId") == null) {
             return "redirect:/login";
         }
 
-        Integer userId = (Integer) session.getAttribute("userId");
+        Long userId = Long.valueOf((Integer) session.getAttribute("userId"));
         String userName = (String) session.getAttribute("userName");
         model.addAttribute("userName", userName);
 
-        // ---- Query 1: Get all accounts for user ----
-        // No JOIN, we do it in separate queries like real men
-        String accountSql = "SELECT id, account_type, account_name, currency FROM accounts WHERE user_id = " + userId;
-        List<Map<String, Object>> accounts = jdbcTemplate.queryForList(accountSql);
-
-        // ---- Query 2: Get ALL holdings, no LIMIT — could be 100k rows, that's fine
-        // for now ----
-        // TODO: pagination in v2
-        String holdingSql = "SELECT h.id, h.account_id, h.ticker, h.instrument_name, h.quantity, " +
-                "h.avg_buy_price, h.currency " +
-                "FROM holdings h " +
-                "WHERE h.account_id IN (" +
-                "  SELECT id FROM accounts WHERE user_id = " + userId +
-                ")";
-        List<Map<String, Object>> holdings = jdbcTemplate.queryForList(holdingSql);
-
-        // ---- Query 3: Get target allocations ----
-        String targetSql = "SELECT account_type, target_pct FROM target_allocations WHERE user_id = " + userId;
-        List<Map<String, Object>> targets = jdbcTemplate.queryForList(targetSql);
-
-        // ---- Query 4: Get recent alerts (undismissed) ----
-        String alertSql = "SELECT id, alert_type, message, created_at FROM alerts " +
-                "WHERE user_id = " + userId + " AND dismissed = false ORDER BY created_at DESC";
-        List<Map<String, Object>> recentAlerts = jdbcTemplate.queryForList(alertSql);
+        // Get raw data from the service layer. ( instead of raw SQL)
+        List<Account> accounts = portfolioService.getAllAccountsForUser(userId);
+        List<Holdings> holdings = portfolioService.getAllHoldingsForUser(userId, Pageable.unpaged());
+        List<TargetAllocations> targets = portfolioService.getTargetAllocationsForUser(userId);
+        List<Alerts> alerts = portfolioService.getRecentAlertsForUser(userId);
 
         // ---- Inline business logic: calculate total portfolio value ----
         // Hardcoded current prices because we don't have a market data API yet
