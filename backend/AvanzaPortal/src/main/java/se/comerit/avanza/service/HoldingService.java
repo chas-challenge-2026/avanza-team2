@@ -70,4 +70,9 @@ public class HoldingService {
                 "VALUES (?, ?, ?, ?, ?, ?)";
         jdbcTemplate.update(sql, accountId, ticker.toUpperCase(), instrumentName, new BigDecimal(quantity), new BigDecimal(avgBuyPrice), currency);
     }
+
+    public void deleteHolding(Integer holdingId) {
+        String sql = "DELETE FROM holdings WHERE id = ?";
+        jdbcTemplate.update(sql, holdingId);
+    }
 }

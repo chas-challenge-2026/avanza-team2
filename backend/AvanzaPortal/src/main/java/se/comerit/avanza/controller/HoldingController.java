@@ -5,7 +5,6 @@ import java.util.Map;
 
 import javax.servlet.http.HttpSession;
 
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,12 +16,10 @@ import se.comerit.avanza.service.HoldingService;
 @Controller
 public class HoldingController {
 
-    private final JdbcTemplate jdbcTemplate;
 
     private final HoldingService holdingService;
 
-    public HoldingController(JdbcTemplate jdbcTemplate, HoldingService holdingService) {
-        this.jdbcTemplate = jdbcTemplate;
+    public HoldingController(HoldingService holdingService) {
         this.holdingService = holdingService;
     }
 
@@ -81,8 +78,7 @@ public class HoldingController {
         // IDOR VULNERABILITY: No ownership check — any logged-in user can delete any holding
         // We just delete by holdingId directly without verifying it belongs to this user
         // TODO: add WHERE account_id IN (SELECT id FROM accounts WHERE user_id = ?) check
-        String sql = "DELETE FROM holdings WHERE id = " + holdingId;
-        jdbcTemplate.execute(sql);
+        holdingService.deleteHolding(holdingId);
 
         return "redirect:/holdings";
     }
