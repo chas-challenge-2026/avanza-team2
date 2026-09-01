@@ -1,5 +1,6 @@
 package se.comerit.avanza.service;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -169,6 +170,15 @@ public class PortfolioService {
         return enriched;
     }
 
+    /**
+     * Calculate the total portfolio value and update account type totals.
+     * 
+     * @param holdings          List of holdings to calculate totals for.
+     * @param prices            Current prices for the holdings.
+     * @param accountTypeMap    Mapping from account ID to account type.
+     * @param accountTypeTotals Map to accumulate totals per account type.
+     * @return The total portfolio value across all holdings.
+     */
     public double calculatePortfolioTotals(List<Holdings> holdings,
             Map<String, Double> prices,
             Map<Long, String> accountTypeMap,
@@ -191,4 +201,78 @@ public class PortfolioService {
 
         return totalPortfolioValue;
     }
+
+    /**
+     * Detects if the allocation for each account type has drifted beyond the
+     * defined threshold.
+     * 
+     * @param accountTypeTotals   Current totals for each account type.
+     * @param targets             Target allocations for each account type.
+     * @param totalPortfolioValue Total value of the portfolio.
+     * @return A list of maps containing allocation and drift information for each
+     *         account type.
+     */
+    private static final double DRIFT_THRESHOLD = 0.05; // 5% drift threshold
+
+    public List<Map<String, Object>> detectDrift(Map<String, Double> accountTypeTotals,
+            List<TargetAllocations> targets,
+            double totalPortfolioValue) {
+
+        List<Map<String, Object>> allocationRows = new ArrayList<>();
+
+        // Build target map
+        Map<String, Double> targetMap = targets.stream()
+                .collect(Collectors.toMap(
+                        TargetAllocations::getAccount_type,
+                        t -> (double) t.getTarget_pct()));
+
+        // For each account type, calculate drift
+        boolean anyDrift = false;
+        for (String accType : new String[] { "ISK", "KF", "Depa", "Pension" }) {
+            double actual = totalPortfolioValue > 0
+                    ? (accountTypeTotals.getOrDefault(accType, 0.0) / totalPortfolioValue) * 100
+                    : 0.0;
+            double target = targetMap.getOrDefault(accType, 0.0);
+            double drift = Math.abs(actual - target) / 100.0;
+
+            Map<String, Object> row = new HashMap<>();
+            row.put("accountType", accType);
+            row.put("actual", Math.round(actual * 100.0) / 100.0);
+            row.put("target", target);
+            row.put("drift", Math.round(drift * 10000.0) / 100.0);
+            row.put("overThreshold", drift > DRIFT_THRESHOLD);
+            if (drift > DRIFT_THRESHOLD)
+                anyDrift = true;
+            allocationRows.add(row);
+        }
+
+        return allocationRows;
+    }
+
+    /**
+     * Generates a summary of each account with its total value in SEK.
+     * 
+     * @param accounts            List of account maps containing account details.
+     * @param accountTypeTotals   Current totals for each account type.
+     * @param totalPortfolioValue Total value of the portfolio.
+     * @return A list of maps containing account details along with their total
+     *         value in SEK.
+     */
+    public List<Map<String, Object>> getAccountSummary(List<Map<String, Object>> accounts,
+            Map<String, Double> accountTypeTotals,
+            double totalPortfolioValue) {
+
+        List<Map<String, Object>> summaryRows = new ArrayList<>();
+
+        for (Map<String, Object> acc : accounts) {
+            String accType = (String) acc.get("account_type");
+            double total = accountTypeTotals.getOrDefault(accType, 0.0);
+            Map<String, Object> summary = new HashMap<>(acc);
+            summary.put("totalValueSek", Math.round(total * 100.0) / 100.0);
+            summaryRows.add(summary);
+        }
+
+        return summaryRows;
+    }
+
 }
