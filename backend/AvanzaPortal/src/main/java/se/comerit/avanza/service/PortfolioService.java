@@ -1,6 +1,10 @@
 package se.comerit.avanza.service;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import se.comerit.avanza.entity.Alerts;
 import org.springframework.stereotype.Service;
 import se.comerit.avanza.repository.AlertsRepository;
@@ -73,5 +77,29 @@ public class PortfolioService {
     public List<Alerts> getRecentAlertsForUser(Long userId) {
         return alertRepository.findByUser_Id(userId);
     }
+
+    // Hardcoded prices (later: fetch from API)
+    public Map<String, Double> getCurrentPrices() {
+        Map<String, Double> prices = new HashMap<>();
+        prices.put("ERIC-B", 74.20);
+        prices.put("VOLV-B", 268.50);
+        prices.put("AAPL", 187.32);
+        prices.put("SWED-A", 193.10);
+        prices.put("SAND", 212.80);
+        prices.put("DEFAULT", 100.0);
+        return prices;
+    }
+
+    public Map<String, Double> initializeAccountTypeTotals() {
+        Map<String, Double> totals = new HashMap<>();
+        totals.put("ISK", 0.0);
+        totals.put("KF", 0.0);
+        totals.put("Depa", 0.0);
+        totals.put("Pension", 0.0);
+        return totals;
+    }
+
+    // USD to SEK conversion
+    public static final double USD_TO_SEK = 10.45;
 
 }
