@@ -108,4 +108,9 @@ public class Holdings {
     public void setAccount(Account account) {
         this.account = account;
     }
+
+    public double getAvgBuy() {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getAvgBuy'");
+    }
 }
