@@ -1,9 +1,14 @@
 # === Includes ===
--Inative
--Inative/utils/include
--Inative/libs/include
--Inative/api/include
--Inative/fetchers/include
+-Iutils/include
+-Ilibs/include
+-Iapi/include
+-Irisk/include
+-Ibacktest/include
+-Ifx/include
+-Icommon/utils/include
+-Icommon/config/include
+-Icommon/modules/include
+-Icommon/tests/include
 
 # === Standards ===
 -std=c99
