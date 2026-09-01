@@ -9,4 +9,5 @@ import se.comerit.avanza.entity.Account;
  * Provides CRUD operations and query methods for Account entities.
  */
 public interface AccountRepository extends JpaRepository<Account, Long> {
+    java.util.List<Account> findAllByUser_Id(Long userId);
 }

@@ -15,7 +15,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
-public class DashboardController {
+public class PortfolioController {
 
     // TODO: fetch from API someday
     private static final double USD_TO_SEK = 10.45;
@@ -24,10 +24,10 @@ public class DashboardController {
     // NOTE: AlertController uses 0.07 — inconsistency is known, fix in v2
     private static final double DRIFT_THRESHOLD = 0.05;
 
-    private final DashboardService dashboardService;
+    private final PortfolioService portfolioService;
 
-    public DashboardController(DashboardService dashboardService) {
-        this.dashboardService = dashboardService;
+    public PortfolioController(PortfolioService portfolioService) {
+        this.portfolioService = portfolioService;
     }
 
     @GetMapping("/portfolio")
