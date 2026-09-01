@@ -38,6 +38,7 @@
   #define SIMD_D_SET1     _mm512_set1_pd
   #define SIMD_D_SUB      _mm512_sub_pd
   #define SIMD_D_MUL      _mm512_mul_pd
+  #define SIMD_D_DIV      _mm512_div_pd
   #define SIMD_D_ADD      _mm512_add_pd
   #define SIMD_D_STOREU   _mm512_storeu_pd
   #define SIMD_D_STORE    _mm512_store_pd
@@ -49,6 +50,7 @@
   #define SIMD_F_SET1     _mm512_set1_ps
   #define SIMD_F_SUB      _mm512_sub_ps
   #define SIMD_F_MUL      _mm512_mul_ps
+  #define SIMD_F_DIV      _mm512_div_ps
   #define SIMD_F_ADD      _mm512_add_ps
   #define SIMD_F_STOREU   _mm512_storeu_ps
   #define SIMD_F_STORE    _mm512_store_ps
@@ -126,6 +128,7 @@
   #define SIMD_D_SET1     _mm256_set1_pd
   #define SIMD_D_SUB      _mm256_sub_pd
   #define SIMD_D_MUL      _mm256_mul_pd
+  #define SIMD_D_DIV      _mm256_div_pd
   #define SIMD_D_ADD      _mm256_add_pd
   #define SIMD_D_STOREU   _mm256_storeu_pd
   #define SIMD_D_STORE    _mm256_store_pd
@@ -137,6 +140,7 @@
   #define SIMD_F_SET1     _mm256_set1_ps
   #define SIMD_F_SUB      _mm256_sub_ps
   #define SIMD_F_MUL      _mm256_mul_ps
+  #define SIMD_F_DIV      _mm256_div_ps
   #define SIMD_F_ADD      _mm256_add_ps
   #define SIMD_F_STOREU   _mm256_storeu_ps
   #define SIMD_F_STORE    _mm256_store_ps
@@ -220,6 +224,7 @@
     #define SIMD_D_SET1     _mm_set1_pd
     #define SIMD_D_SUB      _mm_sub_pd
     #define SIMD_D_MUL      _mm_mul_pd
+    #define SIMD_D_DIV      _mm_div_pd
     #define SIMD_D_ADD      _mm_add_pd
     #define SIMD_D_STOREU   _mm_storeu_pd
     #define SIMD_D_STORE    _mm_store_pd
@@ -234,6 +239,7 @@
   #define SIMD_F_SET1     _mm_set1_ps
   #define SIMD_F_SUB      _mm_sub_ps
   #define SIMD_F_MUL      _mm_mul_ps
+  #define SIMD_F_DIV      _mm_div_ps
   #define SIMD_F_ADD      _mm_add_ps
   #define SIMD_F_STOREU   _mm_storeu_ps
   #define SIMD_F_STORE    _mm_store_ps

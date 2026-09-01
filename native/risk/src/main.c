@@ -104,7 +104,7 @@ void risk_test_ma(void)
 
   free(arr_d);
 
-  /*** Double test ***/
+  /*** Float test ***/
   float* arr_f = calloc(1, (arr_n * sizeof(float)));
   if (!arr_f)
     exit(1);

@@ -32,6 +32,9 @@ CFLAGS := -std=c11 -MMD -MP -Wall -Wextra -Wfatal-errors -g \
 
 ## DETECT AVX version and add flags accordingly
 # Default to auto-detect if not specified
+# Can override this by setting AVX_LEVEL, one of:
+# - avx512 (includes bw and vl)
+# - avx2 (256)
 AVX_LEVEL ?= auto
 
 ifeq ($(AVX_LEVEL),auto)
@@ -48,6 +51,10 @@ else ifeq ($(AVX_LEVEL),avx2)
     CFLAGS += -mavx2
 else ifeq ($(AVX_LEVEL),avx)
     CFLAGS += -mavx
+else ifeq ($(AVX_LEVEL),sse2)
+    CFLAGS += -msse2
+else ifeq ($(AVX_LEVEL),sse)
+    CFLAGS += -msse
 else ifeq ($(AVX_LEVEL),none)
     # No SIMD flags
 endif
@@ -119,6 +126,7 @@ clean:
 	@rm -rf $(BUILD_DIR)
 	@echo "Clean complete."
 
+# WARNING: valgrind has poor AVX-512 support, use AVX_LEVEL=avx2 or less
 valgrind: $(BIN)
 	@echo "Debugging $< using valgrind..."
 	@valgrind -s --leak-check=full --show-leak-kinds=all --track-origins=yes ./$(BIN)
