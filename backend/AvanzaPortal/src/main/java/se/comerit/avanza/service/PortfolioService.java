@@ -90,6 +90,13 @@ public class PortfolioService {
         return prices;
     }
 
+    // USD to SEK conversion
+    public static final double USD_TO_SEK = 10.45;
+
+    /**
+     * @return a map with account types as keys and their initial totals set to 0.0
+     *         as starting values.
+     */
     public Map<String, Double> initializeAccountTypeTotals() {
         Map<String, Double> totals = new HashMap<>();
         totals.put("ISK", 0.0);
@@ -99,7 +106,15 @@ public class PortfolioService {
         return totals;
     }
 
-    // USD to SEK conversion
-    public static final double USD_TO_SEK = 10.45;
+    /**
+     * Build a lookup map: Account ID > Account Type
+     * Instead of manually looping, use Stream API
+     * 
+     * @return a map where the keys are account IDs and the values are the corresponding account types.
+     */
+    public Map<Long, String> buildAccountTypeMap(List<Account> accounts) {
+        return accounts.stream()
+                .collect(Collectors.toMap(Account::getId, Account::getAccount_type));
+    }
 
 }
