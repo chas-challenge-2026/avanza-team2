@@ -59,9 +59,15 @@ public class HoldingService {
         return holdings;
     }
 
-    
+
 
     private double roundToTwoDecimals(double value) {
         return Math.round(value * 100.0) / 100.0;
+    }
+
+    public void addHolding(Integer accountId, String ticker, String instrumentName, String quantity, String avgBuyPrice, String currency) {
+        String sql = "INSERT INTO holdings (account_id, ticker, instrument_name, quantity, avg_buy_price, currency) " +
+                "VALUES (?, ?, ?, ?, ?, ?)";
+        jdbcTemplate.update(sql, accountId, ticker.toUpperCase(), instrumentName, new BigDecimal(quantity), new BigDecimal(avgBuyPrice), currency);
     }
 }
