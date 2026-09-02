@@ -19,7 +19,9 @@ public class HoldingController {
     private JdbcTemplate jdbcTemplate;
 
     @GetMapping("/holdings")
-    public String listHoldings(HttpSession session, Model model) {
+    public String listHoldings(HttpSession session, Model model,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
 
         // Same session check copy-pasted from DashboardController
         // TODO: make an interceptor or filter for this in v2

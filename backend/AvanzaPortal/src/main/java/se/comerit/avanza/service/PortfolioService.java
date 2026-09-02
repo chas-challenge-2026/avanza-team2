@@ -49,13 +49,14 @@ public class PortfolioService {
     }
 
     /**
-     * Query 2: Get ALL holdings, no LIMIT — could be 100k rows, that's fine
+     * Query 2: Get ALL holdings
+     * // TODO: pagination in v2
      * 
      * @param pageable the pagination information for retrieving holdings.
      * @return a list of all holdings across all accounts.
      */
     public List<Holdings> getAllHoldingsForUser(Long userId, Pageable pageable) {
-        return holdingsRepository.findAllByUserId(userId, pageable);
+        return holdingsRepository.findAllByUserId(userId, pageable).getContent();
     }
 
     /**
