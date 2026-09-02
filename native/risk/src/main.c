@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define SAMPLE_ARR_SIZE 252*1024*1024
+#define SAMPLE_ARR_SIZE 252*1024
 
 void risk_test_ma(void)
 {

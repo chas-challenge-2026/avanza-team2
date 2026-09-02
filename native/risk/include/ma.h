@@ -1,8 +1,6 @@
 #ifndef __MA_H__
 #define __MA_H__
 
-#include "simd_config.h"
-
 #include <stdlib.h>
 #include <stdint.h>
 
@@ -98,8 +96,5 @@ int32_t* risk_calc_wma_int32_t(const int32_t* _data, size_t _n, size_t _window);
  *    _window: size of the MA window */
 int32_t* risk_calc_ema_int32_t(const int32_t* _data, size_t _n, size_t _window);
 
-#if HAS_SIMD
-double* risk_calc_ema_double_simd(const double* _data, size_t _n, size_t _window);
-#endif // HAS_SIMD
 
 #endif // __MA_H__ 

@@ -38,25 +38,33 @@ CFLAGS := -std=c11 -MMD -MP -Wall -Wextra -Wfatal-errors -g \
 AVX_LEVEL ?= auto
 
 ifeq ($(AVX_LEVEL),auto)
-    ifeq ($(shell echo 'int main() { return 0; }' | $(CC) -mavx512f -x c - -o /dev/null 2>/dev/null && echo yes), yes)
-        CFLAGS += -mavx512f -mavx512bw -mavx512vl
-    else ifeq ($(shell echo 'int main() { return 0; }' | $(CC) -mavx2 -x c - -o /dev/null 2>/dev/null && echo yes), yes)
-        CFLAGS += -mavx2
-    else ifeq ($(shell echo 'int main() { return 0; }' | $(CC) -mavx -x c - -o /dev/null 2>/dev/null && echo yes), yes)
-        CFLAGS += -mavx
-    endif
+	ifeq ($(shell echo 'int main() { return 0; }' | $(CC) -mavx512bw -x c - -o /dev/null 2>/dev/null && echo yes), yes)
+		CFLAGS += -mavx512f -mavx512vl  -mavx512bw
+	else ifeq ($(shell echo 'int main() { return 0; }' | $(CC) -mavx512vl -x c - -o /dev/null 2>/dev/null && echo yes), yes)
+		CFLAGS += -mavx512f -mavx512vl
+	else ifeq ($(shell echo 'int main() { return 0; }' | $(CC) -mavx512f -x c - -o /dev/null 2>/dev/null && echo yes), yes)
+		CFLAGS += -mavx512f
+	else ifeq ($(shell echo 'int main() { return 0; }' | $(CC) -mavx2 -x c - -o /dev/null 2>/dev/null && echo yes), yes)
+		CFLAGS += -mavx2
+	else ifeq ($(shell echo 'int main() { return 0; }' | $(CC) -mavx -x c - -o /dev/null 2>/dev/null && echo yes), yes)
+		CFLAGS += -mavx
+	endif
+else ifeq ($(AVX_LEVEL),avx512bw)
+	CFLAGS += -mavx512f -mavx512vl -mavx512bw 
+else ifeq ($(AVX_LEVEL),avx512vl)
+	CFLAGS += -mavx512f -mavx512vl
 else ifeq ($(AVX_LEVEL),avx512)
-    CFLAGS += -mavx512f -mavx512bw -mavx512vl
+	CFLAGS += -mavx512f
 else ifeq ($(AVX_LEVEL),avx2)
-    CFLAGS += -mavx2
+	CFLAGS += -mavx2
 else ifeq ($(AVX_LEVEL),avx)
-    CFLAGS += -mavx
+	CFLAGS += -mavx
 else ifeq ($(AVX_LEVEL),sse2)
-    CFLAGS += -msse2
+	CFLAGS += -msse2
 else ifeq ($(AVX_LEVEL),sse)
-    CFLAGS += -msse
+	CFLAGS += -msse
 else ifeq ($(AVX_LEVEL),none)
-    # No SIMD flags
+	# No SIMD flags
 endif
 
 ASAN_FLAGS := -O1 -g3 -fno-omit-frame-pointer -fsanitize=address,undefined
