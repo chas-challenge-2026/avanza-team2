@@ -10,5 +10,5 @@ import java.util.List;
  * Provides CRUD operations and query methods for Alerts entities.
  */
 public interface AlertsRepository extends JpaRepository<Alerts, Long> {
-    List<Alerts> findByUser_Id(Long userId);
+    List<Alerts> findByUser_IdAndDismissedFalseOrderByCreatedAtDesc(Long userId);
 }

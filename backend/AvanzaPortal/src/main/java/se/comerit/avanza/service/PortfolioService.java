@@ -76,7 +76,7 @@ public class PortfolioService {
      * @return a list of recent alerts associated with the specified user.
      */
     public List<Alerts> getRecentAlertsForUser(Long userId) {
-        return alertRepository.findByUser_Id(userId);
+        return alertRepository.findByUser_IdAndDismissedFalseOrderByCreatedAtDesc(userId);
     }
 
     // Hardcoded prices (later: fetch from API)
