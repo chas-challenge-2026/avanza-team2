@@ -1,7 +1,10 @@
 package se.comerit.avanza.repository;
 
+import java.util.List;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import se.comerit.avanza.entity.Account;
+
 
 /**
  * AccountRepository is a Spring Data JPA repository interface.
@@ -9,4 +12,5 @@ import se.comerit.avanza.entity.Account;
  * Provides CRUD operations and query methods for Account entities.
  */
 public interface AccountRepository extends JpaRepository<Account, Long> {
+    List<Account> findByUserId(Long userId);
 }
