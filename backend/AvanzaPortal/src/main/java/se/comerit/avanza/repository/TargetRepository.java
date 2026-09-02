@@ -9,4 +9,5 @@ import se.comerit.avanza.entity.TargetAllocations;
  * Provides CRUD operations and query methods for TargetAllocations entities.
  */
 public interface TargetRepository extends JpaRepository<TargetAllocations, Long> {
+    
 }
