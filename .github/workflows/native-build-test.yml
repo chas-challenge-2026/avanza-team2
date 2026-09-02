@@ -19,11 +19,11 @@ jobs:
 
     - name: Build
       working-directory: ./native
-      run: make all
+      run: make all AVX_LEVEL=avx2
 
     - name: Run risk test
       working-directory: ./native
-      run: make risk/run
+      run: make risk/run AVX_LEVEL=avx2
 
     - name: Build JNA PoC
       working-directory: ./native
