@@ -1,11 +1,13 @@
 package se.comerit.avanza.controller;
 
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.ResponseEntity;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import jakarta.servlet.http.HttpSession;
+import se.comerit.avanza.dto.portfolioDto.PortfolioResponseDTO;
 import se.comerit.avanza.entity.Account;
 import se.comerit.avanza.entity.Alerts;
 import se.comerit.avanza.entity.Holdings;
@@ -37,18 +39,16 @@ public class PortfolioController {
      *
      * @param session the HTTP session containing user information
      * @param model   the model to pass attributes to the view
-     * @return the name of the view to render
+     * @return the ResponseEntity containing the portfolio response DTO
      */
     @GetMapping("/portfolio")
-    public String dashboard(HttpSession session, Model model) {
+    public ResponseEntity<PortfolioResponseDTO> dashboard(HttpSession session, Model model) {
 
         // TODO:
         // - Exchange sessions with spring security
-        // - Method returntype > ResponseEntity for RESTful API responses
-        // returntype will hold - PortfolioDTO for structured portfolio data
         // - Method parameters > AuthenticationPrincipal for user authentication
         if (session.getAttribute("userId") == null) {
-            return "redirect:/login";
+            return ResponseEntity.status(401).build();
         }
 
         Long userId = Long.valueOf((Integer) session.getAttribute("userId"));
@@ -59,7 +59,7 @@ public class PortfolioController {
         List<Account> accounts = portfolioService.getAllAccountsForUser(userId);
         List<Holdings> holdings = portfolioService.getAllHoldingsForUser(userId, Pageable.unpaged());
         List<TargetAllocations> targets = portfolioService.getTargetAllocationsForUser(userId);
-        List<Alerts> alerts = portfolioService.getRecentAlertsForUser(userId);
+        List<Alerts> recentAlerts = portfolioService.getRecentAlertsForUser(userId);
 
         // Business logic:
         Map<String, Double> prices = portfolioService.getCurrentPrices();
@@ -88,15 +88,19 @@ public class PortfolioController {
         accountSummary = portfolioService.getAccountSummary(
                 accountSummary, accountTypeTotals, totalPortfolioValue);
 
-        // TODO: use DTO
-        model.addAttribute("accounts", accountSummary);
-        model.addAttribute("holdings", enrichedHoldings);
-        model.addAttribute("allocationRows", allocationRows);
-        model.addAttribute("totalPortfolioValue", Math.round(totalPortfolioValue * 100.0) / 100.0);
-        model.addAttribute("recentAlerts", alerts);
-        model.addAttribute("anyDrift", allocationRows.stream().anyMatch(row -> (boolean) row.get("overThreshold")));
-        model.addAttribute("usdToSek", PortfolioService.USD_TO_SEK);
+        /**
+         * creates an instance of PortfolioResponseDTO with all the necessary portfolio
+         * data.
+         */
+        PortfolioResponseDTO response = new PortfolioResponseDTO(
+                accountSummary,
+                enrichedHoldings,
+                allocationRows,
+                Math.round(totalPortfolioValue * 100.0) / 100.0,
+                recentAlerts,
+                allocationRows.stream().anyMatch(row -> (boolean) row.get("overThreshold")),
+                PortfolioService.USD_TO_SEK);
 
-        return "dashboard";
+        return ResponseEntity.ok(response);
     }
 }
