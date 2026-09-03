@@ -39,7 +39,7 @@ public class AlertService {
     }
 
     public List<Alerts> getStoredAlerts(Long userId) {
-        return alertsRepository.findByUserIdOrderByCreated_atDesc(userId);
+        return alertsRepository.findByUserIdOrderByCreatedAtDesc(userId);
     }
 
     public void dismissAlert(Long alertId) {

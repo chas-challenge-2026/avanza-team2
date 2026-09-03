@@ -2,6 +2,7 @@ package se.comerit.avanza.entity;
 
 import java.sql.Timestamp;
 import jakarta.persistence.FetchType;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -30,7 +31,8 @@ public class Alerts {
     private String alert_type;
     private String message;
     private Boolean dismissed;
-    private Timestamp created_at;
+    @Column(name = "created_at")
+    private Timestamp createdAt;
 
     // Relationships
     @ManyToOne(fetch = FetchType.LAZY)
@@ -41,11 +43,11 @@ public class Alerts {
     public Alerts() {
     }
 
-    public Alerts(String alert_type, String message, Boolean dismissed, Timestamp created_at, User user) {
+    public Alerts(String alert_type, String message, Boolean dismissed, Timestamp createdAt, User user) {
         this.alert_type = alert_type;
         this.message = message;
         this.dismissed = dismissed;
-        this.created_at = created_at;
+        this.createdAt = createdAt;
         this.user = user;
     }
 
@@ -82,12 +84,12 @@ public class Alerts {
         this.dismissed = dismissed;
     }
 
-    public Timestamp getCreated_at() {
-        return created_at;
+    public Timestamp getCreatedAt() {
+        return createdAt;
     }
 
-    public void setCreated_at(Timestamp created_at) {
-        this.created_at = created_at;
+    public void setCreatedAt(Timestamp createdAt) {
+        this.createdAt = createdAt;
     }
 
     public User getUser() {
