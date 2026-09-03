@@ -3,16 +3,22 @@ package se.comerit.avanza.controller;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.servlet.http.HttpSession;
+import se.comerit.avanza.dto.CreateHoldingRequestDTO;
+import se.comerit.avanza.dto.HoldingResponseDTO;
 import se.comerit.avanza.service.HoldingService;
 
-@Controller
+@RestController
+@RequestMapping("/api")
 public class HoldingController {
 
 
@@ -24,55 +30,44 @@ public class HoldingController {
 
 
     @GetMapping("/holdings")
-    public String listHoldings(HttpSession session, Model model) {
+    public ResponseEntity<HoldingResponseDTO> listHoldings(HttpSession session) {
 
         // Same session check copy-pasted from DashboardController
         // TODO: make an interceptor or filter for this in v2
         if (session.getAttribute("userId") == null) {
-            return "redirect:/login";
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
         Integer userId = (Integer) session.getAttribute("userId");
-        model.addAttribute("userName", session.getAttribute("userName"));
+        String userName = (String) session.getAttribute("userName");
 
         List<Map<String, Object>> holdings = holdingService.getEnrichedHoldingsForUser(userId);
         List<Map<String, Object>> accounts = holdingService.getAccountsForUser(userId);
 
-        model.addAttribute("holdings", holdings);
-        model.addAttribute("accounts", accounts);
-        return "holdings";
+        HoldingResponseDTO responseDTO = new HoldingResponseDTO(userName, holdings, accounts);
+
+        return ResponseEntity.ok(responseDTO);
     }
 
     @PostMapping("/holdings/add")
-    public String addHolding(@RequestParam Integer accountId,
-            @RequestParam String ticker,
-            @RequestParam String instrumentName,
-            @RequestParam String quantity,
-            @RequestParam String avgBuyPrice,
-            @RequestParam(defaultValue = "SEK") String currency,
-            HttpSession session,
-            Model model) {
-
-        // Session check — again, manually, every time
+    public ResponseEntity<Void> addHolding(@RequestBody CreateHoldingRequestDTO requestDTO, HttpSession session) {
         if (session.getAttribute("userId") == null) {
-            return "redirect:/login";
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        // No input validation whatsoever — negative quantities? Strings as numbers?
-        // Sure, why not.
-        // The database will throw an error if it's really wrong. Good enough.
-        holdingService.addHolding(accountId, ticker, instrumentName, quantity, avgBuyPrice, currency);
+        holdingService.addHolding(requestDTO.accountId(), requestDTO.ticker(), requestDTO.instrumentName(),
+                requestDTO.quantity(), requestDTO.avgBuyPrice(), requestDTO.currency());
 
-        return "redirect:/holdings";
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
     @PostMapping("/holdings/delete")
-    public String deleteHolding(@RequestParam Integer holdingId,
+    public ResponseEntity<Void> deleteHolding(@RequestParam Integer holdingId,
             HttpSession session) {
 
         // Session check
         if (session.getAttribute("userId") == null) {
-            return "redirect:/login";
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
         // IDOR VULNERABILITY: No ownership check — any logged-in user can delete any holding
@@ -80,6 +75,6 @@ public class HoldingController {
         // TODO: add WHERE account_id IN (SELECT id FROM accounts WHERE user_id = ?) check
         holdingService.deleteHolding(holdingId);
 
-        return "redirect:/holdings";
+        return ResponseEntity.noContent().build();
     }
 }
