@@ -1,0 +1,35 @@
+name: Native CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: sudo apt-get update && sudo apt-get install -y build-essential
+
+    - name: Build
+      working-directory: ./native
+      run: make all AVX_LEVEL=avx2
+
+    - name: Run risk test
+      working-directory: ./native
+      run: make risk/run AVX_LEVEL=avx2
+
+    - name: Build JNA PoC
+      working-directory: ./native
+      run: make jna_poc/install
+
+    - name: Clean
+      working-directory: ./native
+      run: make clean
+

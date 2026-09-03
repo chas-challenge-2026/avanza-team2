@@ -1,0 +1,20 @@
+BasedOnStyle: LLVM
+
+IndentWidth: 2
+ContinuationIndentWidth: 2
+TabWidth: 2
+UseTab: ForIndentation
+
+# --- Header Fix ---
+SortIncludes: Never
+
+# --- Whitespace & Struct Fixes ---
+MaxEmptyLinesToKeep: 2
+# Keeps alignments
+AlignConsecutiveAssignments: true
+AlignConsecutiveDeclarations: true
+
+PointerAlignment: Left
+DerivePointerAlignment: false
+ColumnLimit: 100
+

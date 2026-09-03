@@ -1,0 +1,153 @@
+### General repo stuff ###
+
+# No environment files (can still add templates)
+.env
+
+# No binary folders
+*/bin/
+
+# No build folders
+*/build/
+
+# No temporary folders
+*/tmp/
+*/cache/
+
+# No backup files
+*.bak
+*.bk
+*.bkup
+*.old
+
+### C/C++ Stuff ###
+
+# Prerequisites
+*.d
+
+# Object files
+*.o
+*.ko
+*.obj
+*.elf
+
+# Linker output
+*.ilk
+*.map
+*.exp
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Libraries
+*.lib
+*.a
+*.la
+*.lo
+
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Kernel Module Compile Results
+*.mod*
+*.cmd
+.tmp_versions/
+modules.order
+Module.symvers
+Mkfile.old
+dkms.conf
+
+# debug information files
+*.dwo
+
+# no vgcore
+vgcore*
+
+# Fuzzing binaries & outputs
+/fuzz_http
+/fuzz_http_asan
+/findings/
+/default/
+findings/
+findings_old/
+findings_copy/
+findings_old_old/
+fuzz_http
+fuzz_http_asan
+/*.cur_input
+/*.state
+/*.synced
+
+### Java Stuff ###
+
+# Compiled class files
+*.class
+
+# Log files
+*.log
+
+# BlueJ files
+*.ctxt
+
+# Mobile Tools for Java (J2ME)
+.mtj.tmp/
+
+# Package Files
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Virtual machine crash logs
+hs_err_pid*
+
+# IDE specific
+.idea/
+*.iml
+.settings/
+.classpath
+.project
+build/
+target/
+
+# Gradle
+.gradle/
+gradle-app.setting
+!gradle-wrapper.jar
+!**/src/main/**/gradle-wrapper.jar
+!**/src/test/**/gradle-wrapper.jar
+
+# Maven
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+### LLM stuff ###
+
+AGENTS.md

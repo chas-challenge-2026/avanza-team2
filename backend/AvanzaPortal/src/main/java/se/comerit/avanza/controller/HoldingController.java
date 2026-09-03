@@ -1,120 +1,80 @@
 package se.comerit.avanza.controller;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-
-import javax.servlet.http.HttpSession;
 import java.util.List;
 import java.util.Map;
 
-@Controller
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import jakarta.servlet.http.HttpSession;
+import se.comerit.avanza.dto.CreateHoldingRequestDTO;
+import se.comerit.avanza.dto.HoldingResponseDTO;
+import se.comerit.avanza.service.HoldingService;
+
+@RestController
+@RequestMapping("/api")
 public class HoldingController {
 
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
+
+    private final HoldingService holdingService;
+
+    public HoldingController(HoldingService holdingService) {
+        this.holdingService = holdingService;
+    }
+
 
     @GetMapping("/holdings")
-    public String listHoldings(HttpSession session, Model model) {
+    public ResponseEntity<HoldingResponseDTO> listHoldings(HttpSession session) {
 
         // Same session check copy-pasted from DashboardController
         // TODO: make an interceptor or filter for this in v2
         if (session.getAttribute("userId") == null) {
-            return "redirect:/login";
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
         Integer userId = (Integer) session.getAttribute("userId");
-        model.addAttribute("userName", session.getAttribute("userName"));
+        String userName = (String) session.getAttribute("userName");
 
-        // Fetch all holdings — no pagination, no LIMIT
-        // This will load all rows into memory. Fine for small datasets. Definitely fine.
-        String sql = "SELECT h.id, h.ticker, h.instrument_name, h.quantity, h.avg_buy_price, " +
-                "h.currency, a.account_type, a.account_name " +
-                "FROM holdings h " +
-                "JOIN accounts a ON h.account_id = a.id " +
-                "WHERE a.user_id = " + userId + " " +
-                "ORDER BY a.account_type, h.ticker";
-        List<Map<String, Object>> holdings = jdbcTemplate.queryForList(sql);
+        List<Map<String, Object>> holdings = holdingService.getEnrichedHoldingsForUser(userId);
+        List<Map<String, Object>> accounts = holdingService.getAccountsForUser(userId);
 
-        // Fetch accounts for the "add holding" dropdown
-        String accountSql = "SELECT id, account_type, account_name FROM accounts WHERE user_id = " + userId;
-        List<Map<String, Object>> accounts = jdbcTemplate.queryForList(accountSql);
+        HoldingResponseDTO responseDTO = new HoldingResponseDTO(userName, holdings, accounts);
 
-        // Hardcoded current prices again (same as DashboardController, duplicated intentionally)
-        // Two sources of truth — what could go wrong
-        java.util.Map<String, Double> prices = new java.util.HashMap<>();
-        prices.put("ERIC-B", 74.20);
-        prices.put("VOLV-B", 268.50);
-        prices.put("AAPL", 187.32);
-        prices.put("SWED-A", 193.10);
-        prices.put("SAND", 212.80);
-
-        // Annotate each holding with current price
-        for (Map<String, Object> h : holdings) {
-            String ticker = (String) h.get("ticker");
-            double currentPrice = prices.getOrDefault(ticker, 0.0);
-            double qty = ((java.math.BigDecimal) h.get("quantity")).doubleValue();
-            double avgBuy = ((java.math.BigDecimal) h.get("avg_buy_price")).doubleValue();
-            double marketValue = qty * currentPrice;
-            double costBasis = qty * avgBuy;
-            double pnl = marketValue - costBasis;
-
-            // Mutate the map directly — very clean architecture
-            h.put("currentPrice", currentPrice);
-            h.put("marketValue", Math.round(marketValue * 100.0) / 100.0);
-            h.put("pnl", Math.round(pnl * 100.0) / 100.0);
-        }
-
-        model.addAttribute("holdings", holdings);
-        model.addAttribute("accounts", accounts);
-        return "holdings";
+        return ResponseEntity.ok(responseDTO);
     }
 
     @PostMapping("/holdings/add")
-    public String addHolding(@RequestParam Integer accountId,
-                             @RequestParam String ticker,
-                             @RequestParam String instrumentName,
-                             @RequestParam String quantity,
-                             @RequestParam String avgBuyPrice,
-                             @RequestParam(defaultValue = "SEK") String currency,
-                             HttpSession session,
-                             Model model) {
-
-        // Session check — again, manually, every time
+    public ResponseEntity<Void> addHolding(@RequestBody CreateHoldingRequestDTO requestDTO, HttpSession session) {
         if (session.getAttribute("userId") == null) {
-            return "redirect:/login";
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        // No input validation whatsoever — negative quantities? Strings as numbers? Sure, why not.
-        // The database will throw an error if it's really wrong. Good enough.
-        String sql = "INSERT INTO holdings (account_id, ticker, instrument_name, quantity, avg_buy_price, currency) " +
-                "VALUES (" + accountId + ", '" + ticker.toUpperCase() + "', '" + instrumentName + "', " +
-                quantity + ", " + avgBuyPrice + ", '" + currency + "')";
+        holdingService.addHolding(requestDTO.accountId(), requestDTO.ticker(), requestDTO.instrumentName(),
+                requestDTO.quantity(), requestDTO.avgBuyPrice(), requestDTO.currency());
 
-        jdbcTemplate.execute(sql);
-
-        return "redirect:/holdings";
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
     @PostMapping("/holdings/delete")
-    public String deleteHolding(@RequestParam Integer holdingId,
-                                HttpSession session) {
+    public ResponseEntity<Void> deleteHolding(@RequestParam Integer holdingId,
+            HttpSession session) {
 
         // Session check
         if (session.getAttribute("userId") == null) {
-            return "redirect:/login";
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
         // IDOR VULNERABILITY: No ownership check — any logged-in user can delete any holding
         // We just delete by holdingId directly without verifying it belongs to this user
         // TODO: add WHERE account_id IN (SELECT id FROM accounts WHERE user_id = ?) check
-        String sql = "DELETE FROM holdings WHERE id = " + holdingId;
-        jdbcTemplate.execute(sql);
+        holdingService.deleteHolding(holdingId);
 
-        return "redirect:/holdings";
+        return ResponseEntity.noContent().build();
     }
 }

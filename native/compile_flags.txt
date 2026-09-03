@@ -1,0 +1,20 @@
+# === Includes ===
+-Iutils/include
+-Ilibs/include
+-Iapi/include
+-Irisk/include
+-Ibacktest/include
+-Ifx/include
+-Icommon/utils/include
+-Icommon/config/include
+-Icommon/modules/include
+-Icommon/tests/include
+
+# === Standards ===
+-std=c99
+-std=c++17
+-Wall
+-Wextra
+-Wpedantic
+
+# -I/usr/include
