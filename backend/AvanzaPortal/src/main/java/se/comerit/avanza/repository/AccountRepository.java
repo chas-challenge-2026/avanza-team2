@@ -10,4 +10,5 @@ import se.comerit.avanza.entity.Account;
  */
 
 public interface AccountRepository extends JpaRepository<Account, Long> {
+    java.util.List<Account> findAllByUser_Id(Long userId);
 }
