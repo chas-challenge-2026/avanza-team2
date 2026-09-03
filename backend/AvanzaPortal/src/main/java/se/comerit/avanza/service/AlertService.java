@@ -1,15 +1,14 @@
 package se.comerit.avanza.service;
 
-import org.springframework.stereotype.Service;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Page;
+import org.springframework.stereotype.Service;
 import se.comerit.avanza.entity.Account;
 import se.comerit.avanza.entity.Alerts;
 import se.comerit.avanza.entity.Holdings;
 import se.comerit.avanza.entity.TargetAllocations;
 import se.comerit.avanza.repository.AccountRepository;
 import se.comerit.avanza.repository.AlertsRepository;
-import se.comerit.avanza.repository.HoldingsRepository;
 import se.comerit.avanza.repository.TargetRepository;
 
 import java.util.ArrayList;
@@ -17,9 +16,21 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Service class for managing alerts related to account holdings and target
+ * allocations.
+ * It provides methods to fetch stored alerts, dismiss alerts, and generate live
+ * drift alerts.
+ * The drift threshold and currency conversion rate are defined as constants.
+ * 
+ * AlertService
+ */
 @Service
 public class AlertService {
 
+    // NOTE: This is 0.07 but DashboardController uses 0.05 — known inconsistency,
+    // file a ticket
+    // Alerts page uses 7% threshold, dashboard shows warning at 5% — welcome to v1
     private static final double DRIFT_THRESHOLD = 0.07;
     private static final double USD_TO_SEK = 10.45;
 
@@ -30,7 +41,6 @@ public class AlertService {
     public AlertService(
             AlertsRepository alertsRepository,
             AccountRepository accountRepository,
-            HoldingsRepository holdingsRepository,
             TargetRepository targetRepository) {
 
         this.alertsRepository = alertsRepository;
@@ -38,10 +48,22 @@ public class AlertService {
         this.targetRepository = targetRepository;
     }
 
+    /**
+     * Fetch stored alerts from database (v1 query 1)
+     * 
+     * @param userId   the ID of the user whose alerts are to be fetched
+     * @param pageable the pagination information
+     * @return a page of alerts for the specified user
+     */
     public Page<Alerts> getStoredAlerts(Long userId, Pageable pageable) {
         return alertsRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
     }
 
+    /**
+     * Dismiss an alert by setting its dismissed flag to true.
+     * 
+     * @param alertId the ID of the alert to be dismissed
+     */
     public void dismissAlert(Long alertId) {
         Alerts alert = alertsRepository.findById(alertId)
                 .orElseThrow(() -> new IllegalArgumentException("Alert not found"));
@@ -51,32 +73,45 @@ public class AlertService {
         alertsRepository.save(alert);
     }
 
+    /**
+     * Get the drift threshold as a percentage.
+     * 
+     * @return the drift threshold as an integer percentage
+     */
     public int getDriftThreshold() {
         return (int) (DRIFT_THRESHOLD * 100);
     }
 
+    /**
+     * Generate live drift alerts for the specified user. This method calculates the
+     * current
+     * value of holdings, compares them against target allocations, and identifies
+     * any
+     * significant drifts based on the defined threshold.
+     * 
+     * @param userId the ID of the user for whom to generate drift alerts
+     * @return a list of maps containing drift alert information for the user
+     */
     public List<Map<String, Object>> generateLiveDriftAlerts(Long userId) {
 
+        /**
+         * Fetch accounts and compute totals (v1 query 2)
+         */
         List<Account> accounts = accountRepository.findByUserId(userId);
 
+        /**
+         * Fetch target allocations for the user (v1 query 3)
+         */
         List<TargetAllocations> targets = targetRepository.findByUserId(userId);
 
-        Map<String, Double> prices = new HashMap<>();
-
-        prices.put("ERIC-B", 74.20);
-        prices.put("VOLV-B", 268.50);
-        prices.put("AAPL", 187.32);
-        prices.put("SWED-A", 193.10);
-        prices.put("SAND", 212.80);
-
         Map<String, Double> typeTotals = new HashMap<>();
-
         double grandTotal = 0.0;
 
         for (Account account : accounts) {
-
             String accountType = account.getAccount_type();
-
+            /**
+             * Fetch all holdings (v1 query 4)
+             */
             List<Holdings> holdings = account.getHoldings();
 
             if (holdings == null) {
@@ -84,7 +119,6 @@ public class AlertService {
             }
 
             for (Holdings holding : holdings) {
-
                 String ticker = holding.getTicker();
                 String currency = holding.getCurrency();
 
@@ -92,14 +126,13 @@ public class AlertService {
                         ? holding.getQuantity()
                         : 0.0;
 
-                double price = prices.getOrDefault(ticker, 100.0);
-
+                double currentPrices = getCurrentPrices().getOrDefault(ticker, 100.0);
                 double valueSek;
 
                 if ("USD".equals(currency)) {
-                    valueSek = quantity * price * USD_TO_SEK;
+                    valueSek = quantity * currentPrices * USD_TO_SEK;
                 } else {
-                    valueSek = quantity * price;
+                    valueSek = quantity * currentPrices;
                 }
 
                 typeTotals.put(
@@ -113,7 +146,6 @@ public class AlertService {
         Map<String, Double> targetMap = new HashMap<>();
 
         for (TargetAllocations target : targets) {
-
             targetMap.put(
                     target.getAccount_type(),
                     target.getTarget_pct());
@@ -122,21 +154,17 @@ public class AlertService {
         List<Map<String, Object>> liveAlerts = new ArrayList<>();
 
         for (String accountType : new String[] { "ISK", "KF", "Depa" }) {
-
             double actual = grandTotal > 0
                     ? (typeTotals.getOrDefault(accountType, 0.0) / grandTotal) * 100.0
                     : 0.0;
 
             double target = targetMap.getOrDefault(accountType, 0.0);
-
             double drift = Math.abs(actual - target) / 100.0;
 
             if (drift > DRIFT_THRESHOLD) {
-
                 Map<String, Object> liveAlert = new HashMap<>();
 
                 liveAlert.put("alert_type", "LIVE_DRIFT");
-
                 liveAlert.put(
                         "message",
                         String.format(
@@ -149,11 +177,22 @@ public class AlertService {
 
                 liveAlert.put("dismissed", false);
                 liveAlert.put("created_at", "Nu");
-
                 liveAlerts.add(liveAlert);
             }
         }
 
         return liveAlerts;
+    }
+
+    // Hardcoded prices (later: fetch from API)
+    public Map<String, Double> getCurrentPrices() {
+        Map<String, Double> currentPrices = new HashMap<>();
+        currentPrices.put("ERIC-B", 74.20);
+        currentPrices.put("VOLV-B", 268.50);
+        currentPrices.put("AAPL", 187.32);
+        currentPrices.put("SWED-A", 193.10);
+        currentPrices.put("SAND", 212.80);
+        currentPrices.put("DEFAULT", 100.0);
+        return currentPrices;
     }
 }
