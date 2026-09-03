@@ -3,6 +3,8 @@ package se.comerit.avanza.service;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
+
+import se.comerit.avanza.dto.alerts.LiveDriftAlertDTO;
 import se.comerit.avanza.entity.Account;
 import se.comerit.avanza.entity.Alerts;
 import se.comerit.avanza.entity.Holdings;
@@ -92,7 +94,7 @@ public class AlertService {
      * @param userId the ID of the user for whom to generate drift alerts
      * @return a list of maps containing drift alert information for the user
      */
-    public List<Map<String, Object>> generateLiveDriftAlerts(Long userId) {
+    public List<LiveDriftAlertDTO> generateLiveDriftAlerts(Long userId) {
 
         /**
          * Fetch accounts and compute totals (v1 query 2)
@@ -151,7 +153,7 @@ public class AlertService {
                     target.getTarget_pct());
         }
 
-        List<Map<String, Object>> liveAlerts = new ArrayList<>();
+        List<LiveDriftAlertDTO> liveAlerts = new ArrayList<>();
 
         for (String accountType : new String[] { "ISK", "KF", "Depa" }) {
             double actual = grandTotal > 0
@@ -162,21 +164,17 @@ public class AlertService {
             double drift = Math.abs(actual - target) / 100.0;
 
             if (drift > DRIFT_THRESHOLD) {
-                Map<String, Object> liveAlert = new HashMap<>();
-
-                liveAlert.put("alert_type", "LIVE_DRIFT");
-                liveAlert.put(
-                        "message",
+                LiveDriftAlertDTO liveAlert = new LiveDriftAlertDTO(
+                        "LIVE_DRIFT",
                         String.format(
                                 "%s-allokering: faktisk %.1f%% vs mål %.1f%% " +
                                         "(avvikelse %.1f%%) — ombalansering rekommenderas",
                                 accountType,
                                 actual,
                                 target,
-                                drift * 100));
-
-                liveAlert.put("dismissed", false);
-                liveAlert.put("created_at", "Nu");
+                                drift * 100),
+                        false,
+                        "Nu");
                 liveAlerts.add(liveAlert);
             }
         }
