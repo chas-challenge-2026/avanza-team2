@@ -1,6 +1,8 @@
 package se.comerit.avanza.service;
 
 import org.springframework.stereotype.Service;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import se.comerit.avanza.entity.Account;
 import se.comerit.avanza.entity.Alerts;
 import se.comerit.avanza.entity.Holdings;
@@ -23,7 +25,6 @@ public class AlertService {
 
     private final AlertsRepository alertsRepository;
     private final AccountRepository accountRepository;
-    private final HoldingsRepository holdingsRepository;
     private final TargetRepository targetRepository;
 
     public AlertService(
@@ -34,12 +35,11 @@ public class AlertService {
 
         this.alertsRepository = alertsRepository;
         this.accountRepository = accountRepository;
-        this.holdingsRepository = holdingsRepository;
         this.targetRepository = targetRepository;
     }
 
-    public List<Alerts> getStoredAlerts(Long userId) {
-        return alertsRepository.findByUserIdOrderByCreatedAtDesc(userId);
+    public Page<Alerts> getStoredAlerts(Long userId, Pageable pageable) {
+        return alertsRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
     }
 
     public void dismissAlert(Long alertId) {
@@ -59,8 +59,7 @@ public class AlertService {
 
         List<Account> accounts = accountRepository.findByUserId(userId);
 
-        List<TargetAllocations> targets =
-                targetRepository.findByUserId(userId);
+        List<TargetAllocations> targets = targetRepository.findByUserId(userId);
 
         Map<String, Double> prices = new HashMap<>();
 
@@ -105,8 +104,7 @@ public class AlertService {
 
                 typeTotals.put(
                         accountType,
-                        typeTotals.getOrDefault(accountType, 0.0) + valueSek
-                );
+                        typeTotals.getOrDefault(accountType, 0.0) + valueSek);
 
                 grandTotal += valueSek;
             }
@@ -118,23 +116,20 @@ public class AlertService {
 
             targetMap.put(
                     target.getAccount_type(),
-                    target.getTarget_pct()
-            );
+                    target.getTarget_pct());
         }
 
         List<Map<String, Object>> liveAlerts = new ArrayList<>();
 
-        for (String accountType : new String[]{"ISK", "KF", "Depa"}) {
+        for (String accountType : new String[] { "ISK", "KF", "Depa" }) {
 
             double actual = grandTotal > 0
                     ? (typeTotals.getOrDefault(accountType, 0.0) / grandTotal) * 100.0
                     : 0.0;
 
-            double target =
-                    targetMap.getOrDefault(accountType, 0.0);
+            double target = targetMap.getOrDefault(accountType, 0.0);
 
-            double drift =
-                    Math.abs(actual - target) / 100.0;
+            double drift = Math.abs(actual - target) / 100.0;
 
             if (drift > DRIFT_THRESHOLD) {
 
@@ -150,9 +145,7 @@ public class AlertService {
                                 accountType,
                                 actual,
                                 target,
-                                drift * 100
-                        )
-                );
+                                drift * 100));
 
                 liveAlert.put("dismissed", false);
                 liveAlert.put("created_at", "Nu");

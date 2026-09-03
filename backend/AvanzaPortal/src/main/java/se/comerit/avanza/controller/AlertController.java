@@ -1,6 +1,7 @@
 package se.comerit.avanza.controller;
 
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.data.domain.Pageable;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -49,7 +50,7 @@ public class AlertController {
 
         model.addAttribute(
                 "storedAlerts",
-                alertService.getStoredAlerts(userId));
+                alertService.getStoredAlerts(userId, Pageable.unpaged()));
 
         model.addAttribute(
                 "liveAlerts",
