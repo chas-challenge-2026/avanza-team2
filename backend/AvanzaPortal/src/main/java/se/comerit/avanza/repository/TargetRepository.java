@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import se.comerit.avanza.entity.TargetAllocations;
+import java.util.List;
 
 /**
  * TargetRepository is a Spring Data JPA repository interface.
@@ -13,4 +14,6 @@ import se.comerit.avanza.entity.TargetAllocations;
 public interface TargetRepository extends JpaRepository<TargetAllocations, Long> {
 
     List<TargetAllocations> findByUserId(Long userId);
+
+    List<TargetAllocations> findByUser_Id(Long userId);
 }

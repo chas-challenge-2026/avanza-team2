@@ -11,6 +11,8 @@ import se.comerit.avanza.entity.Account;
  * It is used for accessing Account entity from the database.
  * Provides CRUD operations and query methods for Account entities.
  */
+
 public interface AccountRepository extends JpaRepository<Account, Long> {
     List<Account> findByUserId(Long userId);
+    java.util.List<Account> findAllByUser_Id(Long userId);
 }

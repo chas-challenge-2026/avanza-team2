@@ -13,4 +13,5 @@ public interface AlertsRepository extends JpaRepository<Alerts, Long> {
 
     List<Alerts> findByUserIdOrderByCreated_atDesc(Long userId);
 
+    List<Alerts> findByUser_IdAndDismissedFalseOrderByCreatedAtDesc(Long userId);
 }
