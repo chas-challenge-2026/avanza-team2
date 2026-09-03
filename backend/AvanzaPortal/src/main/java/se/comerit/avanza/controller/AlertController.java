@@ -20,19 +20,13 @@ import se.comerit.avanza.dto.alerts.AlertsResponseDTO;
 import se.comerit.avanza.dto.alerts.LiveDriftAlertDTO;
 import se.comerit.avanza.entity.Alerts;
 import se.comerit.avanza.service.AlertService;
-
-/**
- * import javax.servlet.http.HttpSession; 
- * This is the import for the older version of HttpSession, 
- * but we are currently using jakarta.servlet.http.HttpSession instead.
- */
 import jakarta.servlet.http.HttpSession;
 
 /**
- * GET /api/alerts?dismissed=false
- * PUT /api/alerts/{id}/dismiss
- * 
- * AlertController
+ * Controller for managing alerts related to account holdings and target
+ * allocations.
+ * Provides endpoints to list and dismiss alerts for the currently logged-in
+ * user.
  */
 @RestController
 @RequestMapping("/api")
@@ -45,11 +39,13 @@ public class AlertController {
     }
 
     /**
-     * List all alerts for the currently logged-in user.
+     * Get a paginated list of alerts for the currently logged-in user.
      * 
      * @param session the current HTTP session containing user information
-     * @param model   the model to which alert attributes will be added
-     * @return the name of the view to render (alerts page)
+     * @param page    the page number for pagination
+     * @param size    the number of alerts per page
+     * @return a response entity containing the paginated list of alerts and live
+     *         drift alerts
      */
     @GetMapping("/alerts")
     public ResponseEntity<Map<String, Object>> listAlerts(
@@ -85,6 +81,13 @@ public class AlertController {
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * Dismiss an alert for the currently logged-in user.
+     * 
+     * @param id      the ID of the alert to be dismissed
+     * @param session the current HTTP session containing user information
+     * @return a response entity indicating the result of the dismissal operation
+     */
     @PutMapping("/alerts/{id}/dismiss")
     public ResponseEntity<Map<String, Object>> dismissAlert(
             @PathVariable Long id,
