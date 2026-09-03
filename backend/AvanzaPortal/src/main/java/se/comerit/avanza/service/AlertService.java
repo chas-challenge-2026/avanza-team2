@@ -85,10 +85,10 @@ public class AlertService {
     }
 
     /**
-     * Generate live drift alerts for the specified user. This method calculates the
-     * current
-     * value of holdings, compares them against target allocations, and identifies
-     * any
+     * Generate live drift alerts for the specified user.
+     * This method calculates the current
+     * value of holdings, compares them against target allocations,
+     * and identifies any
      * significant drifts based on the defined threshold.
      * 
      * @param userId the ID of the user for whom to generate drift alerts
@@ -109,6 +109,8 @@ public class AlertService {
         Map<String, Double> typeTotals = new HashMap<>();
         double grandTotal = 0.0;
 
+        // Iterate through each account to calculate the total value per account type
+        // and the grand total
         for (Account account : accounts) {
             String accountType = account.getAccount_type();
             /**
@@ -116,10 +118,15 @@ public class AlertService {
              */
             List<Holdings> holdings = account.getHoldings();
 
+            // Skip this account if it has no holdings
             if (holdings == null) {
                 continue;
             }
 
+            /**
+             * Calculate the value of each holding in SEK and update the totals per account
+             * type and the grand total.
+             */
             for (Holdings holding : holdings) {
                 String ticker = holding.getTicker();
                 String currency = holding.getCurrency();
@@ -147,6 +154,7 @@ public class AlertService {
 
         Map<String, Double> targetMap = new HashMap<>();
 
+        // Convert target allocations list to a map for easy lookup
         for (TargetAllocations target : targets) {
             targetMap.put(
                     target.getAccount_type(),
@@ -155,6 +163,7 @@ public class AlertService {
 
         List<LiveDriftAlertDTO> liveAlerts = new ArrayList<>();
 
+        // Generate live drift alerts based on actual vs target allocations
         for (String accountType : new String[] { "ISK", "KF", "Depa" }) {
             double actual = grandTotal > 0
                     ? (typeTotals.getOrDefault(accountType, 0.0) / grandTotal) * 100.0
