@@ -26,6 +26,12 @@ It is calculated by:
 4. Square Root: Take the square root of divided sum to get volatility.
 */
 
+/** Calculates the sharpe ratio on a set of returns
+ * Takes arg _rfrate for risk-free rate (ex. from t-bill/bonds/overnight cash benchmark)
+ * and _trading_days the amount of days the rate specifies (just set to 1 if daily rate) 
+ * (either can be set to zero for rateless calculation) */
+double risk_calc_sharpe_ratio_double(const double* _data, size_t _n, double _rfrate, size_t _trading_days);
+
 /** Calculates the volatility from an array of doubles */
 double risk_calc_volatility_double(const double* _data, int _n);
 

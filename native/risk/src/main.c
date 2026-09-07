@@ -6,10 +6,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define SAMPLE_ARR_SIZE 252*1024
+#define SAMPLE_ARR_SIZE 252
 
 void risk_test_ma(void)
 {
+  printf("### MOVING AVERAGES TESTS ###\n");
   size_t ma_window = 20;
 
   /* Sample array inputs */
@@ -192,7 +193,7 @@ void risk_test_ma(void)
 
 void risk_test_volatility(void)
 {
-  /* Sample array inputs */
+  printf("### VOLATILITY TESTS ###\n");
   const size_t arr_n = SAMPLE_ARR_SIZE; // Array size
   uint64_t time_start;
   uint64_t time_end;
@@ -200,8 +201,8 @@ void risk_test_volatility(void)
   double time_s;
 
   /*** Double test ***/
-  double arr_base_start_d = 100.0;     // Initial base value
-  double arr_base_step_d = 0.01;       // Increase base by this amount each iteration
+  double arr_base_start_d = 1.0;     // Initial base value
+  double arr_base_step_d = 0.0;       // Increase base by this amount each iteration
   double arr_noise_magnitude_d = 10.0; // Randomize +/- this amount
   double volatility_d;
 
@@ -281,10 +282,59 @@ void risk_test_volatility(void)
   free(arr_f);
 }
 
+void risk_test_sharpe(void)
+{
+  printf("### SHARPE TESTS ###\n");
+
+  const size_t arr_n = SAMPLE_ARR_SIZE; // Array size
+  uint64_t time_start;
+  uint64_t time_end;
+  uint64_t time_ns;
+  double time_s;
+
+  // Sample rates
+  size_t rf_rate = 0.05; // 5%
+  size_t trading_days = 256; // Annual returns
+
+  /*** Double test ***/
+  double arr_base_start_d = 1.0;     // Initial base value
+  double arr_base_step_d = 0.0;       // Increase base by this amount each iteration
+  double arr_noise_magnitude_d = 10.0; // Randomize +/- this amount
+  double sharpe_d;
+
+  double* arr_d = calloc(1, (arr_n * sizeof(double)));
+  if (!arr_d)
+    exit(1);
+
+  printf("Generating an array of %ld doubles\n", arr_n);
+  test_gen_sample_arr_double(arr_d, 
+                      arr_n, 
+                      arr_base_start_d, 
+                      arr_base_step_d, 
+                      arr_noise_magnitude_d);
+  printf("First result: %lf\n", arr_d[0]);
+  printf("Last result (index %ld): %lf\n",arr_n-1, arr_d[arr_n-1]);
+  // for (size_t i = 0; i < arr_n; i++)
+  //   printf("%lf,", arr[i]);
+
+  /* Run and time calculations on array */
+  time_start = system_monotonic_ns(); 
+  sharpe_d = risk_calc_sharpe_ratio_double(arr_d, arr_n, rf_rate, trading_days);
+  time_end = system_monotonic_ns(); 
+  time_ns = time_end - time_start;
+  time_s = (double)time_ns / 1e9;
+
+  printf("risk_calc_sharpe_ratio_double %lf seconds\n", time_s);
+  printf("Sharpe ratio: %lf\n", sharpe_d);
+
+  free(arr_d);
+}
+
 int main(void) 
 {
   risk_test_volatility();
   risk_test_ma();
+  risk_test_sharpe();
   
   return 0;
 }

@@ -1,8 +1,41 @@
 #include "volatility.h"
 
-#include <stdio.h>
+#include <stdio.h> // remove in prod
 
 // TODO: proper logging
+
+double risk_calc_sharpe_ratio_double(const double* _data, size_t _n, double _rfrate, size_t _trading_days)
+{
+  if (!_data || _n < 2) return 0.0;
+
+  // Convert rate to daily risk free rate
+  double daily_rf;
+  if (_rfrate <= 0.0 || _trading_days <= 0)
+    daily_rf = 0.0;
+  else
+    daily_rf = _rfrate / _trading_days;
+
+  // Calculate mean return
+  // TODO: SIMD Version
+  double sum = 0.0;
+  for (size_t i = 0; i < _n; i++) {
+      sum += _data[i];
+  }
+  double mean_return = sum / _n;
+
+  // Get volatility
+#if HAS_SIMD
+  double volatility = risk_calc_volatility_double_simd(_data, _n);
+#else
+  double volatility = risk_calc_volatility_dbl(_data, _n);
+#endif
+
+  if (volatility == 0.0) return 0.0;
+
+  // Sharpe ratio
+  return (mean_return - daily_rf) / volatility;
+
+}
 
 double risk_calc_volatility_double(const double* _data, int _n) 
 {
