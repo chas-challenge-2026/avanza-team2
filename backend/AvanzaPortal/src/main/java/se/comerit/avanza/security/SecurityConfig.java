@@ -8,9 +8,16 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 public class SecurityConfig {
+
+    private final JwtFilter jwtFilter;
+
+    public SecurityConfig(JwtFilter jwtFilter) {
+        this.jwtFilter = jwtFilter;
+    }
 
     /**
      * Provides a BCrypt password encoder bean with a strength of 12.
@@ -33,14 +40,12 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 // Define endpoint access rules
+                // Protected endpoints (require authentication)
                 .authorizeHttpRequests(auth -> auth
-                        // Public endpoints (no authentication required)
-                        .requestMatchers("/api/auth/**").permitAll() // Login, register
-                        // Protected endpoints (require authentication)
+                        .requestMatchers("/api/auth/**").permitAll()
                         .anyRequest().authenticated())
-
-                // Use HTTP Basic authentication (or replace with OAuth2/JWT)
-                .httpBasic(org.springframework.security.config.Customizer.withDefaults());
+                // Run JwtFilter before Spring's default auth
+                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
