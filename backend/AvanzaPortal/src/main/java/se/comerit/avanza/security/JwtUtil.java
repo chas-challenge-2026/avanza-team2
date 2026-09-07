@@ -18,26 +18,11 @@ public class JwtUtil {
     private final long expirationTime;
     private final SecretKey signingKey;
 
-    // Instance of SecurityConfig to access password encoder.
-    private SecurityConfig securityConfig;
-
-    public JwtUtil(SecurityConfig securityConfig,
+    public JwtUtil(
             @Value("${jwt.secret}") String secret,
             @Value("${jwt.expiration-ms:3600000}") long expirationTime) {
-        this.securityConfig = securityConfig;
         this.signingKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expirationTime = expirationTime;
-    }
-
-    /**
-     * Hashes a raw user password with BCrypt. Callers are responsible for
-     * persisting
-     *
-     * @param rawPassword the plaintext password to hash
-     * @return the BCrypt hash to store in place of the plaintext password
-     */
-    public String hashPassword(String rawPassword) {
-        return securityConfig.passwordEncoder().encode(rawPassword);
     }
 
     /**
