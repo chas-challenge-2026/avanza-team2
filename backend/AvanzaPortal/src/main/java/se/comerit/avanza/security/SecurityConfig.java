@@ -12,9 +12,14 @@ import org.springframework.security.web.SecurityFilterChain;
 @Configuration
 public class SecurityConfig {
 
+    /**
+     * Provides a BCrypt password encoder bean with a strength of 12.
+     *
+     * @return a BCryptPasswordEncoder instance with strength 12
+     */
     @Bean
     PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        return new BCryptPasswordEncoder(12);
     }
 
     @Bean
