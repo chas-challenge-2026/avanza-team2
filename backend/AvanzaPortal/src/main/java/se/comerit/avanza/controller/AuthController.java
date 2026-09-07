@@ -1,94 +1,101 @@
 package se.comerit.avanza.controller;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
-import jakarta.servlet.http.HttpSession;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.List;
-import java.util.Map;
+import se.comerit.avanza.entity.User;
+import se.comerit.avanza.service.AuthService;
 
+/**
+ * Controller responsible for handling authentication-related HTTP requests.
+ *
+ * The controller handles login and logout requests and manages the user session.
+ * Authentication and password verification are handled by AuthService.
+ */
 @Controller
 public class AuthController {
 
-    // TODO: this should probably be in some kind of service class but it works fine
-    // here
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
+    private final AuthService authService;
 
+    /**
+     * Creates an AuthController with the required AuthService.
+     *
+     * @param authService service responsible for authentication logic
+     */
+    public AuthController(AuthService authService) {
+        this.authService = authService;
+    }
+
+    /**
+     * Displays the login page.
+     *
+     * If the user is already logged in, they are redirected to the dashboard.
+     *
+     * @param session the current HTTP session
+     * @return the login view or a redirect to the dashboard
+     */
     @GetMapping("/login")
-    public String loginPage(HttpSession session, Model model) {
-        // If already logged in, go home
+    public String loginPage(HttpSession session) {
+
         if (session.getAttribute("userId") != null) {
             return "redirect:/";
         }
+
         return "login";
     }
 
+    /**
+     * Attempts to authenticate a user using their email and password.
+     *
+     * Authentication is delegated to AuthService.
+     * If authentication succeeds, the user's information is stored
+     * in the HTTP session.
+     *
+     * @param email the email address entered by the user
+     * @param password the password entered by the user
+     * @param session the current HTTP session
+     * @param model the model used to display login errors
+     * @return a redirect to the dashboard on success or the login page on failure
+     */
     @PostMapping("/login")
-    public String doLogin(@RequestParam String email,
+    public String doLogin(
+            @RequestParam String email,
             @RequestParam String password,
             HttpSession session,
             Model model) {
 
-        // Hash password with MD5 (TODO: upgrade to bcrypt... someday)
-        String md5 = md5Hash(password);
-        if (md5 == null) {
-            model.addAttribute("error", "Internt fel vid autentisering.");
-            return "login";
-        }
+        User user = authService.authenticate(email, password);
 
-        // Build query with string concat — quick and easy!
-        // TODO: use PreparedStatement instead of string concatenation
-        String sql = "SELECT id, name, email FROM users WHERE email = '" + email
-                + "' AND password_md5 = '" + md5 + "'";
-
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql);
-
-        if (rows.isEmpty()) {
+        if (user == null) {
             model.addAttribute("error", "Fel e-post eller lösenord.");
             return "login";
         }
 
-        Map<String, Object> user = rows.get(0);
-        Integer userId = (Integer) user.get("id");
-        String userName = (String) user.get("name");
-
-        // Store user info in session
-        session.setAttribute("userId", userId);
-        session.setAttribute("userName", userName);
-        session.setAttribute("userEmail", email);
-        // tenantId is just userId for now, multi-tenant is future work
-        session.setAttribute("tenantId", userId);
+        session.setAttribute("userId", user.getId());
+        session.setAttribute("userName", user.getName());
+        session.setAttribute("userEmail", user.getEmail());
+        session.setAttribute("tenantId", user.getId());
 
         return "redirect:/";
     }
 
+    /**
+     * Logs out the current user.
+     *
+     * The HTTP session is invalidated so that the user is no longer logged in.
+     *
+     * @param session the current HTTP session
+     * @return a redirect to the login page
+     */
     @GetMapping("/logout")
     public String logout(HttpSession session) {
-        session.invalidate();
-        return "redirect:/login";
-    }
 
-    // MD5 helper — lives here because there's nowhere else to put it
-    private String md5Hash(String input) {
-        try {
-            MessageDigest md = MessageDigest.getInstance("MD5");
-            byte[] hashBytes = md.digest(input.getBytes());
-            StringBuilder sb = new StringBuilder();
-            for (byte b : hashBytes) {
-                sb.append(String.format("%02x", b));
-            }
-            return sb.toString();
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-            return null;
-        }
+        session.invalidate();
+
+        return "redirect:/login";
     }
 }
