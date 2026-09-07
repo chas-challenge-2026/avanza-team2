@@ -4,7 +4,6 @@ import jakarta.servlet.http.HttpSession;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -32,24 +31,6 @@ public class AuthController {
      */
     public AuthController(AuthService authService) {
         this.authService = authService;
-    }
-
-    /**
-     * Displays the login page.
-     *
-     * If the user is already logged in, they are redirected to the dashboard.
-     *
-     * @param session the current HTTP session
-     * @return the login view or a redirect to the dashboard
-     */
-    @GetMapping("/auth/login")
-    public String loginPage(HttpSession session) {
-
-        if (session.getAttribute("userId") != null) {
-            return "redirect:/";
-        }
-
-        return "login";
     }
 
     /**
