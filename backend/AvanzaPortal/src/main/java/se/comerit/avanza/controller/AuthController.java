@@ -1,10 +1,12 @@
 package se.comerit.avanza.controller;
 
 import jakarta.servlet.http.HttpSession;
-import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import se.comerit.avanza.entity.User;
@@ -13,10 +15,12 @@ import se.comerit.avanza.service.AuthService;
 /**
  * Controller responsible for handling authentication-related HTTP requests.
  *
- * The controller handles login and logout requests and manages the user session.
+ * The controller handles login and logout requests and manages the user
+ * session.
  * Authentication and password verification are handled by AuthService.
  */
-@Controller
+@RestController
+@RequestMapping("/api")
 public class AuthController {
 
     private final AuthService authService;
@@ -38,7 +42,7 @@ public class AuthController {
      * @param session the current HTTP session
      * @return the login view or a redirect to the dashboard
      */
-    @GetMapping("/login")
+    @GetMapping("/auth/login")
     public String loginPage(HttpSession session) {
 
         if (session.getAttribute("userId") != null) {
@@ -55,13 +59,13 @@ public class AuthController {
      * If authentication succeeds, the user's information is stored
      * in the HTTP session.
      *
-     * @param email the email address entered by the user
+     * @param email    the email address entered by the user
      * @param password the password entered by the user
-     * @param session the current HTTP session
-     * @param model the model used to display login errors
+     * @param session  the current HTTP session
+     * @param model    the model used to display login errors
      * @return a redirect to the dashboard on success or the login page on failure
      */
-    @PostMapping("/login")
+    @PostMapping("/auth/login")
     public String doLogin(
             @RequestParam String email,
             @RequestParam String password,
@@ -91,11 +95,11 @@ public class AuthController {
      * @param session the current HTTP session
      * @return a redirect to the login page
      */
-    @GetMapping("/logout")
+    @DeleteMapping("/auth/logout")
     public String logout(HttpSession session) {
 
         session.invalidate();
 
-        return "redirect:/login";
+        return "redirect:/auth/login";
     }
 }
