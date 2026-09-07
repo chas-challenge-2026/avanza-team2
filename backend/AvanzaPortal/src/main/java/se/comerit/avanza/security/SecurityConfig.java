@@ -25,7 +25,7 @@ public class SecurityConfig {
      * @return a BCryptPasswordEncoder instance with strength 12
      */
     @Bean
-    PasswordEncoder passwordEncoder() {
+    public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder(12);
     }
 
