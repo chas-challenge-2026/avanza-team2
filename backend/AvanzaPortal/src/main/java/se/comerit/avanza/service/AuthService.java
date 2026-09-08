@@ -9,7 +9,6 @@ import se.comerit.avanza.dto.auth.LoginRequestDTO;
 import se.comerit.avanza.dto.auth.LoginResponseDTO;
 import se.comerit.avanza.entity.User;
 import se.comerit.avanza.repository.UserRepository;
-import se.comerit.avanza.security.SecurityConfig;
 import se.comerit.avanza.security.JwtUtil;
 
 import java.nio.charset.StandardCharsets;
@@ -62,6 +61,11 @@ public class AuthService {
             user.setPassword_bcrypt(passwordEncoder.encode(loginRequest.password()));
             user.setPassword_md5(null);
             userRepository.save(user);
+        } else {
+            // Standard BCrypt path
+            if (!passwordEncoder.matches(loginRequest.password(), user.getPassword_bcrypt())) {
+                throw new BadCredentialsException("Invalid credentials");
+            }
         }
 
         return new LoginResponseDTO(jwtUtil.generateToken(user.getEmail()), user.getName(), user.getEmail());
@@ -77,21 +81,15 @@ public class AuthService {
      * @param input the password to hash
      * @return the MD5 hash as a hexadecimal string
      */
-    private String md5Hash(String input) {
+    public String md5Hash(String input) {
         try {
             MessageDigest md = MessageDigest.getInstance("MD5");
-
-            byte[] hashBytes = md.digest(
-                    input.getBytes(StandardCharsets.UTF_8));
-
+            byte[] hashBytes = md.digest(input.getBytes(StandardCharsets.UTF_8));
             StringBuilder sb = new StringBuilder();
-
             for (byte b : hashBytes) {
                 sb.append(String.format("%02x", b));
             }
-
             return sb.toString();
-
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(
                     "MD5 algorithm is not available",
