@@ -19,7 +19,7 @@ import se.comerit.avanza.service.AuthService;
  * Authentication and password verification are handled by AuthService.
  */
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/auth")
 public class AuthController {
 
     private final AuthService authService;
@@ -42,7 +42,7 @@ public class AuthController {
      * @param loginRequest the login request containing email and password
      * @return a ResponseEntity containing the login response
      */
-    @PostMapping("/auth/login")
+    @PostMapping("/login")
     public ResponseEntity<LoginResponseDTO> login(@RequestBody LoginRequestDTO loginRequest) {
         LoginResponseDTO response = authService.authenticate(loginRequest);
         return ResponseEntity.ok(response);
@@ -54,7 +54,7 @@ public class AuthController {
      * 
      * @return a ResponseEntity with 204 No Content status
      */
-    @DeleteMapping("/auth/logout")
+    @DeleteMapping("/logout")
     public ResponseEntity<Void> logout() {
         return ResponseEntity.noContent().build();
     }
