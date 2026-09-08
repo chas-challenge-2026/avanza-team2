@@ -124,11 +124,4 @@ public class User {
         this.alerts = alerts;
     }
 
-    public String getPassword_bcrypt() {
-        return password_bcrypt;
-    }
-
-    public void setPassword_bcrypt(String password_bcrypt) {
-        this.password_bcrypt = password_bcrypt;
-    }
 }

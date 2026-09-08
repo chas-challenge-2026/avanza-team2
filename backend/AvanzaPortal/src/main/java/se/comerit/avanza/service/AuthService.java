@@ -42,27 +42,6 @@ public class AuthService {
     }
 
     /**
-     * Encodes the provided raw password using the configured password encoder.
-     * 
-     * @param rawPassword the plain-text password to encode
-     * @return the encoded password as a string
-     */
-    public String encodePassword(String rawPassword) {
-        return securityConfig.passwordEncoder().encode(rawPassword);
-    }
-
-    /**
-     * Verifies if the provided raw password matches the encoded password.
-     *
-     * @param rawPassword     the plain-text password to verify
-     * @param encodedPassword the encoded password to compare against
-     * @return true if the passwords match, false otherwise
-     */
-    public boolean verifyPassword(String rawPassword, String encodedPassword) {
-        return securityConfig.passwordEncoder().matches(rawPassword, encodedPassword);
-    }
-
-    /**
      * Authenticates a user using their email and password.
      *
      * @param email    the user's email address
