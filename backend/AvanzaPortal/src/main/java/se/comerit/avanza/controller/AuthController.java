@@ -1,6 +1,5 @@
 package se.comerit.avanza.controller;
 
-import jakarta.servlet.http.HttpSession;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -50,18 +49,13 @@ public class AuthController {
     }
 
     /**
-     * Logs out the current user.
-     *
-     * The HTTP session is invalidated so that the user is no longer logged in.
-     *
-     * @param session the current HTTP session
-     * @return a redirect to the login page
+     * Modernizated version of logout for stateless JWT API.
+     * Returns 204 No Content so the client can clear the JWT token from storage.
+     * 
+     * @return a ResponseEntity with 204 No Content status
      */
     @DeleteMapping("/auth/logout")
-    public String logout(HttpSession session) {
-
-        session.invalidate();
-
-        return "redirect:/auth/login";
+    public ResponseEntity<Void> logout() {
+        return ResponseEntity.noContent().build();
     }
 }
