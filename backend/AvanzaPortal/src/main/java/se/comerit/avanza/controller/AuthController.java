@@ -2,13 +2,14 @@ package se.comerit.avanza.controller;
 
 import jakarta.servlet.http.HttpSession;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.ui.Model;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 
-import se.comerit.avanza.entity.User;
+import se.comerit.avanza.dto.auth.LoginRequestDTO;
+import se.comerit.avanza.dto.auth.LoginResponseDTO;
 import se.comerit.avanza.service.AuthService;
 
 /**
@@ -37,35 +38,15 @@ public class AuthController {
      * Attempts to authenticate a user using their email and password.
      *
      * Authentication is delegated to AuthService.
-     * If authentication succeeds, the user's information is stored
-     * in the HTTP session.
+     * If authentication succeeds, a LoginResponseDTO is returned.
      *
-     * @param email    the email address entered by the user
-     * @param password the password entered by the user
-     * @param session  the current HTTP session
-     * @param model    the model used to display login errors
-     * @return a redirect to the dashboard on success or the login page on failure
+     * @param loginRequest the login request containing email and password
+     * @return a ResponseEntity containing the login response
      */
     @PostMapping("/auth/login")
-    public String doLogin(
-            @RequestParam String email,
-            @RequestParam String password,
-            HttpSession session,
-            Model model) {
-
-        User user = authService.authenticate(email, password);
-
-        if (user == null) {
-            model.addAttribute("error", "Fel e-post eller lösenord.");
-            return "login";
-        }
-
-        session.setAttribute("userId", user.getId());
-        session.setAttribute("userName", user.getName());
-        session.setAttribute("userEmail", user.getEmail());
-        session.setAttribute("tenantId", user.getId());
-
-        return "redirect:/";
+    public ResponseEntity<LoginResponseDTO> login(@RequestBody LoginRequestDTO loginRequest) {
+        LoginResponseDTO response = authService.authenticate(loginRequest);
+        return ResponseEntity.ok(response);
     }
 
     /**

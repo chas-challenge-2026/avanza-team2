@@ -1,15 +1,20 @@
 package se.comerit.avanza.service;
 
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import jakarta.transaction.Transactional;
+import se.comerit.avanza.dto.auth.LoginRequestDTO;
+import se.comerit.avanza.dto.auth.LoginResponseDTO;
 import se.comerit.avanza.entity.User;
 import se.comerit.avanza.repository.UserRepository;
 import se.comerit.avanza.security.SecurityConfig;
+import se.comerit.avanza.security.JwtUtil;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Optional;
 
 /**
  * Service responsible for authentication-related business logic.
@@ -21,17 +26,19 @@ import java.util.Optional;
 @Service
 public class AuthService {
 
-    private final SecurityConfig securityConfig;
+    private final PasswordEncoder passwordEncoder;
     private final UserRepository userRepository;
+    private final JwtUtil jwtUtil;
 
     /**
      * Creates an AuthService with the required UserRepository.
      *
      * @param userRepository repository used to access users
      */
-    public AuthService(SecurityConfig securityConfig, UserRepository userRepository) {
-        this.securityConfig = securityConfig;
+    public AuthService(PasswordEncoder passwordEncoder, UserRepository userRepository, JwtUtil jwtUtil) {
+        this.passwordEncoder = passwordEncoder;
         this.userRepository = userRepository;
+        this.jwtUtil = jwtUtil;
     }
 
     /**
@@ -62,23 +69,23 @@ public class AuthService {
      * @param password the plain-text password provided during login
      * @return the authenticated user, or null if authentication fails
      */
-    public User authenticate(String email, String password) {
+    @Transactional
+    public LoginResponseDTO authenticate(LoginRequestDTO loginRequest) {
+        User user = userRepository.findByEmail(loginRequest.email())
+                .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
 
-        Optional<User> optionalUser = userRepository.findByEmail(email);
-
-        if (optionalUser.isEmpty()) {
-            return null;
+        // Handle Legacy MD5 Password Migration
+        if (user.getPassword_md5() != null) {
+            if (!md5Hash(loginRequest.password()).equals(user.getPassword_md5())) {
+                throw new BadCredentialsException("Invalid credentials");
+            }
+            // Seamlessly upgrade to BCrypt
+            user.setPassword_bcrypt(passwordEncoder.encode(loginRequest.password()));
+            user.setPassword_md5(null);
+            userRepository.save(user);
         }
 
-        User user = optionalUser.get();
-
-        String passwordHash = md5Hash(password);
-
-        if (!passwordHash.equals(user.getPassword_md5())) {
-            return null;
-        }
-
-        return user;
+        return new LoginResponseDTO(jwtUtil.generateToken(user.getEmail()), user.getName(), user.getEmail());
     }
 
     /**

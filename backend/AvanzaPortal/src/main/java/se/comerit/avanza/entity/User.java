@@ -88,6 +88,14 @@ public class User {
         return password_md5;
     }
 
+    public String getPassword_bcrypt() {
+        return password_bcrypt;
+    }
+
+    public void setPassword_bcrypt(String password_bcrypt) {
+        this.password_bcrypt = password_bcrypt;
+    }
+
     public void setPassword_md5(String password_md5) {
         this.password_md5 = password_md5;
     }
