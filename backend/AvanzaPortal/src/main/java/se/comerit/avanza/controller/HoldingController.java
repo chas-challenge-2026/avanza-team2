@@ -13,21 +13,19 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.servlet.http.HttpSession;
-import se.comerit.avanza.dto.CreateHoldingRequestDTO;
-import se.comerit.avanza.dto.HoldingResponseDTO;
+import se.comerit.avanza.dto.holdings.CreateHoldingRequestDTO;
+import se.comerit.avanza.dto.holdings.HoldingResponseDTO;
 import se.comerit.avanza.service.HoldingService;
 
 @RestController
 @RequestMapping("/api")
 public class HoldingController {
 
-
     private final HoldingService holdingService;
 
     public HoldingController(HoldingService holdingService) {
         this.holdingService = holdingService;
     }
-
 
     @GetMapping("/holdings")
     public ResponseEntity<HoldingResponseDTO> listHoldings(HttpSession session) {
@@ -70,9 +68,12 @@ public class HoldingController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        // IDOR VULNERABILITY: No ownership check — any logged-in user can delete any holding
-        // We just delete by holdingId directly without verifying it belongs to this user
-        // TODO: add WHERE account_id IN (SELECT id FROM accounts WHERE user_id = ?) check
+        // IDOR VULNERABILITY: No ownership check — any logged-in user can delete any
+        // holding
+        // We just delete by holdingId directly without verifying it belongs to this
+        // user
+        // TODO: add WHERE account_id IN (SELECT id FROM accounts WHERE user_id = ?)
+        // check
         holdingService.deleteHolding(holdingId);
 
         return ResponseEntity.noContent().build();
