@@ -4,7 +4,8 @@
 
 // TODO: proper logging
 
-double risk_calc_sharpe_ratio_double(const double* _data, size_t _n, double _rfrate, size_t _trading_days)
+double risk_calc_sharpe_ratio_double(const double* _data, size_t _n, 
+  double _rfrate, size_t _trading_days)
 {
   if (!_data || _n < 2) return 0.0;
 
@@ -15,26 +16,77 @@ double risk_calc_sharpe_ratio_double(const double* _data, size_t _n, double _rfr
   else
     daily_rf = _rfrate / _trading_days;
 
-  // Calculate mean return
-  // TODO: SIMD Version
+  size_t i;
   double sum = 0.0;
-  for (size_t i = 0; i < _n; i++) {
+  double volatility = 0.0;
+
+#if HAS_SIMD
+  
+  // Have found that it's generally slower using simd on less than ~500 returns
+  // because of overhead from assignment and so on
+  // So falling back to scalar if that's the case
+  if (_n > 550)
+  {
+    // Calculate mean return
+    size_t vec_i = SIMD_D_LEN; // how many doubles in each vector
+                               //
+    // Create sum vector with values set to 0
+    SIMD_DOUBLE_T sum_v = SIMD_D_SET1(0);
+
+    // Calculate mean return
+    for (i = 0; i <= _n-vec_i; i += vec_i) {
+      
+      // Create vector with next returns
+      SIMD_DOUBLE_T ret_v = SIMD_D_LOADU(&_data[i]);
+
+      // sum += _data[i];
+      sum_v = SIMD_D_ADD(sum_v, ret_v);
+    }
+
+    // Sum vector values together
+    double temp_v[SIMD_D_LEN];
+    SIMD_D_STOREU(temp_v, sum_v);
+    for (size_t j = 0; j < vec_i; j++)
+      sum += temp_v[j];
+
+    // Handle remainders, continue i loop
+    for(; i < _n; i++)
+      sum += _data[i];
+    
+    // Get volatility
+    volatility = risk_calc_volatility_double_simd(_data, _n);
+    if (volatility == 0.0) return 0.0;
+  } 
+  else 
+  {
+    // Get volatility
+    volatility = risk_calc_volatility_double(_data, _n);
+    if (volatility == 0.0) return 0.0;
+
+    // Scalar instead
+    for (size_t i = 0; i < _n; i++)
       sum += _data[i];
   }
+
   double mean_return = sum / _n;
 
-  // Get volatility
-#if HAS_SIMD
-  double volatility = risk_calc_volatility_double_simd(_data, _n);
 #else
-  double volatility = risk_calc_volatility_dbl(_data, _n);
-#endif
+
+  // Get volatility
+  volatility = risk_calc_volatility_double(_data, _n);
 
   if (volatility == 0.0) return 0.0;
 
-  // Sharpe ratio
-  return (mean_return - daily_rf) / volatility;
+  // Calculate mean return
+  for (i = 0; i < _n; i++)
+    sum += _data[i];
 
+  double mean_return = sum / _n;
+
+#endif
+
+  // Sharpe ratio = (mean returns - daily risk-free rate) / volatility
+  return (mean_return - daily_rf) / volatility;
 }
 
 double risk_calc_volatility_double(const double* _data, int _n) 
