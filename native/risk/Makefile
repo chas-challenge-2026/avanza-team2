@@ -26,9 +26,12 @@ LIB_SRC_DIRS := $(foreach lib,$(LIBS),$(ROOT_DIR)/$(lib)/src)
 LIB_SRC := $(shell find -L $(LIB_SRC_DIRS) -type f -name '*.c' 2>/dev/null)
 LIB_INCLUDES := $(foreach lib,$(LIBS),-I$(ROOT_DIR)/$(lib)/include)
 
+LIB_INCLUDES += -I$(ROOT_DIR)/libs/cJSON
+LIB_SRC += $(ROOT_DIR)/libs/cJSON/cJSON.c $(ROOT_DIR)/libs/cJSON/cJSON_Utils.c
+
 # Compilation flags
 CFLAGS := -std=c11 -MMD -MP -Wall -Wextra -Wfatal-errors -g \
-	-Iinclude $(LIB_INCLUDES)
+	-Iinclude $(LIB_INCLUDES) 
 
 ## DETECT AVX version and add flags accordingly
 # Default to auto-detect if not specified
@@ -71,9 +74,9 @@ ASAN_FLAGS := -O1 -g3 -fno-omit-frame-pointer -fsanitize=address,undefined
 
 # For MacOS
 ifeq ($(UNAME_S),Darwin)
-	LDFLAGS := -flto -lm
+	LDFLAGS := -flto -lm -lcurl
 else
-	LDFLAGS := -flto -Wl,--gc-sections -lm
+	LDFLAGS := -flto -Wl,--gc-sections -lm -lcurl
 endif
 
 # Map local .c → .o
