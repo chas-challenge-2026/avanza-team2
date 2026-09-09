@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import jakarta.servlet.http.HttpSession;
-import se.comerit.avanza.dto.portfolioDto.PortfolioResponseDTO;
+import se.comerit.avanza.dto.portfolio.PortfolioResponseDTO;
 import se.comerit.avanza.entity.Account;
 import se.comerit.avanza.entity.Alerts;
 import se.comerit.avanza.entity.Holdings;
