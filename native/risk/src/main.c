@@ -2,6 +2,7 @@
 #include "time_utils.h"
 #include "test_data.h"
 #include "ma.h"
+#include "rates_handler.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -293,13 +294,13 @@ void risk_test_sharpe(void)
   double time_s;
 
   // Sample rates
-  size_t rf_rate = 0.05; // 5%
-  size_t trading_days = 256; // Annual returns
+  double rf_rate = 0.05; // 5%
+  size_t trading_days = SAMPLE_ARR_SIZE; // Annual returns
 
   /*** Double test ***/
-  double arr_base_start_d = 1.0;     // Initial base value
-  double arr_base_step_d = 0.0;       // Increase base by this amount each iteration
-  double arr_noise_magnitude_d = 10.0; // Randomize +/- this amount
+  double arr_base_start_d = 0.05;     // Initial base value
+  double arr_base_step_d = 0.01;       // Increase base by this amount each iteration
+  double arr_noise_magnitude_d = 0.1; // Randomize +/- this amount
   double sharpe_d;
 
   double* arr_d = calloc(1, (arr_n * sizeof(double)));
@@ -335,6 +336,9 @@ int main(void)
   risk_test_volatility();
   risk_test_ma();
   risk_test_sharpe();
+
+  TBillRate Tbr = rates_handler_tbill_get_latest(OneMonth);
+  printf("T-Bill date: %ld, value: %lf, type: %d\n", Tbr.date, Tbr.value, Tbr.type);
   
   return 0;
 }
