@@ -6,6 +6,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+// #include <assert.h>
 
 #define SAMPLE_ARR_SIZE 252
 
@@ -337,9 +339,82 @@ int main(void)
   risk_test_ma();
   risk_test_sharpe();
 
-  TBillRate Tbr = rates_handler_tbill_get_latest(OneMonth);
-  printf("T-Bill date: %ld, value: %lf, type: %d\n", Tbr.date, Tbr.value, Tbr.type);
-  
+  /********************** Test rates handler on all API **********************/
+  int res;
+  Rate R = {0};
+
+  res = rates_handler_get_latest(&R, Swestr);
+  if (res != 0)
+  {
+    fprintf(stderr, "rates_handler_get_latest, res=%d", res);
+    exit(1);
+  }
+  printf("Rate date: %ld, value: %lf, type: %d\n", R.date, R.value, R.type);
+  memset(&R, 0, sizeof(Rate));
+
+  rates_handler_get_latest(&R, OneMonth);
+  if (res != 0)
+  {
+    fprintf(stderr, "rates_handler_get_latest, res=%d", res);
+    exit(1);
+  }
+  printf("Rate date: %ld, value: %lf, type: %d\n", R.date, R.value, R.type);
+  memset(&R, 0, sizeof(Rate));
+
+  rates_handler_get_latest(&R, ThreeMonth);
+  if (res != 0)
+  {
+    fprintf(stderr, "rates_handler_get_latest, res=%d", res);
+    exit(1);
+  }
+  printf("Rate date: %ld, value: %lf, type: %d\n", R.date, R.value, R.type);
+  memset(&R, 0, sizeof(Rate));
+
+  rates_handler_get_latest(&R, SixMonth);
+  if (res != 0)
+  {
+    fprintf(stderr, "rates_handler_get_latest, res=%d", res);
+    exit(1);
+  }
+  printf("Rate date: %ld, value: %lf, type: %d\n", R.date, R.value, R.type);
+  memset(&R, 0, sizeof(Rate));
+
+  rates_handler_get_latest(&R, TwoYear);
+  if (res != 0)
+  {
+    fprintf(stderr, "rates_handler_get_latest, res=%d", res);
+    exit(1);
+  }
+  printf("Rate date: %ld, value: %lf, type: %d\n", R.date, R.value, R.type);
+  memset(&R, 0, sizeof(Rate));
+
+  rates_handler_get_latest(&R, FiveYear);
+  if (res != 0)
+  {
+    fprintf(stderr, "rates_handler_get_latest, res=%d", res);
+    exit(1);
+  }
+  printf("Rate date: %ld, value: %lf, type: %d\n", R.date, R.value, R.type);
+  memset(&R, 0, sizeof(Rate));
+
+  rates_handler_get_latest(&R, TenYear);
+  if (res != 0)
+  {
+    fprintf(stderr, "rates_handler_get_latest, res=%d", res);
+    exit(1);
+  }
+  printf("Rate date: %ld, value: %lf, type: %d\n", R.date, R.value, R.type);
+  memset(&R, 0, sizeof(Rate));
+
+  rates_handler_get_latest(&R, None);
+  if (res != 0)
+  {
+    fprintf(stderr, "rates_handler_get_latest, res=%d", res);
+    exit(1);
+  }
+  printf("Rate date: %ld, value: %lf, type: %d\n", R.date, R.value, R.type);
+  memset(&R, 0, sizeof(Rate));
+
   return 0;
 }
 

@@ -4,57 +4,32 @@
 #include "time_utils.h"
 #include "file_utils.h"
 
-#include "cJSON_Utils.h"
+#include "cJSON.h"
 
 #include <string.h>
 #include <stdio.h>
 
-/****** Internal defs ******/
+/************************ Internal defs ************************/
 
 #define RBAPI_SWEA_LATEST_URL    "https://api.riksbank.se/swea/v1/Observations/Latest/"
+#define RBAPI_SWESTR_LATEST_URL  "https://api.riksbank.se/swestr/v1/Latest/"
 // TODO: implement
 // #define RBAPI_SWEA_DATE_URL    "https://api.riksbank.se/swea/v1/Observations/"
-// #define RBAPI_SWESTR_LATEST_URL  "https://api.riksbank.se/swestr/v1/Latest/"
 // #define RBAPI_DATE_FROMTO "/%04c-%02c-%02c"
-#define RBAPI_URL_BUF_LEN 512 // max api url len
+#define RBAPI_URL_BUF_LEN 256 // max api url len
 
-#define RATE_CACHE_FILENAME_TEMPLATE "tbill_%s_%04d%02d%02d" // ex. rate_3M_20260101
+#define RATE_CACHE_FILENAME_TEMPLATE "%s%s_%04d%02d%02d.json" // /data/SWESTR_20260101.json
 #define RATE_CACHE_PATH_BUF_LEN 256 // max cache path len
 
 /*
-TODO: Get overnight cash benchmark rate from SWESTR endpoint
-
-
-SETB1MBENCHC 	Swedish Treasury Bill maturity 1 month (03/01/1983 - )	
-SETB3MBENCH 	Swedish Treasury Bill maturity 3 months (03/01/1983 - )	
-SETB6MBENCH 	Swedish Treasury Bill maturity 6 months (02/01/1984 - )	
-SETB12MBENCH 	Swedish Treasury Bill maturity 12 months (02/01/1984 - 21/04/2011)	
-
-Let's turn off 12month for 
+TODO: Handle request rate limiting 
+Example response from riksbank.se when exceeded:
+{ "statusCode": 429, "message": "Rate limit is exceeded. Try again in 59 seconds." }
 */
 
-/* Returns the equivalent SeriesId string per T-Bill type for riksbank API
- * Returns NULL on None or unknown type */
-const char* rates_handler_get_rbapi_swea_seriesid(TBillType _Tbt)
-{
-  switch (_Tbt) {
-    case OneMonth:
-      return "SETB1MBENCHC";
-    case ThreeMonth:
-      return "SETB3MBENCHC";
-    case SixMonth:
-      return "SETB6MBENCHC";
-    // case OneYear:
-    //   return "SETB12MBENCHC";
-    case None:
-      return NULL;
-    default:
-      return NULL;
-  }
-}
-
-/* Rate.type is returned as None by default, set it manually */
-int rates_handler_parse_rbapi_response(TBillRate* _Tbr, const char* _json)
+/* Populates Rate struct from SWEA/SWESTR API response json
+ * Uses _R->type to decide what fields to find so make sure it's set */
+int rates_handler_parse_rbapi_response(Rate* _R, const char* _json)
 {
   cJSON* Json_Root = cJSON_Parse(_json);
   if (!Json_Root) 
@@ -63,18 +38,25 @@ int rates_handler_parse_rbapi_response(TBillRate* _Tbr, const char* _json)
     return 1;
   }
 
-  // Get date and rate json objects
-  cJSON* Json_Rate = cJSON_GetObjectItemCaseSensitive(Json_Root, "value");
+  // Get rate/value json objects
+  cJSON* Json_Rate;
+  if (_R->type == Swestr)
+    Json_Rate = cJSON_GetObjectItemCaseSensitive(Json_Root, "rate");
+  else
+    Json_Rate = cJSON_GetObjectItemCaseSensitive(Json_Root, "value");
+
   if (!Json_Rate || !cJSON_IsNumber(Json_Rate))
   {
-    fprintf(stderr, "Rate from json unexpected format");
+    fprintf(stderr, "Rate from json unexpected format\n JSON: %s\n", _json);
     cJSON_Delete(Json_Root);
     return 2;
   } 
+
+  // Get date json objects
   cJSON* Json_Date = cJSON_GetObjectItemCaseSensitive(Json_Root, "date");
-  if (!Json_Rate || !cJSON_IsNumber(Json_Rate))
+  if (!Json_Date || !cJSON_IsString(Json_Date))
   {
-    fprintf(stderr, "Date from json unexpected format");
+    fprintf(stderr, "Date from json unexpected format\n JSON: %s\n", _json);
     cJSON_Delete(Json_Root);
     return 3;
   } 
@@ -84,29 +66,41 @@ int rates_handler_parse_rbapi_response(TBillRate* _Tbr, const char* _json)
   char* date = Json_Date->valuestring;
   time_t date_epoch = time_parse_iso_date_day_str_to_epoch(date);
 
-  _Tbr->date = date_epoch;
-  _Tbr->value = value;
+  _R->date = date_epoch;
+  _R->value = value;
 
   cJSON_Delete(Json_Root);
   return 0;
 }
 
-/* Heap allocates
- * TODO: Modularize a bit to handle both swea and swestr, latest and date-bound */
-char* rates_handler_tbill_fetch_from_rbapi(TBillType _Tbt)
+/* Heap allocates and returns full response json */
+char* rates_handler_fetch_from_rbapi(RateType _Type)
 {
   char* response = NULL;
-  const char* series = rates_handler_get_rbapi_swea_seriesid(_Tbt);
+  const char* series = rates_handler_get_rbapi_seriesid(_Type);
 
   // Build url to riksbanken API
   char full_url[RBAPI_URL_BUF_LEN];
-  size_t base_url_len = strlen(RBAPI_SWEA_LATEST_URL);
-  size_t rate_type_len = strlen(series);
-  if ((base_url_len + rate_type_len + 1) > RBAPI_URL_BUF_LEN) {
-    fprintf(stderr, "URL TOO BIG %s%s", RBAPI_SWEA_LATEST_URL, series);
+  size_t full_url_len;
+
+  if (_Type == Swestr) // SWESTR endpoint
+  {
+    full_url_len = snprintf(full_url, RBAPI_URL_BUF_LEN, 
+    "%s%s", RBAPI_SWESTR_LATEST_URL, series);
+  }
+  else // SWEA endpoint
+  {
+    full_url_len = snprintf(full_url, RBAPI_URL_BUF_LEN, 
+    "%s%s", RBAPI_SWEA_LATEST_URL, series);
+  }
+
+  if (full_url_len >= RBAPI_URL_BUF_LEN)
+  {
+    fprintf(stderr, "URL TOO BIG");
     return response;
   }
-  snprintf(full_url, RBAPI_URL_BUF_LEN, "%s%s", RBAPI_SWEA_LATEST_URL, series);
+
+  // printf("RBAPI url: %s\n", full_url); // NOTE: dbg
 
   // Prepare and make call to API using curl helper
   Curl_Data Cd;
@@ -127,11 +121,13 @@ char* rates_handler_tbill_fetch_from_rbapi(TBillType _Tbt)
     if (!response) 
     {
       perror("malloc");
+      curl_dispose(&Cd);
       return response;
     }
     memcpy(response, Cd.addr, Cd.size);
     response[Cd.size] = '\0';
-    printf("riksbanken response: %s\n", response);
+
+    printf("riksbanken response: %s\n", response); // NOTE: dbg
   }
 
   curl_dispose(&Cd);
@@ -139,47 +135,44 @@ char* rates_handler_tbill_fetch_from_rbapi(TBillType _Tbt)
   return response;
 }
 
-/***************************/
+/************************ Interface defs ************************/
 
-// TODO: Maybe make it easier to error check, returntype int instead or something
-TBillRate rates_handler_tbill_get_latest(TBillType _Tbt)
+int rates_handler_get_latest(Rate* _R, RateType _Type)
 {
-  char filepath[RATE_CACHE_PATH_BUF_LEN], filename[RATE_CACHE_PATH_BUF_LEN];
-
-  TBillRate Tbr = {
-    .date = -1,
-    .type = _Tbt,
-    .value = 0.0,
-  };
-
-  size_t cache_dir_len = strlen(DATA_CACHE_RATE_DIR);
-  const char* series = rates_handler_get_rbapi_swea_seriesid(_Tbt);
+  _R->type = _Type;
+  const char* series = rates_handler_get_rbapi_seriesid(_Type);
+  if (series == NULL)
+  {
+    fprintf(stderr, "Invalid seriesid from enum: %d\n", _Type);
+    return 1;
+  }
   
   /* Get todays date values */
   time_t now = time(NULL);
+  // NOTE: gmtime is not thread safe
+  // Should look into gmtime_r or similar, but it isn't standard
+  // struct tm tm_buf;
+  // struct tm* tm = gmtime_r(&now, &tm_buf);
   struct tm* tm = gmtime(&now);
   int year  = tm->tm_year + 1900;
   int month = tm->tm_mon + 1;
   int day   = tm->tm_mday;
 
-  size_t name_len = snprintf(filename, 
+  // Define cache filepath
+  char filepath[RATE_CACHE_PATH_BUF_LEN];
+  size_t filepath_len = snprintf(filepath, 
     RATE_CACHE_PATH_BUF_LEN, RATE_CACHE_FILENAME_TEMPLATE,
-    series, year, month, day);    
+    DATA_CACHE_RATE_DIR, series, year, month, day);    
 
-  printf("cache filename: %s\n", filename);
-
-  if (RATE_CACHE_PATH_BUF_LEN < cache_dir_len + name_len)
+  if (filepath_len >= RATE_CACHE_PATH_BUF_LEN)
   {
     fprintf(stderr, "cache name too long");
-    return Tbr;
+    return 2;
   }
 
-  snprintf(filepath, RATE_CACHE_PATH_BUF_LEN, "%s%s",
-    DATA_CACHE_RATE_DIR, filename);
+  // printf("cache filepath: %s\n", filepath); //NOTE: dbg
 
-  printf("cache filepath: %s\n", filepath);
-
-  // Check if cache exists and get value from there
+  // Check if cache exists
   char* rb_response_json = NULL;
   if (file_exists(filepath)) // Get json from cache
   {
@@ -188,39 +181,66 @@ TBillRate rates_handler_tbill_get_latest(TBillType _Tbt)
     if (!rb_response_json)
     {
       perror("read_file_to_string");
-      return Tbr;
+      return 3;
     }
 
     // Parse cache json
-    if (rates_handler_parse_rbapi_response(&Tbr, rb_response_json) != 0)
+    if (rates_handler_parse_rbapi_response(_R, rb_response_json) != 0)
     {
       free(rb_response_json);
       perror("rates_handler_parse_rbapi_response");
-      return Tbr;
+      return 4;
     }
     free(rb_response_json);
   } 
   else // Get json from API
   {
-    rb_response_json = rates_handler_tbill_fetch_from_rbapi(_Tbt);
+    rb_response_json = rates_handler_fetch_from_rbapi(_Type);
     if (!rb_response_json)
     {
-      perror("rates_handler_get_tbill_from_rbapi");
-      return Tbr;
+      perror("rates_handler_fetch_from_rbapi");
+      return 5;
     }
 
     // Parse cache json
-    if (rates_handler_parse_rbapi_response(&Tbr, rb_response_json) != 0)
+    if (rates_handler_parse_rbapi_response(_R, rb_response_json) != 0)
     {
       perror("rates_handler_parse_rbapi_response");
-      return Tbr;
+      free(rb_response_json);
+      return 6;
     }
 
     // Save response to cache file
     if (write_string_to_file(rb_response_json, filepath) != 0)
       perror("write_string_to_file");
+
+    free(rb_response_json);
   }
   
-  return Tbr;
+  return 0;
+}
+
+const char* rates_handler_get_rbapi_seriesid(RateType _Type)
+{
+  switch (_Type) {
+    case Swestr:
+      return "SWESTR";
+    case OneMonth:
+      return "SETB1MBENCHC";
+    case ThreeMonth:
+      return "SETB3MBENCH";
+    case SixMonth:
+      return "SETB6MBENCH";
+    case TwoYear:
+      return "SEGVB2YC";
+    case FiveYear:
+      return "SEGVB5YC";
+    case TenYear:
+      return "SEGVB10YC";
+    case None:
+      return NULL;
+    default:
+      return NULL;
+  }
 }
 
