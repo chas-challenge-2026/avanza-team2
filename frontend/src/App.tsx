@@ -6,6 +6,7 @@ import { SparklineChart } from './Components/SparklineChart/SparklineChart.tsx'
 
 const sampleTrend = [10, 12, 11, 14, 13, 16, 15, 18, 17, 20, 19, 23]
 
+
 function App() {
   const [account, setAccount] = useState<string | undefined>()
 
@@ -46,6 +47,7 @@ function App() {
         <StatCard title="Tillgängligt för köp" value="38 620,0 SEK" />
         <StatCard title="Totalt investerat" value="225 664,7 SEK" />
       </div>
+
     </div>
 
 
