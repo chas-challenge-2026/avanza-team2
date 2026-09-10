@@ -1,8 +1,7 @@
 package se.comerit.avanza.dto.portfolio;
 
-import se.comerit.avanza.entity.Alerts;
+import se.comerit.avanza.dto.alerts.AlertsResponseDTO;
 import java.util.List;
-import java.util.Map;
 
 /**
  * PortfolioResponseDTO is a record that encapsulates the comprehensive view of
@@ -12,11 +11,10 @@ import java.util.Map;
  * recent alerts, any detected drift, and the USD to SEK conversion rate.
  */
 public record PortfolioResponseDTO(
-        List<Map<String, Object>> accountSummary,
-        List<Map<String, Object>> enrichedHoldings,
-        List<Map<String, Object>> allocationRows,
-        double totalPortfolioValue,
-        List<Alerts> recentAlerts,
-        boolean anyDrift,
-        double usdToSek) {
+                List<AccountSummaryDTO> accountSummary,
+                List<EnrichedHoldingDTO> enrichedHoldings,
+                List<AllocationRowDTO> allocationRows,
+                double totalPortfolioValue,
+                List<AlertsResponseDTO> recentAlerts,
+                double usdToSek) {
 }
