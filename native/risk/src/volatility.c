@@ -4,17 +4,17 @@
 
 // TODO: proper logging
 
-double risk_calc_sharpe_ratio_double(const double* _data, size_t _n, 
-  double _rfrate, size_t _trading_days)
+double risk_calc_sharpe_ratio_double(const double* _returns, size_t _n, 
+  double _rfrate, size_t _year_freq)
 {
-  if (!_data || _n < 2) return 0.0;
+  if (!_returns || _n < 2) return 0.0;
 
   // Convert rate to daily risk free rate
   double daily_rf;
-  if (_rfrate <= 0.0 || _trading_days <= 0)
+  if (_rfrate <= 0.0 || _year_freq <= 0)
     daily_rf = 0.0;
   else
-    daily_rf = _rfrate / _trading_days;
+    daily_rf = _rfrate / _year_freq;
 
   size_t i;
   double sum = 0.0;
@@ -37,9 +37,9 @@ double risk_calc_sharpe_ratio_double(const double* _data, size_t _n,
     for (i = 0; i <= _n-vec_i; i += vec_i) {
       
       // Create vector with next returns
-      SIMD_DOUBLE_T ret_v = SIMD_D_LOADU(&_data[i]);
+      SIMD_DOUBLE_T ret_v = SIMD_D_LOADU(&_returns[i]);
 
-      // sum += _data[i];
+      // sum += _returns[i];
       sum_v = SIMD_D_ADD(sum_v, ret_v);
     }
 
@@ -51,39 +51,41 @@ double risk_calc_sharpe_ratio_double(const double* _data, size_t _n,
 
     // Handle remainders, continue i loop
     for(; i < _n; i++)
-      sum += _data[i];
+      sum += _returns[i];
     
     // Get volatility
-    volatility = risk_calc_volatility_double_simd(_data, _n);
+    volatility = risk_calc_volatility_double_simd(_returns, _n);
     if (volatility == 0.0) return 0.0;
   } 
   else 
   {
     // Get volatility
-    volatility = risk_calc_volatility_double(_data, _n);
+    volatility = risk_calc_volatility_double(_returns, _n);
     if (volatility == 0.0) return 0.0;
 
     // Scalar instead
     for (size_t i = 0; i < _n; i++)
-      sum += _data[i];
+      sum += _returns[i];
   }
 
-  double mean_return = sum / _n;
 
 #else
 
   // Get volatility
-  volatility = risk_calc_volatility_double(_data, _n);
+  volatility = risk_calc_volatility_double(_returns, _n);
 
   if (volatility == 0.0) return 0.0;
 
   // Calculate mean return
   for (i = 0; i < _n; i++)
-    sum += _data[i];
-
-  double mean_return = sum / _n;
+    sum += _returns[i];
 
 #endif
+
+  // Annualize volatility
+  volatility = volatility * sqrt((double)_year_freq);
+
+  double mean_return = sum / _n;
 
   // Sharpe ratio = (mean returns - daily risk-free rate) / volatility
   return (mean_return - daily_rf) / volatility;
