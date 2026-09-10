@@ -1,6 +1,7 @@
 ### General repo stuff ###
 
 # No environment files (can still add templates)
+.env.local
 .env
 
 # No binary folders
