@@ -9,7 +9,7 @@
 #include <string.h>
 // #include <assert.h>
 
-#define SAMPLE_ARR_SIZE 256*5 // 252
+#define SAMPLE_ARR_SIZE 252*5 // 252
 
 void risk_test_ma(void)
 {
