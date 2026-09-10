@@ -228,7 +228,6 @@ public class PortfolioService {
                         t -> (double) t.getTarget_pct()));
 
         // For each account type, calculate drift
-        boolean anyDrift = false;
         for (String accType : new String[] { "ISK", "KF", "Depa", "Pension" }) {
             double actual = totalPortfolioValue > 0
                     ? (accountTypeTotals.getOrDefault(accType, 0.0) / totalPortfolioValue) * 100
@@ -242,8 +241,6 @@ public class PortfolioService {
             row.put("target", target);
             row.put("drift", Math.round(drift * 10000.0) / 100.0);
             row.put("overThreshold", drift > DRIFT_THRESHOLD);
-            if (drift > DRIFT_THRESHOLD)
-                anyDrift = true;
             allocationRows.add(row);
         }
 

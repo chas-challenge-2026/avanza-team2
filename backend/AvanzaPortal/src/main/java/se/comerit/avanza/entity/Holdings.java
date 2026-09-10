@@ -110,7 +110,6 @@ public class Holdings {
     }
 
     public double getAvgBuy() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getAvgBuy'");
+        return avg_buy_price;
     }
 }
