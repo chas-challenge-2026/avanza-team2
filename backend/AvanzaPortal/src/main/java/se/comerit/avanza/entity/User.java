@@ -36,6 +36,7 @@ public class User {
     private String email;
     // TODO: Password hashing should be migrated to bcrypt along with the
     private String password_md5;
+    private String password_bcrypt;
 
     // Relationships
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -51,10 +52,11 @@ public class User {
     public User() {
     }
 
-    public User(String name, String email, String password_md5) {
+    public User(String name, String email, String password_md5, String password_bcrypt) {
         this.name = name;
         this.email = email;
         this.password_md5 = password_md5;
+        this.password_bcrypt = password_bcrypt;
     }
 
     // Getters and Setters
@@ -86,6 +88,14 @@ public class User {
         return password_md5;
     }
 
+    public String getPassword_bcrypt() {
+        return password_bcrypt;
+    }
+
+    public void setPassword_bcrypt(String password_bcrypt) {
+        this.password_bcrypt = password_bcrypt;
+    }
+
     public void setPassword_md5(String password_md5) {
         this.password_md5 = password_md5;
     }
@@ -113,4 +123,5 @@ public class User {
     public void setAlerts(List<Alerts> alerts) {
         this.alerts = alerts;
     }
+
 }
