@@ -148,6 +148,14 @@ buildNumber.properties
 .mvn/timing.properties
 .mvn/wrapper/maven-wrapper.jar
 
+### Node.js / Frontend Stuff ###
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+
 ### LLM stuff ###
 
 AGENTS.md
