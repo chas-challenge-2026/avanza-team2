@@ -159,8 +159,3 @@ dist/
 ### LLM stuff ###
 
 AGENTS.md
-
-### Node / frontend stuff ###
-
-node_modules/
-dist/
