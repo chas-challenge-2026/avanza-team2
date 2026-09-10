@@ -9,12 +9,12 @@ double risk_calc_sharpe_ratio_double(const double* _returns, size_t _n,
 {
   if (!_returns || _n < 2) return 0.0;
 
-  // Convert rate to daily risk free rate
-  double daily_rf;
+// Convert annual rate to per-period risk-free rate
+  double period_rf;
   if (_rfrate <= 0.0 || _year_freq <= 0)
-    daily_rf = 0.0;
+    period_rf = 0.0;
   else
-    daily_rf = _rfrate / _year_freq;
+    period_rf = _rfrate / _year_freq;
 
   size_t i;
   double sum = 0.0;
@@ -22,7 +22,7 @@ double risk_calc_sharpe_ratio_double(const double* _returns, size_t _n,
 
 #if HAS_SIMD
   
-  // Have found that it's generally slower using simd on less than ~500 returns
+  // Have found that it's generally slower using simd on less than ~550 returns
   // because of overhead from assignment and so on
   // So falling back to scalar if that's the case
   if (_n > 550)
@@ -64,10 +64,9 @@ double risk_calc_sharpe_ratio_double(const double* _returns, size_t _n,
     if (volatility == 0.0) return 0.0;
 
     // Scalar instead
-    for (size_t i = 0; i < _n; i++)
+    for (i = 0; i < _n; i++)
       sum += _returns[i];
   }
-
 
 #else
 
@@ -82,13 +81,19 @@ double risk_calc_sharpe_ratio_double(const double* _returns, size_t _n,
 
 #endif
 
+  // Total mean return
+  double mean_return = sum / _n;
+  
   // Annualize volatility
   volatility = volatility * sqrt((double)_year_freq);
 
-  double mean_return = sum / _n;
+  // Per-period excess mean return
+  double excess_mean_return = mean_return - period_rf;
 
-  // Sharpe ratio = (mean returns - daily risk-free rate) / volatility
-  return (mean_return - daily_rf) / volatility;
+  // Annualized excess mean return
+  double excess_mean_return_annual = excess_mean_return * _year_freq;
+
+  return excess_mean_return_annual / volatility; // Captain Sharpe, sir
 }
 
 double risk_calc_volatility_double(const double* _data, int _n) 

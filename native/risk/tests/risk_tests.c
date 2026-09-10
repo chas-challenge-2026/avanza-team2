@@ -13,7 +13,7 @@
 
 void risk_test_ma(void)
 {
-  printf("### MOVING AVERAGES TESTS ###\n");
+  printf("\n### MOVING AVERAGES TESTS ###\n");
   size_t ma_window = 20;
 
   /* Sample array inputs */
@@ -196,7 +196,7 @@ void risk_test_ma(void)
 
 void risk_test_volatility(void)
 {
-  printf("### VOLATILITY TESTS ###\n");
+  printf("\n### VOLATILITY TESTS ###\n");
   const size_t arr_n = SAMPLE_ARR_SIZE; // Array size
   uint64_t time_start;
   uint64_t time_end;
@@ -287,7 +287,7 @@ void risk_test_volatility(void)
 
 void risk_test_sharpe(void)
 {
-  printf("### SHARPE TESTS ###\n");
+  printf("\n### SHARPE TESTS ###\n");
 
   const size_t arr_n = SAMPLE_ARR_SIZE; // Array size
   uint64_t time_start;
@@ -296,8 +296,8 @@ void risk_test_sharpe(void)
   // double time_s;
 
   /*** Double test ***/
-  double arr_base_start_d = 0.05;     // Initial base value
-  double arr_base_step_d = 0.01;      // Increase base by this amount each iteration
+  double arr_base_start_d = 0.001;     // Initial base value
+  double arr_base_step_d = 0.0;      // Increase base by this amount each iteration
   double arr_noise_magnitude_d = 0.1; // Randomize +/- this amount
   double sharpe_d;
 
@@ -317,15 +317,15 @@ void risk_test_sharpe(void)
   //   printf("%lf,", arr[i]);
 
   // Get overnight annualized return rate
-  size_t trading_days = 256; // Standard annual returns
   Rate R = {0};
   rates_handler_get_latest(&R, Swestr);
   if (R.value == 0)
     exit(1);
 
   /* Run and time calculations on array */
+  size_t year_freq = 252; // Standard annual returns
   time_start = system_monotonic_ns(); 
-  sharpe_d = risk_calc_sharpe_ratio_double(arr_d, arr_n, R.value, trading_days);
+  sharpe_d = risk_calc_sharpe_ratio_double(arr_d, arr_n, R.value, year_freq);
   time_end = system_monotonic_ns(); 
   time_ns = time_end - time_start;
   // time_s = (double)time_ns / 1e9;
@@ -336,13 +336,9 @@ void risk_test_sharpe(void)
   free(arr_d);
 }
 
-int main(void) 
+void risk_test_rates_handler(void)
 {
-  risk_test_volatility();
-  risk_test_ma();
-  risk_test_sharpe();
-
-  /********************** Test rates handler on all API **********************/
+  printf("\n### RATES HANDLER TESTS ###\n");
   int res;
   Rate R = {0};
 
@@ -417,6 +413,17 @@ int main(void)
   }
   printf("Rate date: %ld, value: %lf, type: %d\n", R.date, R.value, R.type);
   memset(&R, 0, sizeof(Rate));
+
+}
+
+int main(void) 
+{
+  risk_test_rates_handler();
+
+  risk_test_volatility();
+  risk_test_ma();
+  risk_test_sharpe();
+
 
   return 0;
 }
