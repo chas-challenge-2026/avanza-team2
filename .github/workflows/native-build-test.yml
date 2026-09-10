@@ -13,17 +13,19 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        submodules: recursive
 
     - name: Install dependencies
       run: sudo apt-get update && sudo apt-get install -y build-essential libcurl4-openssl-dev
 
-    - name: Build
+    - name: Build all
       working-directory: ./native
       run: make all AVX_LEVEL=avx2
 
     - name: Run risk test
       working-directory: ./native
-      run: make risk/run AVX_LEVEL=avx2
+      run: make risk/test-run AVX_LEVEL=avx2
 
     - name: Build JNA PoC
       working-directory: ./native

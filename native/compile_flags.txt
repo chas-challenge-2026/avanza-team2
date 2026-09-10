@@ -1,6 +1,7 @@
 # === Includes ===
 -Iutils/include
--Ilibs/include
+-Ilibs
+-Ilibs/cJSON
 -Iapi/include
 -Irisk/include
 -Ibacktest/include
