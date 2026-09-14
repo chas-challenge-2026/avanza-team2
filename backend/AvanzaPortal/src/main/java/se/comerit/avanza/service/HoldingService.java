@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import se.comerit.avanza.dto.holdings.HoldingResponseDTO;
 import se.comerit.avanza.entity.User;
+import se.comerit.avanza.repository.AccountRepository;
 import se.comerit.avanza.repository.UserRepository;
 
 @Service
@@ -20,9 +21,12 @@ public class HoldingService {
 
     private final UserRepository userRepository;
 
-    public HoldingService(JdbcTemplate jdbcTemplate, UserRepository userRepository) {
+    private final AccountRepository accountRepository;
+
+    public HoldingService(JdbcTemplate jdbcTemplate, UserRepository userRepository, AccountRepository accountRepository) {
         this.jdbcTemplate = jdbcTemplate;
         this.userRepository = userRepository;
+        this.accountRepository = accountRepository;
     }
 
     public List<Map<String, Object>> getHoldingsForUser(Integer userId) {
@@ -98,4 +102,5 @@ public class HoldingService {
             getAccountsForUser(userId)
         );
     }
+
 }

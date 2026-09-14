@@ -36,14 +36,11 @@ public class HoldingController {
     }
 
     @PostMapping("/holdings/add")
-    public ResponseEntity<Void> addHolding(@RequestBody CreateHoldingRequestDTO requestDTO, HttpSession session) {
-        if (session.getAttribute("userId") == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
+    public ResponseEntity<Void> addHolding(@RequestBody CreateHoldingRequestDTO requestDTO, Authentication authentication, HttpSession session) {
+        // Spring security authentication check instead of session check
+        holdingService.addHoldingForAuthenticatedUser(authentication.getName(), requestDTO);
 
-        holdingService.addHolding(requestDTO.accountId(), requestDTO.ticker(), requestDTO.instrumentName(),
-                requestDTO.quantity(), requestDTO.avgBuyPrice(), requestDTO.currency());
-
+        // return
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
