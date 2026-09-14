@@ -14,6 +14,11 @@ import org.springframework.data.domain.Pageable;
  * Provides CRUD operations and query methods for Holdings entities.
  */
 public interface HoldingsRepository extends JpaRepository<Holdings, Long> {
+    // Enforce ownership in the delete itself, not in a separate pre-check.
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.transaction.annotation.Transactional
+    @Query("DELETE FROM Holdings h WHERE h.id = ?1 AND h.account.id IN (SELECT a.id FROM Account a WHERE a.user.id = ?2)")
+    int deleteOwnedHolding(Long holdingId, Long userId);
     @Query("SELECT h FROM Holdings h WHERE h.account.user.id = ?1")
     Page<Holdings> findAllByUserId(Long userId, Pageable pageable);
 

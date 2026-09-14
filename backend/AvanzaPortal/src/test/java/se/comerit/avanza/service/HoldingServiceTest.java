@@ -30,6 +30,7 @@ import se.comerit.avanza.dto.holdings.HoldingResponseDTO;
 import se.comerit.avanza.dto.holdings.CreateHoldingRequestDTO;
 import se.comerit.avanza.entity.User;
 import se.comerit.avanza.repository.AccountRepository;
+import se.comerit.avanza.repository.HoldingsRepository;
 import se.comerit.avanza.repository.UserRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -42,13 +43,16 @@ class HoldingServiceTest {
     private AccountRepository accountRepository;
 
     @Mock
+    private HoldingsRepository holdingsRepository;
+
+    @Mock
     private JdbcTemplate jdbcTemplate;
     
     private HoldingService holdingService;
 
     @BeforeEach
     void setUp() {
-        holdingService = new HoldingService(jdbcTemplate, userRepository, accountRepository);
+        holdingService = new HoldingService(jdbcTemplate, userRepository, accountRepository, holdingsRepository);
     }
 
     @Test
@@ -167,10 +171,15 @@ class HoldingServiceTest {
     @Test
     void shouldDeleteHoldingById() {
         // Act
-        holdingService.deleteHolding(15);
+        User user = new User();
+        user.setId(7L);
+        when(userRepository.findByEmail("anna@example.com")).thenReturn(Optional.of(user));
+        when(holdingsRepository.deleteOwnedHolding(15L, 7L)).thenReturn(1);
+        holdingService.deleteHoldingForAuthenticatedUser("anna@example.com", 15);
 
         // Assert
-        verify(jdbcTemplate).update(anyString(), eq(15));
+        verify(holdingsRepository).deleteOwnedHolding(15L, 7L);
+        verifyNoInteractions(jdbcTemplate);
     }
 
     @Test
@@ -199,14 +208,15 @@ class HoldingServiceTest {
                 .thenReturn(List.of(account));
 
         // Act
-        HoldingResponseDTO result = holdingService.getHoldingsForAuthenicatedUser(email);
+        HoldingResponseDTO result = holdingService.getHoldingsForAuthenticatedUser(email);
 
         // Assert: both queries use the user's database ID.
         assertEquals("Anna", result.userName());
         assertEquals(1, result.holdings().size());
-        assertEquals("ERIC-B", result.holdings().get(0).get("ticker"));
-        assertEquals(742.0, result.holdings().get(0).get("marketValue"));
-        assertEquals(List.of(account), result.accounts());
+        assertEquals("ERIC-B", result.holdings().get(0).ticker());
+        assertEquals(742.0, result.holdings().get(0).marketValue());
+        assertEquals(3L, result.accounts().get(0).id());
+        assertEquals("ISK", result.accounts().get(0).accountType());
         verify(userRepository).findByEmail(email);
         verify(jdbcTemplate).queryForList(contains("FROM holdings h"), eq(7));
         verify(jdbcTemplate).queryForList(contains("FROM accounts"), eq(7));
@@ -220,7 +230,7 @@ class HoldingServiceTest {
 
         // Act and Assert: a missing user is rejected before holdings are fetched.
         assertThrows(BadCredentialsException.class,
-                () -> holdingService.getHoldingsForAuthenicatedUser(email));
+                () -> holdingService.getHoldingsForAuthenticatedUser(email));
         verify(userRepository).findByEmail(email);
         verifyNoInteractions(jdbcTemplate);
     }
@@ -289,6 +299,29 @@ class HoldingServiceTest {
                 () -> holdingService.addHolding(
                         3, "AAPL", "Apple", "5", "invalid-price", "USD"));
         verifyNoInteractions(jdbcTemplate);
+    }
+
+    @Test
+    void shouldRejectDeletingUnownedOrMissingHolding() {
+        // Arrange: no holding matches both the ID and the authenticated owner.
+        User user = new User();
+        user.setId(7L);
+        when(userRepository.findByEmail("anna@example.com")).thenReturn(Optional.of(user));
+        when(holdingsRepository.deleteOwnedHolding(15L, 7L)).thenReturn(0);
+
+        // Act and Assert: never fall back to an unrestricted SQL delete.
+        assertThrows(AccessDeniedException.class,
+                () -> holdingService.deleteHoldingForAuthenticatedUser("anna@example.com", 15));
+        verify(holdingsRepository).deleteOwnedHolding(15L, 7L);
+        verifyNoInteractions(jdbcTemplate);
+    }
+
+    @Test
+    void shouldRejectDeletingWhenUserDoesNotExist() {
+        when(userRepository.findByEmail("missing@example.com")).thenReturn(Optional.empty());
+        assertThrows(BadCredentialsException.class,
+                () -> holdingService.deleteHoldingForAuthenticatedUser("missing@example.com", 15));
+        verifyNoInteractions(holdingsRepository, jdbcTemplate);
     }
 
 }

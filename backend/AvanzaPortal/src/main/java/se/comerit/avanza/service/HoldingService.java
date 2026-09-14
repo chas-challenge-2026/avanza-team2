@@ -12,6 +12,9 @@ import org.springframework.stereotype.Service;
 
 import se.comerit.avanza.dto.holdings.CreateHoldingRequestDTO;
 import se.comerit.avanza.dto.holdings.HoldingResponseDTO;
+import se.comerit.avanza.dto.holdings.HoldingItemDTO;
+import se.comerit.avanza.dto.holdings.HoldingAccountDTO;
+import se.comerit.avanza.repository.HoldingsRepository;
 import se.comerit.avanza.entity.User;
 import se.comerit.avanza.repository.AccountRepository;
 import se.comerit.avanza.repository.UserRepository;
@@ -24,11 +27,13 @@ public class HoldingService {
     private final UserRepository userRepository;
 
     private final AccountRepository accountRepository;
+    private final HoldingsRepository holdingsRepository;
 
-    public HoldingService(JdbcTemplate jdbcTemplate, UserRepository userRepository, AccountRepository accountRepository) {
+    public HoldingService(JdbcTemplate jdbcTemplate, UserRepository userRepository, AccountRepository accountRepository, HoldingsRepository holdingsRepository) {
         this.jdbcTemplate = jdbcTemplate;
         this.userRepository = userRepository;
         this.accountRepository = accountRepository;
+        this.holdingsRepository = holdingsRepository;
     }
 
     public List<Map<String, Object>> getHoldingsForUser(Integer userId) {
@@ -85,13 +90,8 @@ public class HoldingService {
         jdbcTemplate.update(sql, accountId, ticker.toUpperCase(), instrumentName, new BigDecimal(quantity), new BigDecimal(avgBuyPrice), currency);
     }
 
-    public void deleteHolding(Integer holdingId) {
-        String sql = "DELETE FROM holdings WHERE id = ?";
-        jdbcTemplate.update(sql, holdingId);
-    }
-
     // This method retrieves the holdings and accounts for the authenticated user based on their email.
-    public HoldingResponseDTO getHoldingsForAuthenicatedUser (String email) {
+    public HoldingResponseDTO getHoldingsForAuthenticatedUser (String email) {
         User user = userRepository.findByEmail(email).orElseThrow(() -> new BadCredentialsException("Autentication failed: User not found"));
         
         // Convert the user ID from Long to Integer for compatibility with the rest of the code.
@@ -100,8 +100,10 @@ public class HoldingService {
 
         return new HoldingResponseDTO(
             user.getName(),
-            getEnrichedHoldingsForUser(userId),
-            getAccountsForUser(userId)
+            getEnrichedHoldingsForUser(userId).stream().map(this::toHoldingDTO).toList(),
+            getAccountsForUser(userId).stream().map(row -> new HoldingAccountDTO(
+                toLong(row.get("id")), (String) row.get("account_type"),
+                (String) row.get("account_name"))).toList()
         );
     }
 
@@ -125,5 +127,31 @@ public class HoldingService {
                 requestDTO.currency()
             );
     }
+
+    public void deleteHoldingForAuthenticatedUser(String email, Integer holdingId) {
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new BadCredentialsException("Autentication failed: User not found"));
+
+        // A single ownership-scoped delete prevents deleting another user's holding.
+        int deletedRows = holdingsRepository.deleteOwnedHolding(holdingId.longValue(), user.getId());
+        if (deletedRows == 0) {
+            throw new AccessDeniedException("You do not have permission to delete this holding.");
+        }
+    }
+
+    private HoldingItemDTO toHoldingDTO(Map<String, Object> row) {
+        return new HoldingItemDTO(toLong(row.get("id")), (String) row.get("ticker"),
+                (String) row.get("instrument_name"), (BigDecimal) row.get("quantity"),
+                (BigDecimal) row.get("avg_buy_price"), (String) row.get("currency"),
+                (String) row.get("account_type"), (String) row.get("account_name"),
+                ((Number) row.get("currentPrice")).doubleValue(),
+                ((Number) row.get("marketValue")).doubleValue(),
+                ((Number) row.get("pnl")).doubleValue());
+    }
+
+    private Long toLong(Object value) {
+        return value == null ? null : ((Number) value).longValue();
+    }
+
+
 
 }
