@@ -4,21 +4,20 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import se.comerit.avanza.dto.portfolio.EnrichedHoldingDTO;
 import se.comerit.avanza.dto.portfolio.PortfolioResponseDTO;
+import se.comerit.avanza.dto.portfolio.AllocationRowDTO;
+import se.comerit.avanza.dto.alerts.AlertsResponseDTO;
+import se.comerit.avanza.dto.portfolio.AccountSummaryDTO;
 import se.comerit.avanza.entity.Account;
-import se.comerit.avanza.entity.Alerts;
 import se.comerit.avanza.entity.Holdings;
 import se.comerit.avanza.entity.TargetAllocations;
 import se.comerit.avanza.entity.User;
 import se.comerit.avanza.service.PortfolioService;
-import se.comerit.avanza.repository.UserRepository;
-
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -40,18 +39,20 @@ public class PortfolioController {
 
     /**
      * Handles the GET request for the portfolio dashboard.
-     *
-     * @param session the HTTP session containing user information
-     * @param model   the model to pass attributes to the view
-     * @return the ResponseEntity containing the portfolio response DTO
+     * Retrieves the user's portfolio information, including accounts, holdings,
+     * target allocations, and recent alerts.
+     * 
+     * @param userName the email of the authenticated user.
+     * @return a ResponseEntity containing the PortfolioResponseDTO with the user's
+     *         portfolio information.
      */
     @GetMapping("/portfolio")
     public ResponseEntity<PortfolioResponseDTO> dashboard(@AuthenticationPrincipal String userName) {
 
-        // username comes from the JWT token (set by JwtFilter)
-        // Spring Security already validated the token at this point
+        // Find the user by their email (used for authentication)
+        // if it doesn't exist or the username is null, return unauthorized.
         Optional<User> findUser = portfolioService.findByEmail(userName);
-        if (findUser.isEmpty()) {
+        if (findUser.isEmpty() && userName == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
         Long userId = findUser.get().getId();
@@ -60,34 +61,31 @@ public class PortfolioController {
         List<Account> accounts = portfolioService.getAllAccountsForUser(userId);
         List<Holdings> holdings = portfolioService.getAllHoldingsForUser(userId, Pageable.unpaged());
         List<TargetAllocations> targets = portfolioService.getTargetAllocationsForUser(userId);
-        List<Alerts> recentAlerts = portfolioService.getRecentAlertsForUser(userId);
+        List<AlertsResponseDTO> recentAlerts = portfolioService.getRecentAlertsForUser(userId);
 
         // Business logic:
         Map<String, Double> prices = portfolioService.getCurrentPrices();
         Map<String, Double> accountTypeTotals = portfolioService.initializeAccountTypeTotals();
         Map<Long, String> accountTypeMap = portfolioService.buildAccountTypeMap(accounts);
-        List<Map<String, Object>> enrichedHoldings = new ArrayList<>();
-        for (Holdings h : holdings) {
-            enrichedHoldings.add(portfolioService.enrichSingleHolding(h, prices));
-        }
+
+        // Enrich holdings with current prices for display purposes
+        List<EnrichedHoldingDTO> enrichedHoldings = holdings.stream()
+                .map(h -> portfolioService.enrichSingleHolding(h, prices))
+                .collect(Collectors.toList());
+
+        // Calculate the total portfolio value based on enriched holdings and current
+        // prices
         double totalPortfolioValue = portfolioService.calculatePortfolioTotals(holdings, prices, accountTypeMap,
                 accountTypeTotals);
-        List<Map<String, Object>> allocationRows = portfolioService.detectDrift(accountTypeTotals, targets,
+
+        // Detect allocation drift based on current account type totals and target
+        // allocations
+        List<AllocationRowDTO> allocationRows = portfolioService.detectDrift(accountTypeTotals, targets,
                 totalPortfolioValue);
 
         // Build account summary for display
-        List<Map<String, Object>> accountSummary = accounts.stream()
-                .map(a -> new HashMap<String, Object>() {
-                    {
-                        put("id", a.getId());
-                        put("account_type", a.getAccount_type());
-                        put("account_name", a.getAccount_name());
-                        put("currency", a.getCurrency());
-                    }
-                })
-                .collect(Collectors.toList());
-        accountSummary = portfolioService.getAccountSummary(
-                accountSummary, accountTypeTotals, totalPortfolioValue);
+        List<AccountSummaryDTO> accountSummary = portfolioService.getAccountSummary(
+                accounts, accountTypeTotals, totalPortfolioValue);
 
         /**
          * creates an instance of PortfolioResponseDTO with all the necessary portfolio
@@ -97,9 +95,8 @@ public class PortfolioController {
                 accountSummary,
                 enrichedHoldings,
                 allocationRows,
-                Math.round(totalPortfolioValue * 100.0) / 100.0,
+                totalPortfolioValue,
                 recentAlerts,
-                allocationRows.stream().anyMatch(row -> (boolean) row.get("overThreshold")),
                 PortfolioService.USD_TO_SEK);
 
         return ResponseEntity.ok(response);

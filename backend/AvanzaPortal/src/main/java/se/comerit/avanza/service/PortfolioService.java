@@ -49,6 +49,7 @@ public class PortfolioService {
         this.userRepository = userRepository;
     }
 
+    // Find user by email (used for authentication)
     public Optional<User> findByEmail(String email) {
         return userRepository.findByEmail(email);
     }
@@ -91,8 +92,9 @@ public class PortfolioService {
      * @param userId the ID of the user whose recent alerts are to be retrieved.
      * @return a list of recent alerts associated with the specified user.
      */
-    public List<Alerts> getRecentAlertsForUser(Long userId) {
-        return alertRepository.findByUser_IdAndDismissedFalseOrderByCreatedAtDesc(userId);
+    public List<AlertsResponseDTO> getRecentAlertsForUser(Long userId) {
+        List<Alerts> alerts = alertRepository.findByUser_IdAndDismissedFalseOrderByCreatedAtDesc(userId);
+        return convertAlertsToDTO(alerts);
     }
 
     // Hardcoded prices (later: fetch from API)
