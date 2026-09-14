@@ -9,6 +9,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
 
+import se.comerit.avanza.dto.holdings.CreateHoldingRequestDTO;
 import se.comerit.avanza.dto.holdings.HoldingResponseDTO;
 import se.comerit.avanza.entity.User;
 import se.comerit.avanza.repository.AccountRepository;
@@ -101,6 +102,27 @@ public class HoldingService {
             getEnrichedHoldingsForUser(userId),
             getAccountsForUser(userId)
         );
+    }
+
+    public void addHoldingForAuthenticatedUser(String email, CreateHoldingRequestDTO requestDTO) {
+            
+            User user = userRepository.findByEmail(email).orElseThrow(() -> new BadCredentialsException("Autentication failed: User not found"));
+            
+    
+            // Check if the account belongs to the authenticated user
+            boolean ownsAccount = accountRepository.existsByUserIdAndAccountType(requestDTO.accountId().longValue(), user.getId());
+            if (!ownsAccount) {
+                throw new IllegalArgumentException("Account does not belong to the authenticated user");
+            }
+    
+            addHolding(
+                requestDTO.accountId(),
+                requestDTO.ticker(),
+                requestDTO.instrumentName(),
+                requestDTO.quantity(),
+                requestDTO.avgBuyPrice(),
+                requestDTO.currency()
+            );
     }
 
 }
