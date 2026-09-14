@@ -31,6 +31,7 @@ import se.comerit.avanza.entity.TargetAllocations;
 import se.comerit.avanza.repository.AccountRepository;
 import se.comerit.avanza.repository.AlertsRepository;
 import se.comerit.avanza.repository.TargetRepository;
+import se.comerit.avanza.repository.UserRepository;
 
 @ExtendWith(MockitoExtension.class)
 class AlertServiceTest {
@@ -44,6 +45,9 @@ class AlertServiceTest {
     @Mock
     private TargetRepository targetRepository;
 
+    @Mock
+    private UserRepository userRepository;
+
     private AlertService alertService;
 
     @BeforeEach
@@ -51,7 +55,8 @@ class AlertServiceTest {
         alertService = new AlertService(
                 alertsRepository,
                 accountRepository,
-                targetRepository
+                targetRepository,
+                userRepository
         );
     }
 

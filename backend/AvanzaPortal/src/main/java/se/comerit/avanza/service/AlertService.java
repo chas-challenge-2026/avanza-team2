@@ -9,9 +9,11 @@ import se.comerit.avanza.entity.Account;
 import se.comerit.avanza.entity.Alerts;
 import se.comerit.avanza.entity.Holdings;
 import se.comerit.avanza.entity.TargetAllocations;
+import se.comerit.avanza.entity.User;
 import se.comerit.avanza.repository.AccountRepository;
 import se.comerit.avanza.repository.AlertsRepository;
 import se.comerit.avanza.repository.TargetRepository;
+import se.comerit.avanza.repository.UserRepository;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -24,7 +26,7 @@ import java.util.Map;
  * It provides methods to fetch stored alerts, dismiss alerts, and generate live
  * drift alerts.
  * The drift threshold and currency conversion rate are defined as constants.
- * 
+ *
  * AlertService
  */
 @Service
@@ -39,20 +41,23 @@ public class AlertService {
     private final AlertsRepository alertsRepository;
     private final AccountRepository accountRepository;
     private final TargetRepository targetRepository;
+    private final UserRepository userRepository;
 
     public AlertService(
             AlertsRepository alertsRepository,
             AccountRepository accountRepository,
-            TargetRepository targetRepository) {
+            TargetRepository targetRepository,
+            UserRepository userRepository) {
 
         this.alertsRepository = alertsRepository;
         this.accountRepository = accountRepository;
         this.targetRepository = targetRepository;
+        this.userRepository = userRepository;
     }
 
     /**
      * Fetch stored alerts from database (v1 query 1)
-     * 
+     *
      * @param userId   the ID of the user whose alerts are to be fetched
      * @param pageable the pagination information
      * @return a page of alerts for the specified user
@@ -62,8 +67,23 @@ public class AlertService {
     }
 
     /**
+     * Fetch stored alerts for a user identified by their email address.
+     *
+     * The email comes from the authenticated JWT and is used to find the
+     * corresponding user before fetching their alerts.
+     *
+     * @param email    the email address of the authenticated user
+     * @param pageable the pagination information
+     * @return a page of alerts for the specified user
+     */
+    public Page<Alerts> getStoredAlertsByEmail(String email, Pageable pageable) {
+        Long userId = getUserIdByEmail(email);
+        return getStoredAlerts(userId, pageable);
+    }
+
+    /**
      * Dismiss an alert by setting its dismissed flag to true.
-     * 
+     *
      * @param alertId the ID of the alert to be dismissed
      */
     public void dismissAlert(Long alertId) {
@@ -77,7 +97,7 @@ public class AlertService {
 
     /**
      * Get the drift threshold as a percentage.
-     * 
+     *
      * @return the drift threshold as an integer percentage
      */
     public int getDriftThreshold() {
@@ -90,7 +110,7 @@ public class AlertService {
      * value of holdings, compares them against target allocations,
      * and identifies any
      * significant drifts based on the defined threshold.
-     * 
+     *
      * @param userId the ID of the user for whom to generate drift alerts
      * @return a list of maps containing drift alert information for the user
      */
@@ -113,6 +133,7 @@ public class AlertService {
         // and the grand total
         for (Account account : accounts) {
             String accountType = account.getAccount_type();
+
             /**
              * Fetch all holdings (v1 query 4)
              */
@@ -189,6 +210,33 @@ public class AlertService {
         }
 
         return liveAlerts;
+    }
+
+    /**
+     * Generate live drift alerts for a user identified by their email address.
+     *
+     * The email comes from the authenticated JWT and is used to find the
+     * corresponding user before generating the alerts.
+     *
+     * @param email the email address of the authenticated user
+     * @return a list of live drift alerts for the specified user
+     */
+    public List<LiveDriftAlertDTO> generateLiveDriftAlertsByEmail(String email) {
+        Long userId = getUserIdByEmail(email);
+        return generateLiveDriftAlerts(userId);
+    }
+
+    /**
+     * Find the database ID for a user based on their email address.
+     *
+     * @param email the email address of the user
+     * @return the ID of the user
+     */
+    private Long getUserIdByEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        return user.getId();
     }
 
     // Hardcoded prices (later: fetch from API)
