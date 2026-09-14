@@ -16,5 +16,5 @@ import se.comerit.avanza.entity.Account;
 public interface AccountRepository extends JpaRepository<Account, Long> {
     List<Account> findByUserId(Long userId);
     java.util.List<Account> findAllByUser_Id(Long userId);
-    boolean existsByUserIdAndAccountType(Long userId, Long accountType);
+    boolean existsByIdAndUser_Id(Long accountId, Long UserId);
 }

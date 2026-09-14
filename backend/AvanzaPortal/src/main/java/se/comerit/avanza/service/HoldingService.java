@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
 
@@ -110,9 +111,9 @@ public class HoldingService {
             
     
             // Check if the account belongs to the authenticated user
-            boolean ownsAccount = accountRepository.existsByUserIdAndAccountType(requestDTO.accountId().longValue(), user.getId());
+            boolean ownsAccount = accountRepository.existsByIdAndUser_Id(requestDTO.accountId().longValue(), user.getId());
             if (!ownsAccount) {
-                throw new IllegalArgumentException("Account does not belong to the authenticated user");
+                throw new AccessDeniedException("You do not have permission to add a holding to this account.");
             }
     
             addHolding(

@@ -27,6 +27,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 
 import se.comerit.avanza.dto.holdings.HoldingResponseDTO;
 import se.comerit.avanza.entity.User;
+import se.comerit.avanza.repository.AccountRepository;
 import se.comerit.avanza.repository.UserRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -34,6 +35,9 @@ class HoldingServiceTest {
 
     @Mock
     private UserRepository userRepository;
+    
+    @Mock
+    private AccountRepository accountRepository;
 
     @Mock
     private JdbcTemplate jdbcTemplate;
@@ -42,7 +46,7 @@ class HoldingServiceTest {
 
     @BeforeEach
     void setUp() {
-        holdingService = new HoldingService(jdbcTemplate, userRepository);
+        holdingService = new HoldingService(jdbcTemplate, userRepository, accountRepository);
     }
 
     @Test
