@@ -6,15 +6,23 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
+
+import se.comerit.avanza.dto.holdings.HoldingResponseDTO;
+import se.comerit.avanza.entity.User;
+import se.comerit.avanza.repository.UserRepository;
 
 @Service
 public class HoldingService {
 
     private final JdbcTemplate jdbcTemplate;
 
-    public HoldingService(JdbcTemplate jdbcTemplate) {
+    private final UserRepository userRepository;
+
+    public HoldingService(JdbcTemplate jdbcTemplate, UserRepository userRepository) {
         this.jdbcTemplate = jdbcTemplate;
+        this.userRepository = userRepository;
     }
 
     public List<Map<String, Object>> getHoldingsForUser(Integer userId) {
@@ -74,5 +82,17 @@ public class HoldingService {
     public void deleteHolding(Integer holdingId) {
         String sql = "DELETE FROM holdings WHERE id = ?";
         jdbcTemplate.update(sql, holdingId);
+    }
+
+    public HoldingResponseDTO getHoldingsForAuthenicatedUser (String email) {
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new BadCredentialsException("Autentication failed: User not found"));
+
+        Integer userId = Math.toIntExact(user.getId());
+
+        return new HoldingResponseDTO(
+            user.getName(),
+            getEnrichedHoldingsForUser(userId),
+            getAccountsForUser(userId)
+        );
     }
 }
