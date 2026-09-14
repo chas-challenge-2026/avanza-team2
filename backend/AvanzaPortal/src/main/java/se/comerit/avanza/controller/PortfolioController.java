@@ -49,10 +49,10 @@ public class PortfolioController {
     @GetMapping("/portfolio")
     public ResponseEntity<PortfolioResponseDTO> dashboard(@AuthenticationPrincipal String userName) {
 
-        // Find the user by their email (used for authentication)
-        // if it doesn't exist or the username is null, return unauthorized.
+        // findByEmail(null) safely returns Optional.empty(), no separate null check
+        // needed
         Optional<User> findUser = portfolioService.findByEmail(userName);
-        if (findUser.isEmpty() && userName == null) {
+        if (findUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
         Long userId = findUser.get().getId();
