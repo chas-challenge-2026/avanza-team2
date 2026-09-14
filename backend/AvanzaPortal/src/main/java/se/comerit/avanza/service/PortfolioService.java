@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import se.comerit.avanza.entity.Alerts;
@@ -13,6 +14,8 @@ import se.comerit.avanza.repository.AlertsRepository;
 import se.comerit.avanza.repository.AccountRepository;
 import se.comerit.avanza.repository.HoldingsRepository;
 import se.comerit.avanza.repository.TargetRepository;
+import se.comerit.avanza.repository.UserRepository;
+
 import org.springframework.data.domain.Pageable;
 
 import se.comerit.avanza.dto.alerts.AlertsResponseDTO;
@@ -22,6 +25,7 @@ import se.comerit.avanza.dto.portfolio.EnrichedHoldingDTO;
 import se.comerit.avanza.entity.Account;
 import se.comerit.avanza.entity.Holdings;
 import se.comerit.avanza.entity.TargetAllocations;
+import se.comerit.avanza.entity.User;
 
 /**
  * PortfolioService is a layer in between the controller and the repository.
@@ -34,13 +38,19 @@ public class PortfolioService {
     private HoldingsRepository holdingsRepository;
     private TargetRepository targetRepository;
     private AlertsRepository alertRepository;
+    private UserRepository userRepository;
 
     public PortfolioService(AccountRepository accountRepository, HoldingsRepository holdingsRepository,
-            TargetRepository targetRepository, AlertsRepository alertRepository) {
+            TargetRepository targetRepository, AlertsRepository alertRepository, UserRepository userRepository) {
         this.accountRepository = accountRepository;
         this.holdingsRepository = holdingsRepository;
         this.targetRepository = targetRepository;
         this.alertRepository = alertRepository;
+        this.userRepository = userRepository;
+    }
+
+    public Optional<User> findByEmail(String email) {
+        return userRepository.findByEmail(email);
     }
 
     /**

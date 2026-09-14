@@ -1,23 +1,27 @@
 package se.comerit.avanza.controller;
 
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.ui.Model;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import jakarta.servlet.http.HttpSession;
 import se.comerit.avanza.dto.portfolio.PortfolioResponseDTO;
 import se.comerit.avanza.entity.Account;
 import se.comerit.avanza.entity.Alerts;
 import se.comerit.avanza.entity.Holdings;
 import se.comerit.avanza.entity.TargetAllocations;
+import se.comerit.avanza.entity.User;
 import se.comerit.avanza.service.PortfolioService;
+import se.comerit.avanza.repository.UserRepository;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -42,18 +46,15 @@ public class PortfolioController {
      * @return the ResponseEntity containing the portfolio response DTO
      */
     @GetMapping("/portfolio")
-    public ResponseEntity<PortfolioResponseDTO> dashboard(HttpSession session, Model model) {
+    public ResponseEntity<PortfolioResponseDTO> dashboard(@AuthenticationPrincipal String userName) {
 
-        // TODO:
-        // - Exchange sessions with spring security
-        // - Method parameters > AuthenticationPrincipal for user authentication
-        if (session.getAttribute("userId") == null) {
-            return ResponseEntity.status(401).build();
+        // username comes from the JWT token (set by JwtFilter)
+        // Spring Security already validated the token at this point
+        Optional<User> findUser = portfolioService.findByEmail(userName);
+        if (findUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-
-        Long userId = Long.valueOf((Integer) session.getAttribute("userId"));
-        String userName = (String) session.getAttribute("userName");
-        model.addAttribute("userName", userName);
+        Long userId = findUser.get().getId();
 
         // Get raw data from the service layer. ( instead of raw SQL)
         List<Account> accounts = portfolioService.getAllAccountsForUser(userId);
