@@ -23,9 +23,11 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 
 import se.comerit.avanza.dto.holdings.HoldingResponseDTO;
+import se.comerit.avanza.dto.holdings.CreateHoldingRequestDTO;
 import se.comerit.avanza.entity.User;
 import se.comerit.avanza.repository.AccountRepository;
 import se.comerit.avanza.repository.UserRepository;
@@ -145,7 +147,7 @@ class HoldingServiceTest {
 
     @Test
     void shouldRejectInvalidQuantity() {
-        // Act och Assert
+        // Act and Assert
         assertThrows(
                 NumberFormatException.class,
                 () -> holdingService.addHolding(
@@ -173,7 +175,7 @@ class HoldingServiceTest {
 
     @Test
     void shouldReturnHoldingsForAuthenticatedUser() {
-        // Arrange: JWT-identiteten motsvarar en användare i databasen.
+        // Arrange: the authenticated identity matches a database user.
         String email = "anna@example.com";
         User user = new User();
         user.setId(7L);
@@ -199,7 +201,7 @@ class HoldingServiceTest {
         // Act
         HoldingResponseDTO result = holdingService.getHoldingsForAuthenicatedUser(email);
 
-        // Assert: båda frågorna använder användarens databas-ID.
+        // Assert: both queries use the user's database ID.
         assertEquals("Anna", result.userName());
         assertEquals(1, result.holdings().size());
         assertEquals("ERIC-B", result.holdings().get(0).get("ticker"));
@@ -216,13 +218,77 @@ class HoldingServiceTest {
         String email = "missing@example.com";
         when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
 
-        // Act och Assert: saknad användare stoppas innan innehav hämtas.
+        // Act and Assert: a missing user is rejected before holdings are fetched.
         assertThrows(BadCredentialsException.class,
                 () -> holdingService.getHoldingsForAuthenicatedUser(email));
         verify(userRepository).findByEmail(email);
         verifyNoInteractions(jdbcTemplate);
     }
 
-    
-    
+    @Test
+    void shouldAddHoldingToOwnedAccount() {
+        // Arrange: account 3 belongs to user 7.
+        String email = "anna@example.com";
+        User user = new User();
+        user.setId(7L);
+        user.setEmail(email);
+        CreateHoldingRequestDTO request = new CreateHoldingRequestDTO(
+                3, "aapl", "Apple", "5", "180.50", "USD");
+
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+        when(accountRepository.existsByIdAndUser_Id(3L, 7L)).thenReturn(true);
+
+        // Act
+        holdingService.addHoldingForAuthenticatedUser(email, request);
+
+        // Assert: ownership is checked and the holding is saved with normalized values.
+        verify(accountRepository).existsByIdAndUser_Id(3L, 7L);
+        verify(jdbcTemplate).update(contains("INSERT INTO holdings"),
+                eq(3), eq("AAPL"), eq("Apple"), eq(new BigDecimal("5")),
+                eq(new BigDecimal("180.50")), eq("USD"));
+    }
+
+    @Test
+    void shouldRejectAddingHoldingToUnownedAccount() {
+        // Arrange: the account does not belong to the authenticated user.
+        String email = "anna@example.com";
+        User user = new User();
+        user.setId(7L);
+        CreateHoldingRequestDTO request = new CreateHoldingRequestDTO(
+                3, "AAPL", "Apple", "5", "180.50", "USD");
+
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+        when(accountRepository.existsByIdAndUser_Id(3L, 7L)).thenReturn(false);
+
+        // Act and Assert: unauthorized ownership must prevent any SQL operation.
+        assertThrows(AccessDeniedException.class,
+                () -> holdingService.addHoldingForAuthenticatedUser(email, request));
+        verify(accountRepository).existsByIdAndUser_Id(3L, 7L);
+        verifyNoInteractions(jdbcTemplate);
+    }
+
+    @Test
+    void shouldRejectAddingHoldingWhenUserDoesNotExist() {
+        // Arrange
+        String email = "missing@example.com";
+        CreateHoldingRequestDTO request = new CreateHoldingRequestDTO(
+                3, "AAPL", "Apple", "5", "180.50", "USD");
+        when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
+
+        // Act and Assert: reject the user before checking accounts or saving holdings.
+        assertThrows(BadCredentialsException.class,
+                () -> holdingService.addHoldingForAuthenticatedUser(email, request));
+        verify(userRepository).findByEmail(email);
+        verifyNoInteractions(accountRepository, jdbcTemplate);
+    }
+
+    @Test
+    void shouldRejectInvalidBuyPriceWithoutSavingHolding() {
+        // Act and Assert: invalid numeric input must not reach the database.
+        assertThrows(NumberFormatException.class,
+                () -> holdingService.addHolding(
+                        3, "AAPL", "Apple", "5", "invalid-price", "USD"));
+        verifyNoInteractions(jdbcTemplate);
+    }
+
 }
