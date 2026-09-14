@@ -1,10 +1,8 @@
 package se.comerit.avanza.controller;
 
-import java.util.List;
-import java.util.Map;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -26,24 +24,14 @@ public class HoldingController {
     public HoldingController(HoldingService holdingService) {
         this.holdingService = holdingService;
     }
+    
 
+    // Endpoint to list holdings for the authenticated user
     @GetMapping("/holdings")
-    public ResponseEntity<HoldingResponseDTO> listHoldings(HttpSession session) {
-
-        // Same session check copy-pasted from DashboardController
-        // TODO: make an interceptor or filter for this in v2
-        if (session.getAttribute("userId") == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-
-        Integer userId = (Integer) session.getAttribute("userId");
-        String userName = (String) session.getAttribute("userName");
-
-        List<Map<String, Object>> holdings = holdingService.getEnrichedHoldingsForUser(userId);
-        List<Map<String, Object>> accounts = holdingService.getAccountsForUser(userId);
-
-        HoldingResponseDTO responseDTO = new HoldingResponseDTO(userName, holdings, accounts);
-
+    public ResponseEntity<HoldingResponseDTO> listHoldings(Authentication authentication, HttpSession session) {
+        
+        // Spring security authentication check instead of session check
+        HoldingResponseDTO responseDTO = holdingService.getHoldingsForAuthenicatedUser(authentication.getName());
         return ResponseEntity.ok(responseDTO);
     }
 

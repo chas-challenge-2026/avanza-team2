@@ -21,17 +21,22 @@ import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import se.comerit.avanza.repository.UserRepository;
+
 @ExtendWith(MockitoExtension.class)
 class HoldingServiceTest {
 
     @Mock
-    private JdbcTemplate jdbcTemplate;
+    private UserRepository userRepository;
 
+    @Mock
+    private JdbcTemplate jdbcTemplate;
+    
     private HoldingService holdingService;
 
     @BeforeEach
     void setUp() {
-        holdingService = new HoldingService(jdbcTemplate);
+        holdingService = new HoldingService(jdbcTemplate, userRepository);
     }
 
     @Test

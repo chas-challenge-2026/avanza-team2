@@ -84,9 +84,12 @@ public class HoldingService {
         jdbcTemplate.update(sql, holdingId);
     }
 
+    // This method retrieves the holdings and accounts for the authenticated user based on their email.
     public HoldingResponseDTO getHoldingsForAuthenicatedUser (String email) {
         User user = userRepository.findByEmail(email).orElseThrow(() -> new BadCredentialsException("Autentication failed: User not found"));
-
+        
+        // Convert the user ID from Long to Integer for compatibility with the rest of the code.
+        // Math is only used temporarily to avoid potential overflow issues when converting from Long to Integer.
         Integer userId = Math.toIntExact(user.getId());
 
         return new HoldingResponseDTO(
