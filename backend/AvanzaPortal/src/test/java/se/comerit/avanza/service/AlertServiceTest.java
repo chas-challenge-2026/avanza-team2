@@ -28,163 +28,165 @@ import se.comerit.avanza.entity.Account;
 import se.comerit.avanza.entity.Alerts;
 import se.comerit.avanza.entity.Holdings;
 import se.comerit.avanza.entity.TargetAllocations;
+import se.comerit.avanza.entity.User;
 import se.comerit.avanza.repository.AccountRepository;
 import se.comerit.avanza.repository.AlertsRepository;
 import se.comerit.avanza.repository.TargetRepository;
+import se.comerit.avanza.repository.UserRepository;
 
 @ExtendWith(MockitoExtension.class)
 class AlertServiceTest {
 
-    @Mock
-    private AlertsRepository alertsRepository;
+        @Mock
+        private AlertsRepository alertsRepository;
 
-    @Mock
-    private AccountRepository accountRepository;
+        @Mock
+        private AccountRepository accountRepository;
 
-    @Mock
-    private TargetRepository targetRepository;
+        @Mock
+        private TargetRepository targetRepository;
 
-    private AlertService alertService;
+        @Mock
+        private UserRepository userRepository;
 
-    @BeforeEach
-    void setUp() {
-        alertService = new AlertService(
-                alertsRepository,
-                accountRepository,
-                targetRepository
-        );
-    }
+        private AlertService alertService;
 
-    @Test
-    void shouldReturnDriftThresholdAsSevenPercent() {
-        int result = alertService.getDriftThreshold();
+        @BeforeEach
+        void setUp() {
+                alertService = new AlertService(
+                                alertsRepository,
+                                accountRepository,
+                                targetRepository,
+                                userRepository);
+        }
 
-        assertEquals(7, result);
-    }
+        @Test
+        void shouldReturnDriftThresholdAsSevenPercent() {
+                int result = alertService.getDriftThreshold();
 
-    @Test
-    void shouldReturnStoredAlertsForUser() {
-        // Arrange
-        Long userId = 1L;
-        Pageable pageable = PageRequest.of(0, 10);
+                assertEquals(7, result);
+        }
 
-        Alerts alert = new Alerts();
-        Page<Alerts> expectedPage = new PageImpl<>(List.of(alert));
+        @Test
+        void shouldReturnStoredAlertsForUser() {
+                // Arrange
+                Long userId = 1L;
+                Pageable pageable = PageRequest.of(0, 10);
 
-        when(alertsRepository.findByUserIdOrderByCreatedAtDesc(
-                userId,
-                pageable
-        )).thenReturn(expectedPage);
+                Alerts alert = new Alerts();
+                Page<Alerts> expectedPage = new PageImpl<>(List.of(alert));
 
-        // Act
-        Page<Alerts> result =
-                alertService.getStoredAlerts(userId, pageable);
+                when(alertsRepository.findByUserIdOrderByCreatedAtDesc(
+                                userId,
+                                pageable)).thenReturn(expectedPage);
 
-        // Assert
-        assertSame(expectedPage, result);
+                // Act
+                Page<Alerts> result = alertService.getStoredAlerts(userId, pageable);
 
-        verify(alertsRepository)
-                .findByUserIdOrderByCreatedAtDesc(userId, pageable);
-    }
+                // Assert
+                assertSame(expectedPage, result);
 
-    @Test
-    void shouldDismissAndSaveExistingAlert() {
-        // Arrange
-        Long alertId = 5L;
+                verify(alertsRepository)
+                                .findByUserIdOrderByCreatedAtDesc(userId, pageable);
+        }
 
-        Alerts alert = new Alerts();
-        alert.setDismissed(false);
+        @Test
+        void shouldDismissAndSaveExistingAlert() {
+                // Arrange
+                Long alertId = 5L;
+                String email = "test@test.com";
 
-        when(alertsRepository.findById(alertId))
-                .thenReturn(Optional.of(alert));
+                User user = new User();
+                user.setEmail(email);
 
-        // Act
-        alertService.dismissAlert(alertId);
+                Alerts alert = new Alerts();
+                alert.setDismissed(false);
+                alert.setUser(user);
 
-        // Assert
-        assertTrue(alert.getDismissed());
-        verify(alertsRepository).save(alert);
-    }
+                when(alertsRepository.findById(alertId))
+                                .thenReturn(Optional.of(alert));
 
-    @Test
-    void shouldThrowExceptionWhenAlertDoesNotExist() {
-        // Arrange
-        Long alertId = 999L;
+                // Act
+                alertService.dismissAlert(alertId, email);
 
-        when(alertsRepository.findById(alertId))
-                .thenReturn(Optional.empty());
+                // Assert
+                assertTrue(alert.getDismissed());
+                verify(alertsRepository).save(alert);
+        }
 
-        // Act och Assert
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> alertService.dismissAlert(alertId)
-        );
+        @Test
+        void shouldThrowExceptionWhenAlertDoesNotExist() {
+                // Arrange
+                Long alertId = 999L;
+                String email = "test@test.com";
 
-        assertEquals("Alert not found", exception.getMessage());
+                when(alertsRepository.findById(alertId))
+                                .thenReturn(Optional.empty());
 
-        verify(alertsRepository, never())
-                .save(any(Alerts.class));
-    }
+                // Act och Assert
+                IllegalArgumentException exception = assertThrows(
+                                IllegalArgumentException.class,
+                                () -> alertService.dismissAlert(alertId, email));
 
-    @Test
-    void shouldReturnNoLiveAlertsForEmptyData() {
-        // Arrange
-        Long userId = 1L;
+                assertEquals("Alert not found", exception.getMessage());
 
-        when(accountRepository.findByUserId(userId))
-                .thenReturn(List.of());
+                verify(alertsRepository, never())
+                                .save(any(Alerts.class));
+        }
 
-        when(targetRepository.findByUserId(userId))
-                .thenReturn(List.of());
+        @Test
+        void shouldReturnNoLiveAlertsForEmptyData() {
+                // Arrange
+                Long userId = 1L;
 
-        // Act
-        List<LiveDriftAlertDTO> result =
-                alertService.generateLiveDriftAlerts(userId);
+                when(accountRepository.findByUserId(userId))
+                                .thenReturn(List.of());
 
-        // Assert
-        assertTrue(result.isEmpty());
-    }
+                when(targetRepository.findByUserId(userId))
+                                .thenReturn(List.of());
 
-    @Test
-    void shouldCreateLiveAlertWhenAllocationDriftsTooMuch() {
-        // Arrange
-        Long userId = 1L;
+                // Act
+                List<LiveDriftAlertDTO> result = alertService.generateLiveDriftAlerts(userId);
 
-        Holdings holding = new Holdings(
-                "ERIC-B",
-                "Ericsson",
-                10,
-                50.0,
-                "SEK",
-                null
-        );
+                // Assert
+                assertTrue(result.isEmpty());
+        }
 
-        Account account = new Account(
-                "ISK",
-                "Mitt ISK",
-                "SEK",
-                null,
-                List.of(holding)
-        );
+        @Test
+        void shouldCreateLiveAlertWhenAllocationDriftsTooMuch() {
+                // Arrange
+                Long userId = 1L;
 
-        TargetAllocations iskTarget =
-                new TargetAllocations("ISK", 50.0, null);
+                Holdings holding = new Holdings(
+                                "ERIC-B",
+                                "Ericsson",
+                                10,
+                                50.0,
+                                "SEK",
+                                null);
 
-        TargetAllocations kfTarget =
-                new TargetAllocations("KF", 50.0, null);
+                Account account = new Account(
+                                "ISK",
+                                "Mitt ISK",
+                                "SEK",
+                                null,
+                                List.of(holding));
 
-        when(accountRepository.findByUserId(userId))
-                .thenReturn(List.of(account));
+                TargetAllocations iskTarget = new TargetAllocations("ISK", 50.0, null);
 
-        when(targetRepository.findByUserId(userId))
-                .thenReturn(List.of(iskTarget, kfTarget));
+                TargetAllocations kfTarget = new TargetAllocations("KF", 50.0, null);
 
-        // Act
-        List<LiveDriftAlertDTO> result =
-                alertService.generateLiveDriftAlerts(userId);
+                when(accountRepository.findByUserId(userId))
+                                .thenReturn(List.of(account));
 
-        // Assert
-        assertFalse(result.isEmpty());
-        assertEquals(2, result.size());
-    }
+                when(targetRepository.findByUserId(userId))
+                                .thenReturn(List.of(iskTarget, kfTarget));
+
+                // Act
+                List<LiveDriftAlertDTO> result = alertService.generateLiveDriftAlerts(userId);
+
+                // Assert
+                assertFalse(result.isEmpty());
+                assertEquals(2, result.size());
+        }
 }
