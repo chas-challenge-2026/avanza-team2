@@ -9,5 +9,5 @@ public record AllocationRowDTO(
         double actual,
         double target,
         double drift,
-        boolean overTreshold) {
+        boolean overThreshold) {
 }

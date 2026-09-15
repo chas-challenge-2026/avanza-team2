@@ -16,5 +16,6 @@ public record PortfolioResponseDTO(
                 List<AllocationRowDTO> allocationRows,
                 double totalPortfolioValue,
                 List<AlertsResponseDTO> recentAlerts,
+                boolean anyDrift,
                 double usdToSek) {
 }

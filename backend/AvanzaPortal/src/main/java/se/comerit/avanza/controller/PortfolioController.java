@@ -97,6 +97,7 @@ public class PortfolioController {
                 allocationRows,
                 totalPortfolioValue,
                 recentAlerts,
+                allocationRows.stream().anyMatch(AllocationRowDTO::overThreshold),
                 PortfolioService.USD_TO_SEK);
 
         return ResponseEntity.ok(response);

@@ -203,7 +203,7 @@ class PortfolioServiceTest {
                 assertEquals(60.0, iskRow.actual(), 0.001);
                 assertEquals(50.0, iskRow.target(), 0.001);
                 assertEquals(10.0, iskRow.drift(), 0.001);
-                assertTrue(iskRow.overTreshold());
+                assertTrue(iskRow.overThreshold());
         }
 
         @Test
@@ -222,7 +222,7 @@ class PortfolioServiceTest {
 
                 for (AllocationRowDTO row : result) {
                         assertEquals(0.0, row.actual(), 0.001);
-                        assertFalse(row.overTreshold());
+                        assertFalse(row.overThreshold());
                 }
         }
 

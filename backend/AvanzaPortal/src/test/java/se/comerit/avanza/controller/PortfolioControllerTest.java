@@ -31,6 +31,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -81,6 +82,7 @@ public class PortfolioControllerTest {
         ResponseEntity<PortfolioResponseDTO> response = portfolioController.dashboard(EMAIL);
 
         assertEquals(expected, response.getBody());
+        assertTrue(response.getBody().anyDrift());
     }
 
     private User buildUser() {
@@ -111,7 +113,7 @@ public class PortfolioControllerTest {
         AccountSummaryDTO accountSummaryDTO = new AccountSummaryDTO(1L, "ISK", "My ISK", "SEK", 1000.0);
         EnrichedHoldingDTO enrichedHoldingDTO = new EnrichedHoldingDTO(
                 1L, "AAPL", "Apple Inc", 10, 150.0, 1000.0, 0.0, 0.0, 0.0, "USD→SEK");
-        AllocationRowDTO allocationRowDTO = new AllocationRowDTO("ISK", 100.0, 100.0, 0.0, false);
+        AllocationRowDTO allocationRowDTO = new AllocationRowDTO("ISK", 100.0, 100.0, 0.0, true);
         AlertsResponseDTO alertDTO = new AlertsResponseDTO(1L, USER_ID, "Drift detected", false, "2026-09-14");
 
         when(portfolioService.findByEmail(EMAIL)).thenReturn(Optional.of(user));
@@ -136,6 +138,7 @@ public class PortfolioControllerTest {
                 List.of(allocationRowDTO),
                 1000.0,
                 List.of(alertDTO),
+                true,
                 PortfolioService.USD_TO_SEK);
     }
 }
