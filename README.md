@@ -68,6 +68,6 @@ rör aldrig `docker-compose.yml`, se [DRIFT.md](DRIFT.md) för plattformskontrak
 - [docs/README-pain-points.md](docs/README-pain-points.md) — vad som spricker vid skala
 - [docs/v2-targets.md](docs/v2-targets.md) — målarkitektur för v2
 - [DRIFT.md](DRIFT.md) — drift och deploy
-- [backend/AvanzaPortal/Backend-ReadMe.md](backend/AvanzaPortal/Backend-ReadMe.md) — backend-dokumentation
+- [backend/AvanzaPortal/Backend-ReadMe.md](backend/AvanzaPortal/Backend-ReadMe.md) — startguide, arkitektur, API och testning för Java-backenden
 - [native/docs/BUILD.md](native/docs/BUILD.md) — native-dokumentation
 - [native/docs/CONTRIBUTE.md](native/docs/CONTRIBUTE.md) — information om kodstilen
