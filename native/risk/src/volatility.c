@@ -1,8 +1,100 @@
 #include "volatility.h"
 
-#include <stdio.h>
+#include <stdio.h> // remove in prod
 
 // TODO: proper logging
+
+double risk_calc_sharpe_ratio_double(const double* _returns, size_t _n, 
+  double _rfrate, size_t _year_freq)
+{
+  if (!_returns || _n < 2) return 0.0;
+
+// Convert annual rate to per-period risk-free rate
+  double period_rf;
+  if (_rfrate <= 0.0 || _year_freq <= 0)
+    period_rf = 0.0;
+  else
+    period_rf = _rfrate / _year_freq;
+
+  size_t i;
+  double sum = 0.0;
+  double volatility = 0.0;
+
+#if HAS_SIMD
+  
+  // Have found that it's generally slower using simd on less than ~550 returns
+  // because of overhead from assignment and so on
+  // So falling back to scalar if that's the case
+  if (_n > 550)
+  {
+    // Calculate mean return
+    size_t vec_i = SIMD_D_LEN; // how many doubles in each vector
+                               //
+    // Create sum vector with values set to 0
+    SIMD_DOUBLE_T sum_v = SIMD_D_SET1(0);
+
+    // Calculate mean return
+    for (i = 0; i <= _n-vec_i; i += vec_i) {
+      
+      // Create vector with next returns
+      SIMD_DOUBLE_T ret_v = SIMD_D_LOADU(&_returns[i]);
+
+      // sum += _returns[i];
+      sum_v = SIMD_D_ADD(sum_v, ret_v);
+    }
+
+    // Sum vector values together
+    double temp_v[SIMD_D_LEN];
+    SIMD_D_STOREU(temp_v, sum_v);
+    for (size_t j = 0; j < vec_i; j++)
+      sum += temp_v[j];
+
+    // Handle remainders, continue i loop
+    for(; i < _n; i++)
+      sum += _returns[i];
+    
+    // Get volatility
+    volatility = risk_calc_volatility_double_simd(_returns, _n);
+    if (volatility == 0.0) return 0.0;
+  } 
+  else 
+  {
+    // Get volatility
+    volatility = risk_calc_volatility_double(_returns, _n);
+    if (volatility == 0.0) return 0.0;
+
+    // Scalar instead
+    for (i = 0; i < _n; i++)
+      sum += _returns[i];
+  }
+
+#else
+
+  // Get volatility
+  volatility = risk_calc_volatility_double(_returns, _n);
+
+  if (volatility == 0.0) return 0.0;
+
+  // Calculate mean return
+  for (i = 0; i < _n; i++)
+    sum += _returns[i];
+
+#endif
+
+  // Total mean return
+  double mean_return = sum / _n;
+  
+  // Annualize volatility
+  volatility = volatility * sqrt((double)_year_freq);
+
+  // Per-period excess mean return
+  double excess_mean_return = mean_return - period_rf;
+
+  // Annualized excess mean return
+  double excess_mean_return_annual = excess_mean_return * _year_freq;
+
+  return excess_mean_return_annual / volatility; // Captain Sharpe, sir
+}
 
 double risk_calc_volatility_double(const double* _data, int _n) 
 {

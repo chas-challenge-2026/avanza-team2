@@ -2,14 +2,18 @@
 #include "time_utils.h"
 #include "test_data.h"
 #include "ma.h"
+#include "rates_handler.h"
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+// #include <assert.h>
 
-#define SAMPLE_ARR_SIZE 252*1024
+#define SAMPLE_ARR_SIZE 252*5 // 252
 
 void risk_test_ma(void)
 {
+  printf("\n### MOVING AVERAGES TESTS ###\n");
   size_t ma_window = 20;
 
   /* Sample array inputs */
@@ -17,7 +21,7 @@ void risk_test_ma(void)
   uint64_t time_start;
   uint64_t time_end;
   uint64_t time_ns;
-  double time_s;
+  // double time_s;
 
   /*** Double test ***/
   double* arr_d = calloc(1, (arr_n * sizeof(double)));
@@ -42,13 +46,13 @@ void risk_test_ma(void)
   double* sma_result_d = risk_calc_sma_double(arr_d, arr_n, ma_window);
   time_end = system_monotonic_ns(); 
   time_ns = time_end - time_start;
-  time_s = (double)time_ns / 1e9;
+  // time_s = (double)time_ns / 1e9;
 
   if (!sma_result_d)
     exit(1);
 
   printf("\n--SMA (double) results--\n");
-  printf("risk_calc_sma_double took %lf seconds\n", time_s);
+  printf("risk_calc_sma_double took %zu ns\n", time_ns);
   for (size_t i = 0; i < ma_window; i++)
   {
     size_t resu_i = arr_n - (ma_window - i);
@@ -64,13 +68,13 @@ void risk_test_ma(void)
   double* wma_result_d = risk_calc_wma_double(arr_d, arr_n, ma_window);
   time_end = system_monotonic_ns(); 
   time_ns = time_end - time_start;
-  time_s = (double)time_ns / 1e9;
+  // time_s = (double)time_ns / 1e9;
 
   if (!wma_result_d)
     exit(1);
 
   printf("\n--WMA (double) results--\n");
-  printf("risk_calc_wma_double took %lf seconds\n", time_s);
+  printf("risk_calc_wma_double took %zu ns\n", time_ns);
   for (size_t i = 0; i < ma_window; i++)
   {
     size_t resu_i = arr_n - (ma_window - i);
@@ -86,13 +90,13 @@ void risk_test_ma(void)
   double* ema_result_d = risk_calc_ema_double(arr_d, arr_n, ma_window);
   time_end = system_monotonic_ns(); 
   time_ns = time_end - time_start;
-  time_s = (double)time_ns / 1e9;
+  // time_s = (double)time_ns / 1e9;
 
   if (!ema_result_d)
     exit(1);
 
   printf("\n--EMA (double) results--\n");
-  printf("risk_calc_ema_double took %lf seconds\n", time_s);
+  printf("risk_calc_ema_double took %zu ns\n", time_ns);
   for (size_t i = 0; i < ma_window; i++)
   {
     size_t resu_i = arr_n - (ma_window - i);
@@ -127,13 +131,13 @@ void risk_test_ma(void)
   float* sma_result_f = risk_calc_sma_float(arr_f, arr_n, ma_window);
   time_end = system_monotonic_ns(); 
   time_ns = time_end - time_start;
-  time_s = (float)time_ns / 1e9;
+  // time_s = (float)time_ns / 1e9;
 
   if (!sma_result_f)
     exit(1);
 
   printf("\n--SMA (float) results--\n");
-  printf("risk_calc_sma_float took %lf seconds\n", time_s);
+  printf("risk_calc_sma_float took %zu ns\n", time_ns);
   for (size_t i = 0; i < ma_window; i++)
   {
     size_t resu_i = arr_n - (ma_window - i);
@@ -149,13 +153,13 @@ void risk_test_ma(void)
   float* wma_result_f = risk_calc_wma_float(arr_f, arr_n, ma_window);
   time_end = system_monotonic_ns(); 
   time_ns = time_end - time_start;
-  time_s = (float)time_ns / 1e9;
+  // time_s = (float)time_ns / 1e9;
 
   if (!wma_result_f)
     exit(1);
 
   printf("\n--WMA (float) results--\n");
-  printf("risk_calc_wma_float took %lf seconds\n", time_s);
+  printf("risk_calc_wma_float took %zu ns\n", time_ns);
   for (size_t i = 0; i < ma_window; i++)
   {
     size_t resu_i = arr_n - (ma_window - i);
@@ -171,13 +175,13 @@ void risk_test_ma(void)
   float* ema_result_f = risk_calc_ema_float(arr_f, arr_n, ma_window);
   time_end = system_monotonic_ns(); 
   time_ns = time_end - time_start;
-  time_s = (float)time_ns / 1e9;
+  // time_s = (float)time_ns / 1e9;
 
   if (!ema_result_f)
     exit(1);
 
   printf("\n--EMA (float) results--\n");
-  printf("risk_calc_ema_float took %lf seconds\n", time_s);
+  printf("risk_calc_ema_float took %zu ns\n", time_ns);
   for (size_t i = 0; i < ma_window; i++)
   {
     size_t resu_i = arr_n - (ma_window - i);
@@ -192,16 +196,16 @@ void risk_test_ma(void)
 
 void risk_test_volatility(void)
 {
-  /* Sample array inputs */
+  printf("\n### VOLATILITY TESTS ###\n");
   const size_t arr_n = SAMPLE_ARR_SIZE; // Array size
   uint64_t time_start;
   uint64_t time_end;
   uint64_t time_ns;
-  double time_s;
+  // double time_s;
 
   /*** Double test ***/
-  double arr_base_start_d = 100.0;     // Initial base value
-  double arr_base_step_d = 0.01;       // Increase base by this amount each iteration
+  double arr_base_start_d = 1.0;     // Initial base value
+  double arr_base_step_d = 0.0;       // Increase base by this amount each iteration
   double arr_noise_magnitude_d = 10.0; // Randomize +/- this amount
   double volatility_d;
 
@@ -225,18 +229,18 @@ void risk_test_volatility(void)
   volatility_d = risk_calc_volatility_double(arr_d, arr_n);
   time_end = system_monotonic_ns(); 
   time_ns = time_end - time_start;
-  time_s = (double)time_ns / 1e9;
+  // time_s = (double)time_ns / 1e9;
 
-  printf("risk_calc_volatility_double took %lf seconds\n", time_s);
+  printf("risk_calc_volatility_double took %zu ns\n", time_ns);
   printf("Volatility: %lf\n", volatility_d);
 
   time_start = system_monotonic_ns(); 
   volatility_d = risk_calc_volatility_double_simd(arr_d, arr_n);
   time_end = system_monotonic_ns(); 
   time_ns = time_end - time_start;
-  time_s = (double)time_ns / 1e9;
+  // time_s = (double)time_ns / 1e9;
 
-  printf("risk_calc_volatility_double_simd took %lf seconds\n", time_s);
+  printf("risk_calc_volatility_double_simd took %zu ns\n", time_ns);
 
   printf("Volatility: %lf\n", volatility_d);
 
@@ -264,28 +268,164 @@ void risk_test_volatility(void)
   volatility_f = risk_calc_volatility_float(arr_f, arr_n);
   time_end = system_monotonic_ns(); 
   time_ns = time_end - time_start;
-  time_s = (double)time_ns / 1e9;
+  // time_s = (double)time_ns / 1e9;
 
-  printf("risk_calc_volatility_float took %lf seconds\n", time_s);
+  printf("risk_calc_volatility_float took %zu ns\n", time_ns);
   printf("Volatility: %f\n", volatility_f);
 
   time_start = system_monotonic_ns(); 
   volatility_f = risk_calc_volatility_float_simd(arr_f, arr_n);
   time_end = system_monotonic_ns(); 
   time_ns = time_end - time_start;
-  time_s = (double)time_ns / 1e9;
+  // time_s = (double)time_ns / 1e9;
 
-  printf("risk_calc_volatility_float_simd took %lf seconds\n", time_s);
+  printf("risk_calc_volatility_float_simd took %zu ns\n", time_ns);
   printf("Volatility: %f\n", volatility_f);
 
   free(arr_f);
 }
 
+void risk_test_sharpe(void)
+{
+  printf("\n### SHARPE TESTS ###\n");
+
+  const size_t arr_n = SAMPLE_ARR_SIZE; // Array size
+  uint64_t time_start;
+  uint64_t time_end;
+  uint64_t time_ns;
+  // double time_s;
+
+  /*** Double test ***/
+  double arr_base_start_d = 0.001;     // Initial base value
+  double arr_base_step_d = 0.0;      // Increase base by this amount each iteration
+  double arr_noise_magnitude_d = 0.1; // Randomize +/- this amount
+  double sharpe_d;
+
+  double* arr_d = calloc(1, (arr_n * sizeof(double)));
+  if (!arr_d)
+    exit(1);
+
+  printf("Generating an array of %ld doubles\n", arr_n);
+  test_gen_sample_arr_double(arr_d, 
+                      arr_n, 
+                      arr_base_start_d, 
+                      arr_base_step_d, 
+                      arr_noise_magnitude_d);
+  printf("First result: %lf\n", arr_d[0]);
+  printf("Last result (index %ld): %lf\n",arr_n-1, arr_d[arr_n-1]);
+  // for (size_t i = 0; i < arr_n; i++)
+  //   printf("%lf,", arr[i]);
+
+  // Get overnight annualized return rate
+  Rate R = {0};
+  rates_handler_get_latest(&R, Swestr);
+  if (R.value == 0)
+    R.value = 1.63; // TODO: Just handle rate limiting better
+    // exit(1);
+
+  /* Run and time calculations on array */
+  size_t year_freq = 252; // Standard annual returns
+  time_start = system_monotonic_ns(); 
+  sharpe_d = risk_calc_sharpe_ratio_double(arr_d, arr_n, R.value, year_freq);
+  time_end = system_monotonic_ns(); 
+  time_ns = time_end - time_start;
+  // time_s = (double)time_ns / 1e9;
+
+  printf("risk_calc_sharpe_ratio_double %zu ns\n", time_ns);
+  printf("Sharpe ratio: %lf\n", sharpe_d);
+
+  free(arr_d);
+}
+
+void risk_test_rates_handler(void)
+{
+  printf("\n### RATES HANDLER TESTS ###\n");
+  int res;
+  Rate R = {0};
+
+  res = rates_handler_get_latest(&R, Swestr);
+  if (res != 0)
+  {
+    fprintf(stderr, "rates_handler_get_latest, res=%d", res);
+    exit(1);
+  }
+  printf("Rate date: %ld, value: %lf, type: %d\n", R.date, R.value, R.type);
+  memset(&R, 0, sizeof(Rate));
+
+  rates_handler_get_latest(&R, OneMonth);
+  if (res != 0)
+  {
+    fprintf(stderr, "rates_handler_get_latest, res=%d", res);
+    exit(1);
+  }
+  printf("Rate date: %ld, value: %lf, type: %d\n", R.date, R.value, R.type);
+  memset(&R, 0, sizeof(Rate));
+
+  rates_handler_get_latest(&R, ThreeMonth);
+  if (res != 0)
+  {
+    fprintf(stderr, "rates_handler_get_latest, res=%d", res);
+    exit(1);
+  }
+  printf("Rate date: %ld, value: %lf, type: %d\n", R.date, R.value, R.type);
+  memset(&R, 0, sizeof(Rate));
+
+  rates_handler_get_latest(&R, SixMonth);
+  if (res != 0)
+  {
+    fprintf(stderr, "rates_handler_get_latest, res=%d", res);
+    exit(1);
+  }
+  printf("Rate date: %ld, value: %lf, type: %d\n", R.date, R.value, R.type);
+  memset(&R, 0, sizeof(Rate));
+
+  rates_handler_get_latest(&R, TwoYear);
+  if (res != 0)
+  {
+    fprintf(stderr, "rates_handler_get_latest, res=%d", res);
+    exit(1);
+  }
+  printf("Rate date: %ld, value: %lf, type: %d\n", R.date, R.value, R.type);
+  memset(&R, 0, sizeof(Rate));
+
+  rates_handler_get_latest(&R, FiveYear);
+  if (res != 0)
+  {
+    fprintf(stderr, "rates_handler_get_latest, res=%d", res);
+    exit(1);
+  }
+  printf("Rate date: %ld, value: %lf, type: %d\n", R.date, R.value, R.type);
+  memset(&R, 0, sizeof(Rate));
+
+  rates_handler_get_latest(&R, TenYear);
+  if (res != 0)
+  {
+    fprintf(stderr, "rates_handler_get_latest, res=%d", res);
+    exit(1);
+  }
+  printf("Rate date: %ld, value: %lf, type: %d\n", R.date, R.value, R.type);
+  memset(&R, 0, sizeof(Rate));
+
+  rates_handler_get_latest(&R, None);
+  if (res != 0)
+  {
+    fprintf(stderr, "rates_handler_get_latest, res=%d", res);
+    exit(1);
+  }
+  printf("Rate date: %ld, value: %lf, type: %d\n", R.date, R.value, R.type);
+  memset(&R, 0, sizeof(Rate));
+
+}
+
 int main(void) 
 {
+  risk_test_rates_handler();
+
   risk_test_volatility();
   risk_test_ma();
-  
+  risk_test_sharpe();
+
+
   return 0;
 }
 

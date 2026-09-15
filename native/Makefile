@@ -96,3 +96,29 @@ $(addsuffix /profile,$(MODULES)):
 	@MODULE=$(@D); \
 	echo "Building profiling target for $$MODULE..."; \
 	$(MAKE) -C $$MODULE profile
+
+# ---- Test Targets ----
+
+# Build target test using make [module]/test
+$(addsuffix /test,$(MODULES)):
+	@MODULE=$(@D); \
+	echo "Installing module $$MODULE..."; \
+	$(MAKE) -C $$MODULE test 
+
+# Run test using make [module]/test/run
+$(addsuffix /test-run,$(MODULES)):
+	@MODULE=$(@D); \
+	echo "Running module $$MODULE..."; \
+	$(MAKE) -C $$MODULE test-run
+
+# Run gdb test on target using make [module]/testgdb
+$(addsuffix /test-gdb,$(MODULES)):
+	@MODULE=$(@D); \
+	echo "Debugging module $$MODULE using gdb..."; \
+	$(MAKE) -C $$MODULE test-gdb
+
+# Run valgrind on target using make [module]/valgrind
+$(addsuffix /test-valgrind,$(MODULES)):
+	@MODULE=$(@D); \
+	echo "Debugging module $$MODULE using valgrind..."; \
+	$(MAKE) -C $$MODULE test-valgrind
