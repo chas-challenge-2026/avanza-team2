@@ -14,13 +14,33 @@ för fullständig målarkitektur.
 
 ## Starta programmet
 
-```bash
-cd infra
+1. Öppna mapp `infra/`
 
-docker compose up --build
+2. Skapa din egen `.env` fil (den är redan gitignorad och ska aldrig committas)
+
+3. Lägg till dessa parametrar i enviroment filen och ändra nyckalar till dina egna
+
+```env
+#Database configuration
+DB_USERNAME=avanza
+DB_PASSWORD=some_local_password
+
+#JWT secret - 32 karaktär minst
+JWT_SECRET=change_me_to_a_random_32_char_min_string
 ```
 
-Öppna: http://localhost:8082
+4. Därefter kan du öppna terminal och starta projektet på följande vis:
+
+```bash
+cd infra
+docker compose --env-file .env up --build
+```
+
+5. Öppna din lokala websida på denna porten och använd följande test användare:
+
+**Port**
+
+- `http://localhost:8082`
 
 **Testanvändare:**
 
