@@ -1,8 +1,4 @@
 import { useState } from 'react'
-import { Title } from './Components/Title/Title.tsx'
-import { DropdownBtn } from './Components/DropdownBtn/DropdownBtn.tsx'
-import { StatCard } from './Components/StatCard/StatCard.tsx'
-import { SparklineChart } from './Components/SparklineChart/SparklineChart.tsx'
 import { Navbar } from './Components/Navbar/Navbar.tsx'
 import { TopBar } from './Components/TopBar/TopBar.tsx'
 import { Footer } from './Components/Footer/Footer.tsx'
@@ -14,7 +10,6 @@ import { Notifications } from './Pages/Notifications/Notifications.tsx'
 import { Reports } from './Pages/Reports/Reports.tsx'
 import { Settings } from './Pages/Settings/Settings.tsx'
 
-const sampleTrend = [10, 12, 11, 14, 13, 16, 15, 18, 17, 20, 19, 23]
 
 const routes = [
   { path: '/', title: 'Min Portfölj', element: <Overview /> },
@@ -26,7 +21,6 @@ const routes = [
 ]
 
 function App() {
-  const [account, setAccount] = useState<string | undefined>()
   const location = useLocation()
   const currentTitle = routes.find((route) => route.path === location.pathname)?.title ?? 'Min Portfölj'
 

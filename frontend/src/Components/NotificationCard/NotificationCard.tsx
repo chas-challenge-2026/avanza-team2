@@ -8,7 +8,6 @@ type NotificationCardProps = {
 };
 
 const NotificationCard = ({
-    category,
     title,
     subtitle,
     timestamp
