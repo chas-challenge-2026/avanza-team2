@@ -16,35 +16,47 @@ Dessa fel är **avsiktliga** och ska hittas och åtgärdas av studenter i v2.
 
 ### SQL-injektion i AuthController
 
-**Fil:** `AuthController.java`, metod `doLogin`
-**Problem:** Login-queryn byggs med strängkonkatenering:
+~~**Fil:** `AuthController.java`, metod `doLogin`~~
+~~**Problem:** Login-queryn byggs med strängkonkatenering:~~
 
 ```java
 String sql = "SELECT id, name, email FROM users WHERE email = '" + email
            + "' AND password_md5 = '" + md5 + "'";
 ```
 
-En angripare kan logga in som valfri användare med: `' OR '1'='1`
+~~En angripare kan logga in som valfri användare med: `' OR '1'='1`~~
+~~**Fix:** Använd `PreparedStatement` eller `jdbcTemplate.queryForList(sql, email, md5)`.~~
 
-**Fix:** Använd `PreparedStatement` eller `jdbcTemplate.queryForList(sql, email, md5)`.
+**Fix:** Vi har löst denna problemet genom att använda JPA i UserRepository. Den metoden används sedan i AuthController och AuthService
+
+---
 
 ### MD5-lösenord
 
-**Fil:** `AuthController.java`, metod `md5Hash`
-**Problem:** MD5 är kryptografiskt brutet sedan 1996. Regnbågstabeller finns för vanliga lösenord.
+~~**Fil:** `AuthController.java`, metod `md5Hash`~~
+~~**Problem:** MD5 är kryptografiskt brutet sedan 1996. Regnbågstabeller finns för vanliga lösenord.~~
+
 **Fix:** Byt till BCrypt via Spring Security: `BCryptPasswordEncoder`.
+
+---
 
 ### IDOR — Innehav (Insecure Direct Object Reference)
 
-**Fil:** `HoldingController.java`, metod `deleteHolding`
-**Problem:** `DELETE FROM holdings WHERE id = ?` utan att verifiera att inneget tillhör inloggad användare.
-Valfri inloggad användare kan ta bort andras innehav.
-**Fix:** Lägg till `AND account_id IN (SELECT id FROM accounts WHERE user_id = ?)`.
+~~**Fil:** `HoldingController.java`, metod `deleteHolding`~~
+~~**Problem:** `DELETE FROM holdings WHERE id = ?` utan att verifiera att inneget tillhör inloggad användare.~~
+~~Valfri inloggad användare kan ta bort andras innehav.~~
+~~**Fix:** Lägg till `AND account_id IN (SELECT id FROM accounts WHERE user_id = ?)`.~~
+
+**Fix:** vi kollar upp först om användare tillhör en holding via UserRepository.findbyemail
+
+---
 
 ### IDOR — Notiser
 
-**Fil:** `AlertController.java`, metod `dismissAlert`
-**Problem:** Samma mönster som ovan — ingen ägarskapskontroll på `UPDATE alerts SET dismissed = true WHERE id = ?`.
+~~**Fil:** `AlertController.java`, metod `dismissAlert`~~
+~~**Problem:** Samma mönster som ovan — ingen ägarskapskontroll på `UPDATE alerts SET dismissed = true WHERE id = ?`.~~
+
+**Fix:** vi kollar upp i AlertService methoden dismissAlert om det är den ägare annars blockerar vi förfrågan om att updatera
 
 ## Logikfel
 
