@@ -1,6 +1,7 @@
 package se.comerit.avanza.service;
 
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 
@@ -85,13 +86,18 @@ public class AlertService {
      * Dismiss an alert by setting its dismissed flag to true.
      *
      * @param alertId the ID of the alert to be dismissed
+     * @param email   the email of the authenticated user attempting to dismiss the
+     *                alert
      */
-    public void dismissAlert(Long alertId) {
+    public void dismissAlert(Long alertId, String email) {
         Alerts alert = alertsRepository.findById(alertId)
                 .orElseThrow(() -> new IllegalArgumentException("Alert not found"));
 
-        alert.setDismissed(true);
+        if (!alert.getUser().getEmail().equals(email)) {
+            throw new AccessDeniedException("User not authorized to dismiss this alert");
+        }
 
+        alert.setDismissed(true);
         alertsRepository.save(alert);
     }
 

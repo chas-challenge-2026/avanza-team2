@@ -45,7 +45,8 @@ public class AlertController {
      * of using an HTTP session. The email is then used by the service layer to
      * identify the corresponding user.
      *
-     * @param authentication the authentication information provided by Spring Security
+     * @param authentication the authentication information provided by Spring
+     *                       Security
      * @param page           the page number for pagination
      * @param size           the number of alerts per page
      * @return a response entity containing the paginated list of alerts and live
@@ -88,14 +89,16 @@ public class AlertController {
      * Authentication is handled by Spring Security, so no HTTP session is
      * required. The alert itself is dismissed by the service layer.
      *
-     * @param id the ID of the alert to be dismissed
+     * @param id             the ID of the alert to be dismissed
+     * @param authentication the authentication information provided by Spring
+     *                       Security
      * @return a response entity indicating the result of the dismissal operation
      */
     @PutMapping("/{id}/dismiss")
     public ResponseEntity<Map<String, Object>> dismissAlert(
-            @PathVariable Long id) {
+            @PathVariable Long id, Authentication authentication) {
 
-        alertService.dismissAlert(id);
+        alertService.dismissAlert(id, authentication.getName());
 
         return ResponseEntity.ok(Map.of("message", "Alert dismissed successfully"));
     }
