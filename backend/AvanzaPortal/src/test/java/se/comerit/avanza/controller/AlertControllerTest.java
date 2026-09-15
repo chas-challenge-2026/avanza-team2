@@ -29,105 +29,96 @@ import se.comerit.avanza.service.AlertService;
 @ExtendWith(MockitoExtension.class)
 class AlertControllerTest {
 
-    @Mock
-    private AlertService alertService;
+        @Mock
+        private AlertService alertService;
 
-    @Mock
-    private Authentication authentication;
+        @Mock
+        private Authentication authentication;
 
-    private AlertController alertController;
+        private AlertController alertController;
 
-    private User user;
-    private Alerts alert;
+        private User user;
+        private Alerts alert;
 
-    @BeforeEach
-    void setUp() {
-        alertController = new AlertController(alertService);
+        @BeforeEach
+        void setUp() {
+                alertController = new AlertController(alertService);
 
-        user = new User();
-        user.setId(1L);
-        user.setEmail("test@test.com");
+                user = new User();
+                user.setId(1L);
+                user.setEmail("test@test.com");
 
-        alert = new Alerts(
-                "DRIFT",
-                "Test alert",
-                false,
-                new Timestamp(System.currentTimeMillis()),
-                user
-        );
-        alert.setId(1L);
-    }
+                alert = new Alerts(
+                                "DRIFT",
+                                "Test alert",
+                                false,
+                                new Timestamp(System.currentTimeMillis()),
+                                user);
+                alert.setId(1L);
+        }
 
-    @Test
-    void shouldReturnAlertsForAuthenticatedUser() {
-        // Arrange
-        when(authentication.getName())
-                .thenReturn("test@test.com");
+        @Test
+        void shouldReturnAlertsForAuthenticatedUser() {
+                // Arrange
+                when(authentication.getName())
+                                .thenReturn("test@test.com");
 
-        Page<Alerts> alertsPage =
-                new PageImpl<>(List.of(alert));
+                Page<Alerts> alertsPage = new PageImpl<>(List.of(alert));
 
-        when(alertService.getStoredAlertsByEmail(
-                eq("test@test.com"),
-                any(Pageable.class)
-        )).thenReturn(alertsPage);
+                when(alertService.getStoredAlertsByEmail(
+                                eq("test@test.com"),
+                                any(Pageable.class))).thenReturn(alertsPage);
 
-        when(alertService.generateLiveDriftAlertsByEmail(
-                "test@test.com"
-        )).thenReturn(List.of());
+                when(alertService.generateLiveDriftAlertsByEmail(
+                                "test@test.com")).thenReturn(List.of());
 
-        when(alertService.getDriftThreshold())
-                .thenReturn(7);
+                when(alertService.getDriftThreshold())
+                                .thenReturn(7);
 
-        // Act
-        ResponseEntity<Map<String, Object>> response =
-                alertController.listAlerts(
-                        authentication,
-                        0,
-                        10
-                );
+                // Act
+                ResponseEntity<Map<String, Object>> response = alertController.listAlerts(
+                                authentication,
+                                0,
+                                10);
 
-        // Assert
-        assertEquals(200, response.getStatusCode().value());
-        assertNotNull(response.getBody());
+                // Assert
+                assertEquals(200, response.getStatusCode().value());
+                assertNotNull(response.getBody());
 
-        assertNotNull(response.getBody().get("storedAlerts"));
-        assertNotNull(response.getBody().get("liveAlerts"));
-        assertEquals(
-                7,
-                response.getBody().get("driftThreshold")
-        );
+                assertNotNull(response.getBody().get("storedAlerts"));
+                assertNotNull(response.getBody().get("liveAlerts"));
+                assertEquals(
+                                7,
+                                response.getBody().get("driftThreshold"));
 
-        verify(alertService).getStoredAlertsByEmail(
-                eq("test@test.com"),
-                any(Pageable.class)
-        );
+                verify(alertService).getStoredAlertsByEmail(
+                                eq("test@test.com"),
+                                any(Pageable.class));
 
-        verify(alertService).generateLiveDriftAlertsByEmail(
-                "test@test.com"
-        );
+                verify(alertService).generateLiveDriftAlertsByEmail(
+                                "test@test.com");
 
-        verify(alertService).getDriftThreshold();
-    }
+                verify(alertService).getDriftThreshold();
+        }
 
-    @Test
-    void shouldDismissAlert() {
-        // Arrange
-        Long alertId = 1L;
+        @Test
+        void shouldDismissAlert() {
+                // Arrange
+                Long alertId = 1L;
+                when(authentication.getName())
+                                .thenReturn("test@test.com");
 
-        // Act
-        ResponseEntity<Map<String, Object>> response =
-                alertController.dismissAlert(alertId);
+                // Act
+                ResponseEntity<Map<String, Object>> response = alertController.dismissAlert(alertId, authentication);
 
-        // Assert
-        verify(alertService).dismissAlert(alertId);
+                // Assert
+                verify(alertService).dismissAlert(alertId, "test@test.com");
 
-        assertEquals(200, response.getStatusCode().value());
-        assertNotNull(response.getBody());
+                assertEquals(200, response.getStatusCode().value());
+                assertNotNull(response.getBody());
 
-        assertEquals(
-                "Alert dismissed successfully",
-                response.getBody().get("message")
-        );
-    }
+                assertEquals(
+                                "Alert dismissed successfully",
+                                response.getBody().get("message"));
+        }
 }
