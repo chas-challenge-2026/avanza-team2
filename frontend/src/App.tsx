@@ -12,7 +12,7 @@ import { Login } from './Pages/Login/Login.tsx'
 import { ForgotPassword } from './Pages/ForgotPassword/ForgotPassword.tsx'
 import { ResetPassword } from './Pages/ResetPassword/ResetPassword.tsx'
 import { ProtectedRoute } from './Components/ProtectedRoute/ProtectedRoute.tsx'
-import { useAuth } from './context/AuthContext.tsx'
+import { useAuth } from './context/useAuth';
 
 const LOGIN_PATH = '/Loggain'
 const PUBLIC_PATHS = [LOGIN_PATH, '/glomt-losenord', '/aterstall-losenord']

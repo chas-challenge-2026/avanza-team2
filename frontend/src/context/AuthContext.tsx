@@ -1,14 +1,5 @@
-import { createContext, useState, type ReactNode } from 'react';
-
-interface AuthContextValue {
-  isAuthenticated: boolean;
-  login: () => void;
-  logout: () => void;
-}
-
-const AuthContext = createContext<AuthContextValue | undefined>(undefined);
-
-const AuthStorageKey = 'avanza_auth_token';
+import { useState, type ReactNode } from 'react';
+import { AuthContext, AuthStorageKey } from './auth-context';
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(
@@ -16,8 +7,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 
   const login = () => {
-    // Placeholder until the real backend issues a token — swap this for
-    // storing the actual JWT once auth is wired up.
     localStorage.setItem(AuthStorageKey, 'mock-token');
     setIsAuthenticated(true);
   };
@@ -33,4 +22,3 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     </AuthContext.Provider>
   );
 };
-
