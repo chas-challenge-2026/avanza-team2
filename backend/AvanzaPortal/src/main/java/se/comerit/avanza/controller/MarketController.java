@@ -22,11 +22,12 @@ public class MarketController {
     }
 
     /**
-     * Fetches the foreign exchange rate for the given currency pair.
+     * Retrieves the foreign exchange rate for the given currency pair.
      * 
-     * @param from
-     * @param to
-     * @return
+     * @param from from currency
+     * @param to   to currency
+     * @return the FX rate response entity containing the rate or a bad request
+     *         status if the pair is unknown
      */
     @GetMapping("/fx/{from}/{to}")
     public ResponseEntity<FxRateResponseDTO> getFx(@PathVariable String from, @PathVariable String to) {
