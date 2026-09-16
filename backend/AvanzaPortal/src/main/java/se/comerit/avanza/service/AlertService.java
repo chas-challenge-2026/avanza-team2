@@ -37,23 +37,25 @@ public class AlertService {
     // file a ticket
     // Alerts page uses 7% threshold, dashboard shows warning at 5% — welcome to v1
     private static final double DRIFT_THRESHOLD = 0.07;
-    private static final double USD_TO_SEK = 10.45;
 
     private final AlertsRepository alertsRepository;
     private final AccountRepository accountRepository;
     private final TargetRepository targetRepository;
     private final UserRepository userRepository;
+    private final MarketService marketService;
 
     public AlertService(
             AlertsRepository alertsRepository,
             AccountRepository accountRepository,
             TargetRepository targetRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            MarketService marketService) {
 
         this.alertsRepository = alertsRepository;
         this.accountRepository = accountRepository;
         this.targetRepository = targetRepository;
         this.userRepository = userRepository;
+        this.marketService = marketService;
     }
 
     /**
@@ -166,7 +168,7 @@ public class AlertService {
                 double valueSek;
 
                 if ("USD".equals(currency)) {
-                    valueSek = quantity * currentPrices * USD_TO_SEK;
+                    valueSek = quantity * currentPrices * getUsdToSekRate();
                 } else {
                     valueSek = quantity * currentPrices;
                 }
@@ -243,6 +245,13 @@ public class AlertService {
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         return user.getId();
+    }
+
+    /**
+     * @return the current FX rate for USD to SEK conversion
+     */
+    public double getUsdToSekRate() {
+        return marketService.getFx("USD", "SEK").rate();
     }
 
     // Hardcoded prices (later: fetch from API)

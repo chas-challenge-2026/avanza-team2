@@ -49,6 +49,9 @@ class AlertServiceTest {
         @Mock
         private UserRepository userRepository;
 
+        @Mock
+        private MarketService marketService;
+
         private AlertService alertService;
 
         @BeforeEach
@@ -57,7 +60,8 @@ class AlertServiceTest {
                                 alertsRepository,
                                 accountRepository,
                                 targetRepository,
-                                userRepository);
+                                userRepository,
+                                marketService);
         }
 
         @Test
