@@ -151,3 +151,5 @@ buildNumber.properties
 ### LLM stuff ###
 
 AGENTS.md
+
+native/common/config/include/user_config.h

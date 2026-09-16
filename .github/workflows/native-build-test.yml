@@ -19,6 +19,10 @@ jobs:
     - name: Install dependencies
       run: sudo apt-get update && sudo apt-get install -y build-essential libcurl4-openssl-dev
 
+    - name: Install
+      working-directory: ./native
+      run: sudo make install
+
     - name: Build all
       working-directory: ./native
       run: make all AVX_LEVEL=avx2
