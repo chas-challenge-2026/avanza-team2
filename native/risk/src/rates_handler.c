@@ -23,6 +23,7 @@
 
 /*
 TODO: Handle request rate limiting 
+
 Example response from riksbank.se when exceeded:
 { "statusCode": 429, "message": "Rate limit is exceeded. Try again in 59 seconds." }
 */
@@ -36,6 +37,26 @@ int rates_handler_parse_rbapi_response(Rate* _R, const char* _json)
   {
     perror("cJSON_Parse");
     return 1;
+  }
+
+  // Check if status code was returned
+  cJSON* Json_Status_Code = cJSON_GetObjectItemCaseSensitive(Json_Root, "statusCode");
+  if (Json_Status_Code && cJSON_IsNumber(Json_Status_Code))
+  {
+    // Check if rate limited
+    int status_code = Json_Status_Code->valueint; 
+    if (status_code == 429)
+    {
+      fprintf(stderr, "WARN: Request to riskbank.se was rate limited!\n");
+      cJSON_Delete(Json_Root);
+      return 429;
+    }
+    // else
+    // {
+    //   fprintf(stderr, "WARN: Unknown status code");
+    //   cJSON_Delete(Json_Root);
+    //   return status_code;
+    // }
   }
 
   // Get rate/value json objects
@@ -67,7 +88,7 @@ int rates_handler_parse_rbapi_response(Rate* _R, const char* _json)
   time_t date_epoch = time_parse_iso_date_day_str_to_epoch(date);
 
   _R->date = date_epoch;
-  _R->value = value;
+  _R->value = value / 100;
 
   cJSON_Delete(Json_Root);
   return 0;
@@ -103,7 +124,7 @@ char* rates_handler_fetch_from_rbapi(RateType _Type)
   // printf("RBAPI url: %s\n", full_url); // NOTE: dbg
 
   // Prepare and make call to API using curl helper
-  Curl_Data Cd;
+  Curl_Data Cd = {0};
   int res = curl_init(&Cd);
   if (res != 0)
   {
@@ -115,7 +136,7 @@ char* rates_handler_fetch_from_rbapi(RateType _Type)
     perror("curl_get_response");
   
   // Allocate and copy response
-  if (Cd.size > 0)
+  if (Cd.addr && Cd.size > 0)
   {
     response = malloc(Cd.size + 1);
     if (!response) 
@@ -139,6 +160,7 @@ char* rates_handler_fetch_from_rbapi(RateType _Type)
 
 int rates_handler_get_latest(Rate* _R, RateType _Type)
 {
+  int res;
   _R->type = _Type;
   const char* series = rates_handler_get_rbapi_seriesid(_Type);
   if (series == NULL)
@@ -184,8 +206,9 @@ int rates_handler_get_latest(Rate* _R, RateType _Type)
       return 3;
     }
 
-    // Parse cache json
-    if (rates_handler_parse_rbapi_response(_R, rb_response_json) != 0)
+    // Parse cached response json
+    res = rates_handler_parse_rbapi_response(_R, rb_response_json);
+    if (res != 0)
     {
       free(rb_response_json);
       perror("rates_handler_parse_rbapi_response");
@@ -202,17 +225,31 @@ int rates_handler_get_latest(Rate* _R, RateType _Type)
       return 5;
     }
 
-    // Parse cache json
-    if (rates_handler_parse_rbapi_response(_R, rb_response_json) != 0)
+    // Parse fetched response json
+    res = rates_handler_parse_rbapi_response(_R, rb_response_json);
+    if (res == 429) // Rate-limited
+    {
+      free(rb_response_json);
+      return res;
+    }
+    else if (res != 0) // Parse error 
     {
       perror("rates_handler_parse_rbapi_response");
+      fprintf(stderr, "rates_handler_parse_rbapi_response res: %i", res);
       free(rb_response_json);
       return 6;
     }
-
-    // Save response to cache file
-    if (write_string_to_file(rb_response_json, filepath) != 0)
-      perror("write_string_to_file");
+    else // Parse success
+    {
+      // Save response to cache file
+      if (write_string_to_file(rb_response_json, filepath) != 0)
+      {
+        perror("write_string_to_file");
+        fprintf(stderr, "Failed to write response json to file, Does path exist with correct permissions?\n");
+        free(rb_response_json);
+        return 7;
+      }
+    }
 
     free(rb_response_json);
   }

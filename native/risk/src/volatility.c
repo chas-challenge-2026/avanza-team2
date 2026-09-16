@@ -167,7 +167,7 @@ double risk_calc_volatility_int32(const int32_t* _data, int _n)
 double risk_calc_volatility_double_simd(const double* _data, size_t _n)
 {
   // Won't matter if dereffed values aren't inited etc. but guards a lil
-  if (!_data || _n < 2) return 0.0;
+  if (!_data || _n < SIMD_D_LEN) return 0.0;
 
   printf("Calculating volatility using SIMD level: %s\n", SIMD_LEVEL);
 
@@ -219,7 +219,6 @@ double risk_calc_volatility_double_simd(const double* _data, size_t _n)
     //TODO: error log
     return 0.0;
   }
-  
 
   // We also need to handle remainders 
   // since if _data isn't a multiple of vec_i, 
@@ -239,7 +238,7 @@ double risk_calc_volatility_double_simd(const double* _data, size_t _n)
 float risk_calc_volatility_float_simd(const float* _data, size_t _n)
 {
   // Won't matter if dereffed values aren't inited etc. but guards a lil
-  if (!_data || _n < 2) return 0.0;
+  if (!_data || _n < SIMD_F_LEN) return 0.0;
 
   printf("Calculating volatility using SIMD level: %s\n", SIMD_LEVEL);
 
@@ -301,7 +300,7 @@ float risk_calc_volatility_float_simd(const float* _data, size_t _n)
   // last few values will be excluded from loop 
   // Finish loop regularly
   for(; i < _n; i++) {
-    double diff = _data[i] - avg;
+    float diff = _data[i] - avg;
     sum_sq_diff += diff * diff;
   }
 

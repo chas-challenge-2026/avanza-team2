@@ -24,9 +24,11 @@ typedef struct
 
 } Rate;
 
-/* Procures interest rate based on type chosen 
- * Fetches rate from riskbanken API
- * Caches and reuses response */
+/* Procures interest rate in decimal form (i.e 0.036 for 3.6%) based on type chosen 
+ * Fetches rate from riskbanken API, caches and reuses response 
+ * Riksbank API rate limit: 5 Requests/min and 1000 requests/day
+ * Returns: 0 for success, 429 for request rate limit hit, else misc errors
+ * NOTE: all rates are in SEK */
 int rates_handler_get_latest(Rate* _R, RateType _Type);
 
 /* Returns the equivalent SeriesId string per T-Bill type for riksbank API

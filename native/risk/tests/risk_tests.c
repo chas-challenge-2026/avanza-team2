@@ -7,11 +7,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-// #include <assert.h>
+#include <assert.h>
 
-#define SAMPLE_ARR_SIZE 252*5 // 252
+#define SAMPLE_ARR_SIZE 252*5 // 252 = Average trading days per year
 
-void risk_test_ma(void)
+int risk_test_ma(void)
 {
   printf("\n### MOVING AVERAGES TESTS ###\n");
   size_t ma_window = 20;
@@ -26,7 +26,7 @@ void risk_test_ma(void)
   /*** Double test ***/
   double* arr_d = calloc(1, (arr_n * sizeof(double)));
   if (!arr_d)
-    exit(1);
+    return 1;
 
   double arr_base_start_d = 100.0;     // Initial base value
   double arr_base_step_d = 0.01;       // Increase base by this amount each iteration
@@ -49,7 +49,7 @@ void risk_test_ma(void)
   // time_s = (double)time_ns / 1e9;
 
   if (!sma_result_d)
-    exit(1);
+    return 2;
 
   printf("\n--SMA (double) results--\n");
   printf("risk_calc_sma_double took %zu ns\n", time_ns);
@@ -71,7 +71,7 @@ void risk_test_ma(void)
   // time_s = (double)time_ns / 1e9;
 
   if (!wma_result_d)
-    exit(1);
+    return 3;
 
   printf("\n--WMA (double) results--\n");
   printf("risk_calc_wma_double took %zu ns\n", time_ns);
@@ -93,7 +93,7 @@ void risk_test_ma(void)
   // time_s = (double)time_ns / 1e9;
 
   if (!ema_result_d)
-    exit(1);
+    return 4;
 
   printf("\n--EMA (double) results--\n");
   printf("risk_calc_ema_double took %zu ns\n", time_ns);
@@ -111,7 +111,7 @@ void risk_test_ma(void)
   /*** Float test ***/
   float* arr_f = calloc(1, (arr_n * sizeof(float)));
   if (!arr_f)
-    exit(1);
+    return 5;
 
   float arr_base_start_f = 100.0;     // Initial base value
   float arr_base_step_f = 0.01;       // Increase base by this amount each iteration
@@ -134,7 +134,7 @@ void risk_test_ma(void)
   // time_s = (float)time_ns / 1e9;
 
   if (!sma_result_f)
-    exit(1);
+    return 6;
 
   printf("\n--SMA (float) results--\n");
   printf("risk_calc_sma_float took %zu ns\n", time_ns);
@@ -156,7 +156,7 @@ void risk_test_ma(void)
   // time_s = (float)time_ns / 1e9;
 
   if (!wma_result_f)
-    exit(1);
+    return 7;
 
   printf("\n--WMA (float) results--\n");
   printf("risk_calc_wma_float took %zu ns\n", time_ns);
@@ -178,7 +178,7 @@ void risk_test_ma(void)
   // time_s = (float)time_ns / 1e9;
 
   if (!ema_result_f)
-    exit(1);
+    return 8;
 
   printf("\n--EMA (float) results--\n");
   printf("risk_calc_ema_float took %zu ns\n", time_ns);
@@ -192,9 +192,11 @@ void risk_test_ma(void)
   free(ema_result_f);
 
   free(arr_f);
+
+  return 0;
 }
 
-void risk_test_volatility(void)
+int risk_test_volatility(void)
 {
   printf("\n### VOLATILITY TESTS ###\n");
   const size_t arr_n = SAMPLE_ARR_SIZE; // Array size
@@ -211,7 +213,7 @@ void risk_test_volatility(void)
 
   double* arr_d = calloc(1, (arr_n * sizeof(double)));
   if (!arr_d)
-    exit(1);
+    return 1;
 
   printf("Generating an array of %ld doubles\n", arr_n);
   test_gen_sample_arr_double(arr_d, 
@@ -251,9 +253,11 @@ void risk_test_volatility(void)
   float arr_base_step_f = 0.01;       // Increase base by this amount each iteration
   float arr_noise_magnitude_f = 10.0; // Randomize +/- this amount
   float volatility_f;
+
   float* arr_f = calloc(1, (arr_n * sizeof(float)));
   if (!arr_f)
-    exit(1);
+    return 2;
+
   printf("Generating an array of %ld float\n", arr_n);
   test_gen_sample_arr_float(arr_f, 
                       arr_n, 
@@ -283,9 +287,11 @@ void risk_test_volatility(void)
   printf("Volatility: %f\n", volatility_f);
 
   free(arr_f);
+
+  return 0;
 }
 
-void risk_test_sharpe(void)
+int risk_test_sharpe(void)
 {
   printf("\n### SHARPE TESTS ###\n");
 
@@ -303,7 +309,7 @@ void risk_test_sharpe(void)
 
   double* arr_d = calloc(1, (arr_n * sizeof(double)));
   if (!arr_d)
-    exit(1);
+    return 1;
 
   printf("Generating an array of %ld doubles\n", arr_n);
   test_gen_sample_arr_double(arr_d, 
@@ -320,7 +326,7 @@ void risk_test_sharpe(void)
   Rate R = {0};
   rates_handler_get_latest(&R, Swestr);
   if (R.value == 0)
-    R.value = 1.63; // TODO: Just handle rate limiting better
+    R.value = 0.0163; // TODO: Just handle rate limiting better
     // exit(1);
 
   /* Run and time calculations on array */
@@ -335,96 +341,156 @@ void risk_test_sharpe(void)
   printf("Sharpe ratio: %lf\n", sharpe_d);
 
   free(arr_d);
+
+  return 0;
 }
 
-void risk_test_rates_handler(void)
+int risk_test_rates_handler(void)
 {
   printf("\n### RATES HANDLER TESTS ###\n");
   int res;
   Rate R = {0};
 
   res = rates_handler_get_latest(&R, Swestr);
-  if (res != 0)
+  if (res == 429)
   {
-    fprintf(stderr, "rates_handler_get_latest, res=%d", res);
-    exit(1);
+    printf("We were rate limited by riksbank! Need to wait 60 secs from first block.\n");
   }
-  printf("Rate date: %ld, value: %lf, type: %d\n", R.date, R.value, R.type);
+  else if (res != 0)
+  {
+    fprintf(stderr, "rates_handler_get_latest, res=%d\n", res);
+    return 1;
+  }
+  else
+  {
+    printf("Rate date: %ld, value: %lf, type: %d\n", R.date, R.value, R.type);
+  }
   memset(&R, 0, sizeof(Rate));
 
-  rates_handler_get_latest(&R, OneMonth);
-  if (res != 0)
+  res = rates_handler_get_latest(&R, OneMonth);
+  if (res == 429)
   {
-    fprintf(stderr, "rates_handler_get_latest, res=%d", res);
-    exit(1);
+    printf("We were rate limited by riksbank! Need to wait 60 secs from first block.\n");
   }
-  printf("Rate date: %ld, value: %lf, type: %d\n", R.date, R.value, R.type);
+  else if (res != 0)
+  {
+    fprintf(stderr, "rates_handler_get_latest, res=%d\n", res);
+    return 2;
+  }
+  else
+  {
+    printf("Rate date: %ld, value: %lf, type: %d\n", R.date, R.value, R.type);
+  }
   memset(&R, 0, sizeof(Rate));
 
-  rates_handler_get_latest(&R, ThreeMonth);
-  if (res != 0)
+  res = rates_handler_get_latest(&R, ThreeMonth);
+  if (res == 429)
   {
-    fprintf(stderr, "rates_handler_get_latest, res=%d", res);
-    exit(1);
+    printf("We were rate limited by riksbank! Need to wait 60 secs from first block.\n");
   }
-  printf("Rate date: %ld, value: %lf, type: %d\n", R.date, R.value, R.type);
+  else if (res != 0)
+  {
+    fprintf(stderr, "rates_handler_get_latest, res=%d\n", res);
+    return 3;
+  }
+  else
+  {
+    printf("Rate date: %ld, value: %lf, type: %d\n", R.date, R.value, R.type);
+  }
   memset(&R, 0, sizeof(Rate));
 
-  rates_handler_get_latest(&R, SixMonth);
-  if (res != 0)
+  res = rates_handler_get_latest(&R, SixMonth);
+  if (res == 429)
   {
-    fprintf(stderr, "rates_handler_get_latest, res=%d", res);
-    exit(1);
+    printf("We were rate limited by riksbank! Need to wait 60 secs from first block.\n");
   }
-  printf("Rate date: %ld, value: %lf, type: %d\n", R.date, R.value, R.type);
+  else if (res != 0)
+  {
+    fprintf(stderr, "rates_handler_get_latest, res=%d\n", res);
+    return 4;
+  }
+  else
+  {
+    printf("Rate date: %ld, value: %lf, type: %d\n", R.date, R.value, R.type);
+  }
   memset(&R, 0, sizeof(Rate));
 
-  rates_handler_get_latest(&R, TwoYear);
-  if (res != 0)
+  res = rates_handler_get_latest(&R, TwoYear);
+  if (res == 429)
   {
-    fprintf(stderr, "rates_handler_get_latest, res=%d", res);
-    exit(1);
+    printf("We were rate limited by riksbank! Need to wait 60 secs from first block.\n");
   }
-  printf("Rate date: %ld, value: %lf, type: %d\n", R.date, R.value, R.type);
+  else if (res != 0)
+  {
+    fprintf(stderr, "rates_handler_get_latest, res=%d\n", res);
+    return 5;
+  }
+  else
+  {
+    printf("Rate date: %ld, value: %lf, type: %d\n", R.date, R.value, R.type);
+  }
   memset(&R, 0, sizeof(Rate));
 
-  rates_handler_get_latest(&R, FiveYear);
-  if (res != 0)
+  res = rates_handler_get_latest(&R, FiveYear);
+  if (res == 429)
   {
-    fprintf(stderr, "rates_handler_get_latest, res=%d", res);
-    exit(1);
+    printf("We were rate limited by riksbank! Need to wait 60 secs from first block.\n");
   }
-  printf("Rate date: %ld, value: %lf, type: %d\n", R.date, R.value, R.type);
+  else if (res != 0)
+  {
+    fprintf(stderr, "rates_handler_get_latest, res=%d\n", res);
+    return 6;
+  }
+  else
+  {
+    printf("Rate date: %ld, value: %lf, type: %d\n", R.date, R.value, R.type);
+  }
   memset(&R, 0, sizeof(Rate));
 
-  rates_handler_get_latest(&R, TenYear);
-  if (res != 0)
+  res = rates_handler_get_latest(&R, TenYear);
+  if (res == 429)
   {
-    fprintf(stderr, "rates_handler_get_latest, res=%d", res);
-    exit(1);
+    printf("We were rate limited by riksbank! Need to wait 60 secs from first block.\n");
   }
-  printf("Rate date: %ld, value: %lf, type: %d\n", R.date, R.value, R.type);
+  else if (res != 0)
+  {
+    fprintf(stderr, "rates_handler_get_latest, res=%d\n", res);
+    return 7;
+  }
+  else
+  {
+    printf("Rate date: %ld, value: %lf, type: %d\n", R.date, R.value, R.type);
+  }
   memset(&R, 0, sizeof(Rate));
 
-  rates_handler_get_latest(&R, None);
-  if (res != 0)
+  res = rates_handler_get_latest(&R, None);
+  printf("rates_handler_get_latest: Inputted type None, should not return 0\n");
+  if (res == 0)
   {
-    fprintf(stderr, "rates_handler_get_latest, res=%d", res);
-    exit(1);
+    fprintf(stderr, "rates_handler_get_latest, res=%d\n", res);
+    return 8;
   }
-  printf("Rate date: %ld, value: %lf, type: %d\n", R.date, R.value, R.type);
   memset(&R, 0, sizeof(Rate));
+
+  return 0;
 
 }
 
 int main(void) 
 {
-  risk_test_rates_handler();
+  // bool test_ok;
 
-  risk_test_volatility();
-  risk_test_ma();
-  risk_test_sharpe();
+  assert(risk_test_rates_handler() == 0);
+  printf("\nrisk_test_rates_handler SUCCESS!\n");
 
+  assert(risk_test_volatility() == 0);
+  printf("\nrisk_test_volatility SUCCESS!\n");
+
+  assert(risk_test_ma() == 0);
+  printf("\nrisk_test_ma SUCCESS!\n");
+  
+  assert(risk_test_sharpe() == 0);
+  printf("\nrisk_test_sharpe SUCCESS!\n");
 
   return 0;
 }
