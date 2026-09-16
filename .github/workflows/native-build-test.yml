@@ -21,7 +21,7 @@ jobs:
 
     - name: Install
       working-directory: ./native
-      run: sudo make install
+      run: sudo make install UID=$(id -u) GID=$(id -g)
 
     - name: Build all
       working-directory: ./native
