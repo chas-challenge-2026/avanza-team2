@@ -4,12 +4,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import se.comerit.avanza.dto.market.FxRateResponseDTO;
 import se.comerit.avanza.service.MarketService;
 
 @RestController
+@RequestMapping("/api/market")
 public class MarketController {
 
     // Market service for handling market-related requests

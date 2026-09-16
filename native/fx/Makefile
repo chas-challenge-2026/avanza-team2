@@ -31,8 +31,8 @@ LIB_INCLUDES := $(foreach lib,$(LIBS),-I$(ROOT_DIR)/$(lib)/include)
 WARN := -Wall -Wextra -Wfatal-errors
 
 # Local sources build as C++17, shared helpers stay C11
-CXXFLAGS := -std=c++17 -MMD -MP $(WARN) -g -Iinclude $(LIB_INCLUDES)
-CFLAGS   := -std=c11   -MMD -MP $(WARN) -g $(LIB_INCLUDES)
+CXXFLAGS := -std=c++17 -MMD -MP $(WARN) -g -fPIC -Iinclude $(LIB_INCLUDES)
+CFLAGS   := -std=c11   -MMD -MP $(WARN) -g -fPIC $(LIB_INCLUDES)
 
 ASAN_FLAGS := -O1 -g3 -fno-omit-frame-pointer -fsanitize=address,undefined
 
@@ -118,3 +118,12 @@ print:
 -include $(DEP)
 
 .PHONY: all run clean print gdb valgrind asan profile
+
+SOLIB := $(BUILD_DIR)/libfx.so
+
+solib: $(OBJ)
+	@echo "Linking $(SOLIB)"
+	@mkdir -p $(dir $(SOLIB))
+	@$(CXX) -shared $(OBJ) $(LDFLAGS) -o $(SOLIB)
+
+.PHONY: solib
