@@ -67,12 +67,18 @@ String sql = "SELECT id, name, email FROM users WHERE email = '" + email
 olika resultat beroende på vilken sida de tittar på.
 **Fix:** Extrahera till en konstant i en delad konfigurationsklass.
 
+---
+
 ### Hårdkodad USD/SEK-kurs
 
-**Fil:** `DashboardController.java`
-**Problem:** `private static final double USD_TO_SEK = 10.45;`
-Kursen ändras kontinuerligt. Portföljvärden i SEK är alltid fel.
-**Fix:** Integrera ett FX-API (t.ex. ECB, Riksbanken, eller en betaltjänst).
+~~**Fil:** `DashboardController.java`~~
+~~**Problem:** `private static final double USD_TO_SEK = 10.45;`~~
+~~Kursen ändras kontinuerligt. Portföljvärden i SEK är alltid fel.~~
+~~**Fix:** Integrera ett FX-API (t.ex. ECB, Riksbanken, eller en betaltjänst).~~
+
+**Fix:** data fetchas från ECB vilken tas fram fån native via nativebridge
+
+---
 
 ### Hårdkodade kurspriser
 
@@ -80,6 +86,8 @@ Kursen ändras kontinuerligt. Portföljvärden i SEK är alltid fel.
 **Problem:** Aktiekurser hårdkodas på tre ställen oberoende av varandra. Lägg till ett nytt innehav
 och det syns inte i beräkningarna.
 **Fix:** Marknadsdataservice med caching.
+
+---
 
 ### Felaktig Sharpe-beräkning
 
