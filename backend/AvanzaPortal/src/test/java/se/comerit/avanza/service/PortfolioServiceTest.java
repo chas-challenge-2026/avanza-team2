@@ -3,6 +3,7 @@ package se.comerit.avanza.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.when;
 
 import java.util.HashMap;
 import java.util.List;
@@ -15,6 +16,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import se.comerit.avanza.dto.market.FxRateResponseDTO;
 import se.comerit.avanza.dto.portfolio.AccountSummaryDTO;
 import se.comerit.avanza.dto.portfolio.AllocationRowDTO;
 import se.comerit.avanza.dto.portfolio.EnrichedHoldingDTO;
@@ -40,6 +42,9 @@ class PortfolioServiceTest {
 
         @Mock
         private AlertsRepository alertsRepository;
+
+        @Mock
+        private MarketService marketService;
 
         @InjectMocks
         private PortfolioService portfolioService;
@@ -95,8 +100,9 @@ class PortfolioServiceTest {
 
                 Map<String, Double> prices = portfolioService.getCurrentPrices();
 
+                double usdToSekRate = 10.45;
                 // Act
-                EnrichedHoldingDTO result = portfolioService.enrichSingleHolding(holding, prices);
+                EnrichedHoldingDTO result = portfolioService.enrichSingleHolding(holding, prices, usdToSekRate);
 
                 // Assert
                 assertEquals(74.20, result.currentPrice(), 0.001);
@@ -118,9 +124,10 @@ class PortfolioServiceTest {
                                 null);
 
                 Map<String, Double> prices = portfolioService.getCurrentPrices();
+                double usdToSekRate = 10.45;
 
                 // Act
-                EnrichedHoldingDTO result = portfolioService.enrichSingleHolding(holding, prices);
+                EnrichedHoldingDTO result = portfolioService.enrichSingleHolding(holding, prices, usdToSekRate);
 
                 // Assert
                 assertEquals(187.32, result.currentPrice(), 0.001);
@@ -131,6 +138,8 @@ class PortfolioServiceTest {
         @Test
         void shouldCalculateTotalPortfolioValue() {
                 // Arrange
+                when(marketService.getFx("USD", "SEK"))
+                                .thenReturn(new FxRateResponseDTO("2026-09-16", "USD", "SEK", 10.45));
                 Account account = new Account();
                 account.setId(10L);
                 account.setAccount_type("ISK");
@@ -164,6 +173,9 @@ class PortfolioServiceTest {
         @Test
         void shouldReturnZeroForEmptyPortfolio() {
                 // Arrange
+                when(marketService.getFx("USD", "SEK"))
+                                .thenReturn(new FxRateResponseDTO("2026-09-16", "USD", "SEK", 10.45));
+
                 Map<String, Double> accountTypeTotals = portfolioService.initializeAccountTypeTotals();
 
                 // Act

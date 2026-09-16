@@ -100,6 +100,7 @@ public class PortfolioControllerTest {
         Holdings holding = new Holdings("AAPL", "Apple Inc", 10, 150.0, "USD", account);
         holding.setId(1L);
         TargetAllocations target = new TargetAllocations("ISK", 100.0, user);
+        double usdToSekRate = 10.45;
 
         List<Account> accounts = List.of(account);
         List<Holdings> holdings = List.of(holding);
@@ -124,7 +125,8 @@ public class PortfolioControllerTest {
         when(portfolioService.getCurrentPrices()).thenReturn(prices);
         when(portfolioService.initializeAccountTypeTotals()).thenReturn(accountTypeTotals);
         when(portfolioService.buildAccountTypeMap(accounts)).thenReturn(accountTypeMap);
-        when(portfolioService.enrichSingleHolding(holding, prices)).thenReturn(enrichedHoldingDTO);
+        when(portfolioService.getUsdToSekRate()).thenReturn(usdToSekRate);
+        when(portfolioService.enrichSingleHolding(holding, prices, usdToSekRate)).thenReturn(enrichedHoldingDTO);
         when(portfolioService.calculatePortfolioTotals(holdings, prices, accountTypeMap, accountTypeTotals))
                 .thenReturn(1000.0);
         when(portfolioService.detectDrift(accountTypeTotals, targets, 1000.0))
@@ -139,6 +141,6 @@ public class PortfolioControllerTest {
                 1000.0,
                 List.of(alertDTO),
                 true,
-                PortfolioService.USD_TO_SEK);
+                usdToSekRate);
     }
 }
