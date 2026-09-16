@@ -31,75 +31,76 @@ import java.util.stream.Collectors;
 @RequestMapping("/api")
 public class PortfolioController {
 
-    private final PortfolioService portfolioService;
+        private final PortfolioService portfolioService;
 
-    public PortfolioController(PortfolioService portfolioService) {
-        this.portfolioService = portfolioService;
-    }
-
-    /**
-     * Handles the GET request for the portfolio dashboard.
-     * Retrieves the user's portfolio information, including accounts, holdings,
-     * target allocations, and recent alerts.
-     * 
-     * @param userName the email of the authenticated user.
-     * @return a ResponseEntity containing the PortfolioResponseDTO with the user's
-     *         portfolio information.
-     */
-    @GetMapping("/portfolio")
-    public ResponseEntity<PortfolioResponseDTO> dashboard(@AuthenticationPrincipal String userName) {
-
-        // findByEmail(null) safely returns Optional.empty(), no separate null check
-        // needed
-        Optional<User> findUser = portfolioService.findByEmail(userName);
-        if (findUser.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        public PortfolioController(PortfolioService portfolioService) {
+                this.portfolioService = portfolioService;
         }
-        Long userId = findUser.get().getId();
-
-        // Get raw data from the service layer. ( instead of raw SQL)
-        List<Account> accounts = portfolioService.getAllAccountsForUser(userId);
-        List<Holdings> holdings = portfolioService.getAllHoldingsForUser(userId, Pageable.unpaged());
-        List<TargetAllocations> targets = portfolioService.getTargetAllocationsForUser(userId);
-        List<AlertsResponseDTO> recentAlerts = portfolioService.getRecentAlertsForUser(userId);
-
-        // Business logic:
-        Map<String, Double> prices = portfolioService.getCurrentPrices();
-        Map<String, Double> accountTypeTotals = portfolioService.initializeAccountTypeTotals();
-        Map<Long, String> accountTypeMap = portfolioService.buildAccountTypeMap(accounts);
-
-        // Enrich holdings with current prices for display purposes
-        List<EnrichedHoldingDTO> enrichedHoldings = holdings.stream()
-                .map(h -> portfolioService.enrichSingleHolding(h, prices))
-                .collect(Collectors.toList());
-
-        // Calculate the total portfolio value based on enriched holdings and current
-        // prices
-        double totalPortfolioValue = portfolioService.calculatePortfolioTotals(holdings, prices, accountTypeMap,
-                accountTypeTotals);
-
-        // Detect allocation drift based on current account type totals and target
-        // allocations
-        List<AllocationRowDTO> allocationRows = portfolioService.detectDrift(accountTypeTotals, targets,
-                totalPortfolioValue);
-
-        // Build account summary for display
-        List<AccountSummaryDTO> accountSummary = portfolioService.getAccountSummary(
-                accounts, accountTypeTotals, totalPortfolioValue);
 
         /**
-         * creates an instance of PortfolioResponseDTO with all the necessary portfolio
-         * data.
+         * Handles the GET request for the portfolio dashboard.
+         * Retrieves the user's portfolio information, including accounts, holdings,
+         * target allocations, and recent alerts.
+         * 
+         * @param userName the email of the authenticated user.
+         * @return a ResponseEntity containing the PortfolioResponseDTO with the user's
+         *         portfolio information.
          */
-        PortfolioResponseDTO response = new PortfolioResponseDTO(
-                accountSummary,
-                enrichedHoldings,
-                allocationRows,
-                totalPortfolioValue,
-                recentAlerts,
-                allocationRows.stream().anyMatch(AllocationRowDTO::overThreshold),
-                PortfolioService.USD_TO_SEK);
+        @GetMapping("/portfolio")
+        public ResponseEntity<PortfolioResponseDTO> dashboard(@AuthenticationPrincipal String userName) {
 
-        return ResponseEntity.ok(response);
-    }
+                // findByEmail(null) safely returns Optional.empty(), no separate null check
+                // needed
+                Optional<User> findUser = portfolioService.findByEmail(userName);
+                if (findUser.isEmpty()) {
+                        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+                }
+                Long userId = findUser.get().getId();
+
+                // Get raw data from the service layer. ( instead of raw SQL)
+                List<Account> accounts = portfolioService.getAllAccountsForUser(userId);
+                List<Holdings> holdings = portfolioService.getAllHoldingsForUser(userId, Pageable.unpaged());
+                List<TargetAllocations> targets = portfolioService.getTargetAllocationsForUser(userId);
+                List<AlertsResponseDTO> recentAlerts = portfolioService.getRecentAlertsForUser(userId);
+
+                // Business logic:
+                Map<String, Double> prices = portfolioService.getCurrentPrices();
+                Map<String, Double> accountTypeTotals = portfolioService.initializeAccountTypeTotals();
+                Map<Long, String> accountTypeMap = portfolioService.buildAccountTypeMap(accounts);
+
+                // Enrich holdings with current prices for display purposes
+                double usdToSekRate = portfolioService.getUsdToSekRate();
+                List<EnrichedHoldingDTO> enrichedHoldings = holdings.stream()
+                                .map(h -> portfolioService.enrichSingleHolding(h, prices, usdToSekRate))
+                                .collect(Collectors.toList());
+
+                // Calculate the total portfolio value based on enriched holdings and current
+                // prices
+                double totalPortfolioValue = portfolioService.calculatePortfolioTotals(holdings, prices, accountTypeMap,
+                                accountTypeTotals);
+
+                // Detect allocation drift based on current account type totals and target
+                // allocations
+                List<AllocationRowDTO> allocationRows = portfolioService.detectDrift(accountTypeTotals, targets,
+                                totalPortfolioValue);
+
+                // Build account summary for display
+                List<AccountSummaryDTO> accountSummary = portfolioService.getAccountSummary(
+                                accounts, accountTypeTotals, totalPortfolioValue);
+
+                /**
+                 * creates an instance of PortfolioResponseDTO with all the necessary portfolio
+                 * data.
+                 */
+                PortfolioResponseDTO response = new PortfolioResponseDTO(
+                                accountSummary,
+                                enrichedHoldings,
+                                allocationRows,
+                                totalPortfolioValue,
+                                recentAlerts,
+                                allocationRows.stream().anyMatch(AllocationRowDTO::overThreshold),
+                                usdToSekRate);
+
+                return ResponseEntity.ok(response);
+        }
 }

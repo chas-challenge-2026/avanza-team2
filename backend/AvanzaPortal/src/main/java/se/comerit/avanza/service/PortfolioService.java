@@ -39,14 +39,17 @@ public class PortfolioService {
     private TargetRepository targetRepository;
     private AlertsRepository alertRepository;
     private UserRepository userRepository;
+    private MarketService marketService;
 
     public PortfolioService(AccountRepository accountRepository, HoldingsRepository holdingsRepository,
-            TargetRepository targetRepository, AlertsRepository alertRepository, UserRepository userRepository) {
+            TargetRepository targetRepository, AlertsRepository alertRepository, UserRepository userRepository,
+            MarketService marketService) {
         this.accountRepository = accountRepository;
         this.holdingsRepository = holdingsRepository;
         this.targetRepository = targetRepository;
         this.alertRepository = alertRepository;
         this.userRepository = userRepository;
+        this.marketService = marketService;
     }
 
     // Find user by email (used for authentication)
@@ -109,8 +112,9 @@ public class PortfolioService {
         return currentPrices;
     }
 
-    // USD to SEK conversion
-    public static final double USD_TO_SEK = 10.45;
+    public double getUsdToSekRate() {
+        return marketService.getFx("USD", "SEK").rate();
+    }
 
     /**
      * @return a map with account types as keys and their initial totals set to 0.0
@@ -145,7 +149,8 @@ public class PortfolioService {
      * @return an EnrichedHoldingDTO containing the enriched holding data, including
      *         calculated market values and metrics.
      */
-    public EnrichedHoldingDTO enrichSingleHolding(Holdings holdings, Map<String, Double> currentPrices) {
+    public EnrichedHoldingDTO enrichSingleHolding(Holdings holdings, Map<String, Double> currentPrices,
+            double usdToSekRate) {
         String ticker = holdings.getTicker();
         String currency = holdings.getCurrency();
         double quantity = holdings.getQuantity();
@@ -157,13 +162,13 @@ public class PortfolioService {
         // Calculate market value in SEK (convert USD if needed)
         double valueSek;
         if ("USD".equals(currency)) {
-            valueSek = quantity * price * USD_TO_SEK;
+            valueSek = quantity * price * usdToSekRate;
         } else {
             valueSek = quantity * price;
         }
 
         // Simple return calculation inline (no IRR, no time-weighting, just naive)
-        double costBasis = quantity * avgBuy * ("USD".equals(currency) ? USD_TO_SEK : 1.0);
+        double costBasis = quantity * avgBuy * ("USD".equals(currency) ? usdToSekRate : 1.0);
         double unrealizedReturn = valueSek - costBasis;
         double unrealizedReturnPct = costBasis > 0 ? (unrealizedReturn / costBasis) * 100 : 0;
 
@@ -200,10 +205,11 @@ public class PortfolioService {
             Map<Long, String> accountTypeMap,
             Map<String, Double> accountTypeTotals) {
         double totalPortfolioValue = 0.0;
+        double usdToSekRate = getUsdToSekRate();
 
         for (Holdings h : holdings) {
             // Enrich this single holding
-            EnrichedHoldingDTO enriched = enrichSingleHolding(h, prices);
+            EnrichedHoldingDTO enriched = enrichSingleHolding(h, prices, usdToSekRate);
             double valueSek = enriched.valueSek();
 
             // Add to grand total
