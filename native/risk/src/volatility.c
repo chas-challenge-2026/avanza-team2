@@ -388,3 +388,27 @@ double risk_calc_volatility_int32_simd(const int32_t* _data, size_t _n)
 
 #endif // SIMD_I32_LEN
 #endif // HAS_SIMD
+
+double risk_calc_max_drawdown(const double* _data, size_t _n)
+{
+  if (!_data || _n < 1)
+    return 0.0;
+
+  double peak = _data[0];
+  double mdd = 0.0, dd  = 0.0;
+  size_t i;
+
+  for (i = 1; i < _n; i++)
+  {
+    if (_data[i] > peak)
+      peak = _data[i];
+
+    dd = (peak - _data[i]) / peak;
+
+    if (dd > mdd)
+      mdd = dd;
+  }
+
+  return mdd;
+}
+

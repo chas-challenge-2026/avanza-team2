@@ -6,6 +6,14 @@
 #include <stdint.h>
 #include <math.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// ============================================================================
+// ============================ Volatility helpers ============================
+// ============================================================================
+
 /*
 Volatility is the standard deviation on a set of data.
 
@@ -25,13 +33,6 @@ It is calculated by:
 3. Sum & Divide: Sum these squares, divide by N-1 (Bessel’s correction for samples).
 4. Square Root: Take the square root of divided sum to get volatility.
 */
-
-/** Calculates the sharpe ratio on a set of returns
- * Takes arg _rfrate for annual risk-free rate (ex. from t-bill/bonds/overnight cash benchmark)
- * and _year_freq the frequency of returns in a year, so 252 for standard market daily returns 
- * (either can be set to zero for rateless calculation) */
-double risk_calc_sharpe_ratio_double(const double* _data, size_t _n,
-  double _rfrate, size_t _year_freq);
 
 /** Calculates the volatility from an array of doubles */
 double risk_calc_volatility_double(const double* _data, int _n);
@@ -70,5 +71,27 @@ float risk_calc_volatility_float_simd(const float* _data, size_t _n);
 #endif // SIMD_I32_LEN
 
 #endif // HAS_SIMD
+
+// ============================================================================
+// =========================== Sharpe ratio helpers ===========================
+// ============================================================================
+
+/** Calculates the sharpe ratio on a set of returns
+ * Takes arg _rfrate for annual risk-free rate (ex. from t-bill/bonds/overnight cash benchmark)
+ * and _year_freq the frequency of returns in a year, so 252 for standard market daily returns 
+ * (either can be set to zero for rateless calculation) */
+double risk_calc_sharpe_ratio_double(const double* _data, size_t _n,
+  double _rfrate, size_t _year_freq);
+
+// ============================================================================
+// =========================== Max drawdown helpers ===========================
+// ============================================================================
+
+double risk_calc_max_drawdown(const double* _data, size_t _n);
+
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
 
 #endif // __RISK_H__
