@@ -87,4 +87,48 @@ std::optional<FxTable> fetch_latest()
   return table;
 }
 
+FxHistory parse_hist_xml(std::string_view _xml)
+{
+  FxHistory history;
+
+  // Walk one <Cube time="..."> block at a time and hand its inner
+  // <Cube currency=".." rate=".."/> entries to parse_xml, so each trading
+  // day's rates stay grouped under that day's date.
+  std::size_t pos = 0;
+  while ((pos = _xml.find("<Cube time=", pos)) != std::string_view::npos) {
+    std::size_t open_end = _xml.find('>', pos);
+    if (open_end == std::string_view::npos)
+      break;
+
+    auto date = attr_value(_xml.substr(pos, open_end - pos), "time=");
+
+    std::size_t block_end = _xml.find("</Cube>", open_end);
+    if (block_end == std::string_view::npos)
+      break;
+
+    std::string_view block = _xml.substr(open_end + 1, block_end - (open_end + 1));
+    pos                    = block_end + std::string_view("</Cube>").size();
+
+    if (date)
+      history.set(std::string(*date), parse_xml(block));
+  }
+
+  return history;
+}
+
+std::optional<FxHistory> fetch_history()
+{
+  CurlSession session;
+
+  auto body = session.get(std::string(hist_url));
+  if (!body)
+    return std::nullopt;
+
+  FxHistory history = parse_hist_xml(*body);
+  if (history.empty())
+    return std::nullopt;
+
+  return history;
+}
+
 } // namespace ecb
