@@ -1,0 +1,47 @@
+.notiser-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 60px 20px;
+    max-width: 700px;
+    margin: 0 auto; 
+    min-height: 100vh;
+    box-sizing: border-box;
+}
+
+.notiser-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 24px;
+    text-align: center;
+}
+
+.filter-group {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 36px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.section-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 16px;
+    width: 100%;
+    max-width: 500px;
+    text-align: left; 
+}
+
+.notifications-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    width: 100%;
+    max-width: 500px;
+    margin: 0 auto; 
+    align-items: stretch;
+}
