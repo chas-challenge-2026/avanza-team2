@@ -3,6 +3,7 @@ package se.comerit.avanza.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.when;
 
 import java.util.HashMap;
 import java.util.List;
@@ -15,6 +16,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import se.comerit.avanza.dto.market.FxRateResponseDTO;
 import se.comerit.avanza.dto.portfolio.AccountSummaryDTO;
 import se.comerit.avanza.dto.portfolio.AllocationRowDTO;
 import se.comerit.avanza.dto.portfolio.EnrichedHoldingDTO;
@@ -40,6 +42,9 @@ class PortfolioServiceTest {
 
         @Mock
         private AlertsRepository alertsRepository;
+
+        @Mock
+        private MarketService marketService;
 
         @InjectMocks
         private PortfolioService portfolioService;
@@ -109,6 +114,9 @@ class PortfolioServiceTest {
         @Test
         void shouldConvertUsdHoldingValueToSek() {
                 // Arrange
+                when(marketService.getFx("USD", "SEK"))
+                                .thenReturn(new FxRateResponseDTO("2026-09-16", "USD", "SEK", 10.45));
+
                 Holdings holding = new Holdings(
                                 "AAPL",
                                 "Apple",
