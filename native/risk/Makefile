@@ -15,6 +15,9 @@ BUILD_DIR := build
 BIN := $(BUILD_DIR)/librisk.a
 TEST_BIN := $(BUILD_DIR)/risk_test
 
+# Shared library for the JNA bridge (fx_rates.h's extern "C" surface)
+SO := $(BUILD_DIR)/librisk.so
+
 # ----- Local source files -----
 SRC_DIR 		 := src
 TEST_SRC_DIR := tests
@@ -45,6 +48,7 @@ TEST_LIB_INCLUDES := $(foreach lib,$(TEST_LIBS),-I$(ROOT_DIR)/$(lib)/include)
 CFLAGS := -std=c11 -MMD -MP -Wall -Wextra -Wfatal-errors -g \
 					-Iinclude $(LIB_INCLUDES) 
 TEST_CFLAGS := $(CFLAGS) -Iinclude $(TEST_LIB_INCLUDES) 
+SO_CFLAGS := $(CFLAGS) -fPIC
 
 ## DETECT AVX version and add flags accordingly
 # Default to auto-detect if not specified
@@ -106,16 +110,28 @@ TEST_OBJ := $(OBJ_TEST_LOCAL) $(OBJ_LIB) $(OBJ_TEST) $(OBJ_TEST_LIB)
 DEP := $(OBJ_LOCAL:.o=.d) $(OBJ_LIB:.o=.d)
 TEST_DEP := $(OBJ_TEST_LOCAL:.o=.d) $(OBJ_LIB:.o=.d)
 
+# SO_OBJ := $(patsubst %.o, so/%.o, $(OBJ))
+SO_OBJ_LOCAL := $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/so/$(SRC_DIR)/%.o,$(SRC))
+SO_OBJ_LIB   := $(foreach src,$(LIB_SRC),$(BUILD_DIR)/so/$(patsubst $(ROOT_DIR)/%,%,$(src:.c=.o)))
+SO_OBJ       := $(SO_OBJ_LOCAL) $(SO_OBJ_LIB)
+
+# # For library sources in the SO build, we need a separate static rule 
+# SO_LIB_OBJ := $(foreach src,$(LIB_SRC),$(BUILD_DIR)/so/$(patsubst $(ROOT_DIR)/%,%,$(src:.c=.o)))
+
 # ==================== Recipes ====================
 
-all: $(BIN)
+all: $(BIN) $(SO)
+	@echo "Build complete."
+
+so: $(SO)
 	@echo "Build complete."
 
 $(BIN): $(OBJ)
-	@echo "Archiving as $(BIN)..."
+	@echo "Archiving build as $(BIN)..."
 	@mkdir -p $(dir $@)
 	@ar rcs $@ $(OBJ)
 	@ranlib $@  # Optional: improves indexing for large archives
+
 
 asan: clean
 	@echo "Building ASan binary..."
@@ -128,6 +144,24 @@ profile: clean
 		CFLAGS="$(CFLAGS) -pg -O0 -g" \
 		LDFLAGS="-Wl,--gc-sections -pg" \
 		all
+
+# Static Pattern Rule for SO Local Objects
+$(SO_OBJ_LOCAL): $(BUILD_DIR)/so/$(SRC_DIR)/%.o: $(SRC_DIR)/%.c
+	@mkdir -p $(dir $@)
+	@echo "Compiling SO $<..."
+	@$(CC) $(SO_CFLAGS) -c $< -o $@
+
+# Static Pattern Rule for SO Library Objects
+$(SO_OBJ_LIB): $(BUILD_DIR)/so/%.o: $(ROOT_DIR)/%.c
+	@mkdir -p $(dir $@)
+	@echo "Compiling SO lib $<..."
+	@$(CC) $(SO_CFLAGS) -c $< -o $@
+
+# Recipe to link SO library
+$(SO): $(SO_OBJ)
+	@echo "Linking shared SO library as $(SO)..."
+	@mkdir -p $(dir $@)
+	@$(CC) -shared -o $@ $(SO_OBJ) $(LDFLAGS)
 
 # Rule for local source files
 $(BUILD_DIR)/$(SRC_DIR)/%.o: $(SRC_DIR)/%.c
