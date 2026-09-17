@@ -13,12 +13,19 @@ endif
 
 BUILD_DIR := build
 
-# Binary name
-BIN := $(BUILD_DIR)/fx
+# Shared library for the JNA bridge (fx_rates.h's extern "C" surface)
+SO := $(BUILD_DIR)/libfx.so
 
-# ----- Local source files (C++) -----
+# Test binary: offline self-test, `--live` hits the network
+TEST_BIN := $(BUILD_DIR)/fx_test
+
+# ----- Local source files (C++ library, no entry point) -----
 SRC_DIR := src
 SRC := $(shell find -L $(SRC_DIR) -type f -name '*.cpp')
+
+# ----- Test source files (own main, links against the library above) -----
+TEST_DIR := test
+TEST_SRC := $(shell find -L $(TEST_DIR) -type f -name '*.cpp')
 
 # Linked libraries (plain C, compiled as C and linked in)
 LIBS := common/modules
@@ -43,44 +50,66 @@ else
 	LDFLAGS := -flto -Wl,--gc-sections -lcurl
 endif
 
-# Map local .cpp → .o
+# Map local .cpp → .o (the library, linked into both $(SO) and $(TEST_BIN))
 OBJ_LOCAL := $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/$(SRC_DIR)/%.o,$(SRC))
 
 # Map library .c → .o
 # Converts: ../common/modules/src/bar.c -> build/common/modules/src/bar.o
 OBJ_LIB := $(foreach src,$(LIB_SRC),$(BUILD_DIR)/$(patsubst $(ROOT_DIR)/%,%,$(src:.c=.o)))
 
-# Combine all objects
+# Combine all library objects
 OBJ := $(OBJ_LOCAL) $(OBJ_LIB)
 
+# Same mapping again, but under build/so so PIC objects never collide with
+# the plain ones $(TEST_BIN) uses.
+SO_OBJ_LOCAL := $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/so/$(SRC_DIR)/%.o,$(SRC))
+SO_OBJ_LIB   := $(foreach src,$(LIB_SRC),$(BUILD_DIR)/so/$(patsubst $(ROOT_DIR)/%,%,$(src:.c=.o)))
+SO_OBJ       := $(SO_OBJ_LOCAL) $(SO_OBJ_LIB)
+
+# Map test .cpp → .o, linked with $(OBJ) into $(TEST_BIN)
+TEST_OBJ_LOCAL := $(patsubst $(TEST_DIR)/%.cpp,$(BUILD_DIR)/$(TEST_DIR)/%.o,$(TEST_SRC))
+TEST_OBJ       := $(OBJ) $(TEST_OBJ_LOCAL)
+
 # Dependency files (.d)
-DEP := $(OBJ:.o=.d)
+DEP := $(OBJ:.o=.d) $(SO_OBJ:.o=.d) $(TEST_OBJ_LOCAL:.o=.d)
 
 # ==================== Recipes ====================
 
-all: $(BIN)
+# The module's deliverable is the shared library; the test binary is built
+# on demand by `test`/`run`.
+all: $(SO)
 	@echo "Build complete."
 
-# Link with the C++ front end so the standard library is pulled in
-$(BIN): $(OBJ)
-	@echo "Linking..."
+so: $(SO)
+	@echo "Shared library build complete."
+
+$(SO): $(SO_OBJ)
+	@echo "Linking shared library..."
 	@mkdir -p $(dir $@)
-	@$(CXX) $(OBJ) $(LDFLAGS) -o $@
+	@$(CXX) -shared $(SO_OBJ) $(LDFLAGS) -o $@
+
+test: $(TEST_BIN)
+	@echo "Test build complete."
+
+$(TEST_BIN): $(TEST_OBJ)
+	@echo "Linking test binary..."
+	@mkdir -p $(dir $@)
+	@$(CXX) $(TEST_OBJ) $(LDFLAGS) -o $@
 
 asan: clean
-	@echo "Building ASan binary..."
+	@echo "Building ASan test binary..."
 	@$(MAKE) CXXFLAGS="$(CXXFLAGS) $(ASAN_FLAGS)" CFLAGS="$(CFLAGS) $(ASAN_FLAGS)" \
-		LDFLAGS="$(LDFLAGS) $(ASAN_FLAGS)" all
+		LDFLAGS="$(LDFLAGS) $(ASAN_FLAGS)" test
 
 profile: clean
-	@echo "Building profiling binary..."
+	@echo "Building profiling test binary..."
 	@$(MAKE) \
 		CXXFLAGS="$(CXXFLAGS) -pg -O0 -g" \
 		CFLAGS="$(CFLAGS) -pg -O0 -g" \
 		LDFLAGS="-Wl,--gc-sections -pg -lcurl" \
-		all
+		test
 
-# Rule for local C++ source files
+# Rule for local C++ library source files
 $(BUILD_DIR)/$(SRC_DIR)/%.o: $(SRC_DIR)/%.cpp
 	@echo "Compiling $<..."
 	@mkdir -p $(dir $@)
@@ -92,29 +121,51 @@ $(BUILD_DIR)/%.o: $(ROOT_DIR)/%.c
 	@mkdir -p $(dir $@)
 	@$(CC) $(CFLAGS) -c $< -o $@
 
-run: $(BIN)
-	@echo "Running $(BIN)..."
-	@./$(BIN)
+# Rule for test source files
+$(BUILD_DIR)/$(TEST_DIR)/%.o: $(TEST_DIR)/%.cpp
+	@echo "Compiling test $<..."
+	@mkdir -p $(dir $@)
+	@$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Position-independent variants for the $(SO) target
+$(BUILD_DIR)/so/$(SRC_DIR)/%.o: $(SRC_DIR)/%.cpp
+	@echo "Compiling (PIC) $<..."
+	@mkdir -p $(dir $@)
+	@$(CXX) $(CXXFLAGS) -fPIC -c $< -o $@
+
+$(BUILD_DIR)/so/%.o: $(ROOT_DIR)/%.c
+	@echo "Compiling lib (PIC) $<..."
+	@mkdir -p $(dir $@)
+	@$(CC) $(CFLAGS) -fPIC -c $< -o $@
+
+run: $(TEST_BIN)
+	@echo "Running $(TEST_BIN)..."
+	@./$(TEST_BIN)
+
+run-live: $(TEST_BIN)
+	@echo "Running $(TEST_BIN) --live..."
+	@./$(TEST_BIN) --live
 
 clean:
 	@echo "Cleaning build files..."
 	@rm -rf $(BUILD_DIR)
 	@echo "Clean complete."
 
-valgrind: $(BIN)
+valgrind: $(TEST_BIN)
 	@echo "Debugging $< using valgrind..."
-	@valgrind -s --leak-check=full --show-leak-kinds=all --track-origins=yes ./$(BIN)
+	@valgrind -s --leak-check=full --show-leak-kinds=all --track-origins=yes ./$(TEST_BIN)
 
-gdb: $(BIN)
+gdb: $(TEST_BIN)
 	@echo "Debugging $< using gdb..."
-	@gdb ./$(BIN)
+	@gdb ./$(TEST_BIN)
 
 print:
 	@echo "Local Source files: $(SRC)"
+	@echo "Test source files: $(TEST_SRC)"
 	@echo "Library Source files: $(LIB_SRC)"
-	@echo "Total Object files: $(OBJ)"
+	@echo "Total Object files: $(OBJ) $(SO_OBJ) $(TEST_OBJ_LOCAL)"
 	@echo "Dependency files: $(DEP)"
 
 -include $(DEP)
 
-.PHONY: all run clean print gdb valgrind asan profile
+.PHONY: all so test run run-live clean print gdb valgrind asan profile

@@ -1,27 +1,23 @@
 #include "fx_rates.h"
 
-#include "ecb_source.hpp"
+#include "rate_cache.hpp"
 
 namespace {
 
-/*
-TODO(#57): cache the fetched tables and reuse them instead of refetching per
-call.
-*/
 std::optional<double> lookup(const char* _from, const char* _to, long _date)
 {
   if (_from == nullptr || _to == nullptr)
     return std::nullopt;
 
   if (_date == 0) {
-    auto table = ecb::fetch_latest();
+    auto table = fx_cache::latest();
     if (!table)
       return std::nullopt;
 
     return table->rate(_from, _to);
   }
 
-  auto history = ecb::fetch_history();
+  auto history = fx_cache::history();
   if (!history)
     return std::nullopt;
 
