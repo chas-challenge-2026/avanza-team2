@@ -139,6 +139,6 @@ public class PortfolioControllerTest {
                 1000.0,
                 List.of(alertDTO),
                 true,
-                PortfolioService.USD_TO_SEK);
+                portfolioService.getUsdToSekRate());
     }
 }
