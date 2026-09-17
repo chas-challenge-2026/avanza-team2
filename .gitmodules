@@ -1,0 +1,3 @@
+[submodule "native/libs/cJSON"]
+	path = native/libs/cJSON
+	url = https://github.com/DaveGamble/cJSON.git
