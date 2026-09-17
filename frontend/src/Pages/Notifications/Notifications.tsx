@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import FilterButton from "../../Components/FilterButton/FilterButton";
 import NotificationCard, { type NotificationCategory } from "../../Components/NotificationCard/NotificationCard";
 import "./Notifications.css";
