@@ -39,14 +39,17 @@ public class PortfolioService {
     private TargetRepository targetRepository;
     private AlertsRepository alertRepository;
     private UserRepository userRepository;
+    private MarketService marketService;
 
     public PortfolioService(AccountRepository accountRepository, HoldingsRepository holdingsRepository,
-            TargetRepository targetRepository, AlertsRepository alertRepository, UserRepository userRepository) {
+            TargetRepository targetRepository, AlertsRepository alertRepository, UserRepository userRepository,
+            MarketService marketService) {
         this.accountRepository = accountRepository;
         this.holdingsRepository = holdingsRepository;
         this.targetRepository = targetRepository;
         this.alertRepository = alertRepository;
         this.userRepository = userRepository;
+        this.marketService = marketService;
     }
 
     // Find user by email (used for authentication)
@@ -110,7 +113,9 @@ public class PortfolioService {
     }
 
     // USD to SEK conversion
-    public static final double USD_TO_SEK = 10.45;
+    public double getUsdToSekRate() {
+        return marketService.getFx("USD", "SEK").rate();
+    }
 
     /**
      * @return a map with account types as keys and their initial totals set to 0.0
@@ -155,15 +160,16 @@ public class PortfolioService {
         double price = currentPrices.getOrDefault(ticker, currentPrices.get("DEFAULT"));
 
         // Calculate market value in SEK (convert USD if needed)
+
         double valueSek;
         if ("USD".equals(currency)) {
-            valueSek = quantity * price * USD_TO_SEK;
+            valueSek = quantity * price * getUsdToSekRate();
         } else {
             valueSek = quantity * price;
         }
 
         // Simple return calculation inline (no IRR, no time-weighting, just naive)
-        double costBasis = quantity * avgBuy * ("USD".equals(currency) ? USD_TO_SEK : 1.0);
+        double costBasis = quantity * avgBuy * ("USD".equals(currency) ? getUsdToSekRate() : 1.0);
         double unrealizedReturn = valueSek - costBasis;
         double unrealizedReturnPct = costBasis > 0 ? (unrealizedReturn / costBasis) * 100 : 0;
 
