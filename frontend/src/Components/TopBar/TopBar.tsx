@@ -30,6 +30,7 @@ export const TopBar = ({ title, userInitials = 'JL', className }: TopBarProps) =
     navigate('/Loggain');
   };
 
+
   return (
     <header
       className={`flex items-center justify-between border-b border-neutral-200 bg-white px-6 py-4${
