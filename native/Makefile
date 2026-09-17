@@ -3,7 +3,7 @@
 PROJECT_NAME := avanza-2-native
 
 # Modules to build. Update this list if you add subdirectories.
-MODULES := jna_poc risk
+MODULES := jna_poc risk fx
 
 # Include paths for root-level headers
 export CFLAGS += -I./include
@@ -15,7 +15,9 @@ export CFLAGS += -I./include
 .PHONY: all clean deps \
 	$(MODULES) \
 	$(addsuffix /install,$(MODULES)) \
+	$(addsuffix /so,$(MODULES)) \
 	$(addsuffix /run,$(MODULES)) \
+	$(addsuffix /run-live,$(MODULES)) \
 	$(addsuffix /clean,$(MODULES)) \
 	$(addsuffix /valgrind,$(MODULES)) \
 	$(addsuffix /gdb,$(MODULES)) \
@@ -50,11 +52,23 @@ $(addsuffix /install,$(MODULES)):
 	echo "Installing module $$MODULE..."; \
 	$(MAKE) -C $$MODULE install
 
+# Build the shared library for a module using make [module]/so
+$(addsuffix /so,$(MODULES)):
+	@MODULE=$(@D); \
+	echo "Building shared library for module $$MODULE..."; \
+	$(MAKE) -C $$MODULE so
+
 # Run target using make [module]/run
 $(addsuffix /run,$(MODULES)):
 	@MODULE=$(@D); \
 	echo "Running module $$MODULE..."; \
 	$(MAKE) -C $$MODULE run
+
+# Run with real network access using make [module]/run-live
+$(addsuffix /run-live,$(MODULES)):
+	@MODULE=$(@D); \
+	echo "Running module $$MODULE against live data..."; \
+	$(MAKE) -C $$MODULE run-live
 
 # Clean specific module using make [module]/clean
 $(addsuffix /clean,$(MODULES)):
