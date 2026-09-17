@@ -11,6 +11,7 @@ RAII wrapper around common/modules/curl_helper.
 curl_init() reserves the response buffer in the constructor and curl_dispose()
 frees it in the destructor, so callers never touch Curl_Data directly.
 */
+
 class CurlSession
 {
 public:
@@ -20,7 +21,11 @@ public:
   CurlSession(const CurlSession&)            = delete;
   CurlSession& operator=(const CurlSession&) = delete;
 
-  // Blocking GET. Returns the response body, or nullopt on any failure.
+  /**
+   * @brief Blocking GET.
+   * @param _url Request URL.
+   * @return The response body, or nullopt on any failure.
+   */
   std::optional<std::string> get(const std::string& _url);
 
 private:
