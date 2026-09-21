@@ -11,12 +11,12 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
 
 import se.comerit.avanza.dto.holdings.CreateHoldingRequestDTO;
-import se.comerit.avanza.dto.holdings.HoldingResponseDTO;
-import se.comerit.avanza.dto.holdings.HoldingItemDTO;
 import se.comerit.avanza.dto.holdings.HoldingAccountDTO;
-import se.comerit.avanza.repository.HoldingsRepository;
+import se.comerit.avanza.dto.holdings.HoldingItemDTO;
+import se.comerit.avanza.dto.holdings.HoldingResponseDTO;
 import se.comerit.avanza.entity.User;
 import se.comerit.avanza.repository.AccountRepository;
+import se.comerit.avanza.repository.HoldingsRepository;
 import se.comerit.avanza.repository.UserRepository;
 
 @Service
@@ -45,11 +45,15 @@ public class HoldingService {
                 "ORDER BY a.account_type, h.ticker";
         return jdbcTemplate.queryForList(holdingSql, userId);
     }
-
-    public List<Map<String, Object>> getAccountsForUser(Integer userId) {
-        String accountSql = "SELECT id, account_type, account_name " +
-                "FROM accounts WHERE user_id = ?";
-        return jdbcTemplate.queryForList(accountSql, userId);
+    
+    // This method retrieves the accounts for a given user ID.
+    public List<HoldingAccountDTO> getAccountsForUser(Long userId) {
+        return accountRepository.findByUserId(userId).stream()
+                .map(account -> new HoldingAccountDTO(
+                        account.getId(),
+                        account.getAccount_name(),
+                        account.getAccount_type()))
+                .toList();
     }
 
     public List<Map<String, Object>> getEnrichedHoldingsForUser(Integer userId) {
@@ -101,9 +105,7 @@ public class HoldingService {
         return new HoldingResponseDTO(
             user.getName(),
             getEnrichedHoldingsForUser(userId).stream().map(this::toHoldingDTO).toList(),
-            getAccountsForUser(userId).stream().map(row -> new HoldingAccountDTO(
-                toLong(row.get("id")), (String) row.get("account_type"),
-                (String) row.get("account_name"))).toList()
+            getAccountsForUser(user.getId())
         );
     }
 
