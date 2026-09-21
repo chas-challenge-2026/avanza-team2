@@ -13,10 +13,8 @@ BUILD_DIR := build
 
 # Binary names
 BIN := $(BUILD_DIR)/librisk.a
-TEST_BIN := $(BUILD_DIR)/risk_test
-
-# Shared library for the JNA bridge (fx_rates.h's extern "C" surface)
 SO := $(BUILD_DIR)/librisk.so
+TEST_BIN := $(BUILD_DIR)/risk_test
 
 # ----- Local source files -----
 SRC_DIR 		 := src
@@ -132,7 +130,6 @@ $(BIN): $(OBJ)
 	@ar rcs $@ $(OBJ)
 	@ranlib $@  # Optional: improves indexing for large archives
 
-
 asan: clean
 	@echo "Building ASan binary..."
 	@$(MAKE) CC=$(CC) CFLAGS="$(CFLAGS) $(ASAN_CFLAGS)" LDFLAGS="$(LDFLAGS) $(ASAN_FLAGS)" all
@@ -195,7 +192,7 @@ $(TEST_BIN): $(TEST_OBJ)
 
 clean:
 	@echo "Cleaning build files..."
-	@rm -rf $(BUILD_DIR)
+	@rm -rf $(BIN) $(SO) $(BUILD_DIR)
 	@echo "Clean complete."
 
 print:

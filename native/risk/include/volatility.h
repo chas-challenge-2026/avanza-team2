@@ -1,6 +1,10 @@
 #ifndef __RISK_H__
 #define __RISK_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "simd_config.h"
 
 #include <stdint.h>
@@ -70,5 +74,9 @@ float risk_calc_volatility_float_simd(const float* _data, size_t _n);
 #endif // SIMD_I32_LEN
 
 #endif // HAS_SIMD
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
 
 #endif // __RISK_H__
