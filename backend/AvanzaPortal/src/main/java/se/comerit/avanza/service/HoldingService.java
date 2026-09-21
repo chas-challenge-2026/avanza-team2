@@ -37,14 +37,27 @@ public class HoldingService {
     }
 
     public List<Map<String, Object>> getHoldingsForUser(Integer userId) {
-        String holdingSql = "SELECT h.id, h.ticker, h.instrument_name, " +
-                "h.quantity, h.avg_buy_price, h.currency, a.account_type, a.account_name " +
-                "FROM holdings h " +
-                "JOIN accounts a ON h.account_id = a.id " +
-                "WHERE a.user_id = ? " +
-                "ORDER BY a.account_type, h.ticker";
-        return jdbcTemplate.queryForList(holdingSql, userId);
+        return holdingsRepository.findHoldingsForUser(userId.longValue())
+        .stream()
+        .map (holding -> {
+            Map<String, Object> row = new HashMap<>();
+            row.put("id", holding.getId());
+            
+            row.put("ticker", holding.getTicker());
+            row.put("instrument_name", holding.getInstrument_name());
+            row.put("quantity", holding.getQuantity());
+            row.put("avg_buy_price", holding.getAvg_buy_price());
+            row.put("currency", holding.getCurrency());
+
+            row.put("account_type", holding.getAccount().getAccount_type());
+            row.put("account_name", holding.getAccount().getAccount_name());
+        
+            
+            return row;
+        })
+        .toList();
     }
+        
     
     // This method retrieves the accounts for a given user ID.
     public List<HoldingAccountDTO> getAccountsForUser(Long userId) {
