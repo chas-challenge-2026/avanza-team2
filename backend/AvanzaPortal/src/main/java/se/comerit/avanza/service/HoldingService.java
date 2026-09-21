@@ -5,7 +5,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
@@ -24,15 +23,13 @@ import se.comerit.avanza.repository.UserRepository;
 @Service
 public class HoldingService {
 
-    private final JdbcTemplate jdbcTemplate;
 
     private final UserRepository userRepository;
 
     private final AccountRepository accountRepository;
     private final HoldingsRepository holdingsRepository;
 
-    public HoldingService(JdbcTemplate jdbcTemplate, UserRepository userRepository, AccountRepository accountRepository, HoldingsRepository holdingsRepository) {
-        this.jdbcTemplate = jdbcTemplate;
+    public HoldingService(UserRepository userRepository, AccountRepository accountRepository, HoldingsRepository holdingsRepository) {
         this.userRepository = userRepository;
         this.accountRepository = accountRepository;
         this.holdingsRepository = holdingsRepository;
