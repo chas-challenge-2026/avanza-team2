@@ -11,10 +11,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.contains;
-import static org.mockito.ArgumentMatchers.eq;
 import org.mockito.Mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -131,6 +130,10 @@ class HoldingServiceTest {
 
     @Test
     void shouldUppercaseTickerWhenAddingHolding() {
+
+        Account account = new Account();
+        account.setId(2L);
+        when(accountRepository.findById((2L))).thenReturn(Optional.of(account));
         // Act
         holdingService.addHolding(
                 2,
@@ -142,15 +145,17 @@ class HoldingServiceTest {
         );
 
         // Assert
-        verify(jdbcTemplate).update(
-                anyString(),
-                eq(2),
-                eq("AAPL"),
-                eq("Apple"),
-                eq(new BigDecimal("5")),
-                eq(new BigDecimal("180.50")),
-                eq("USD")
-        );
+        ArgumentCaptor<Holdings> captor = ArgumentCaptor.forClass(Holdings.class);
+        verify(holdingsRepository).save(captor.capture());
+
+        Holdings savedHolding = captor.getValue();
+
+        assertEquals("AAPL", savedHolding.getTicker());
+        assertEquals("Apple", savedHolding.getInstrument_name());
+        assertEquals(new BigDecimal("5"), savedHolding.getQuantity());
+        assertEquals(new BigDecimal("180.50"), savedHolding.getAvg_buy_price());
+        assertEquals("USD", savedHolding.getCurrency());
+        assertEquals(account, savedHolding.getAccount());
     }
 
     @Test
@@ -249,18 +254,29 @@ class HoldingServiceTest {
         user.setEmail(email);
         CreateHoldingRequestDTO request = new CreateHoldingRequestDTO(
                 3, "aapl", "Apple", "5", "180.50", "USD");
-
+        
         when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
         when(accountRepository.existsByIdAndUser_Id(3L, 7L)).thenReturn(true);
+
+        Account account = new Account();
+        account.setId(3L);
+        when(accountRepository.findById(3L)).thenReturn(Optional.of(account));
 
         // Act
         holdingService.addHoldingForAuthenticatedUser(email, request);
 
         // Assert: ownership is checked and the holding is saved with normalized values.
+        ArgumentCaptor<Holdings> captor = ArgumentCaptor.forClass(Holdings.class);
+        verify(holdingsRepository).save(captor.capture());
+
+        Holdings savedHolding = captor.getValue();
+        assertEquals("AAPL", savedHolding.getTicker());
+        assertEquals("Apple", savedHolding.getInstrument_name());
+        assertEquals(new BigDecimal("5"), savedHolding.getQuantity());
+        assertEquals(new BigDecimal("180.50"), savedHolding.getAvg_buy_price());
+
+        assertEquals(account, savedHolding.getAccount());
         verify(accountRepository).existsByIdAndUser_Id(3L, 7L);
-        verify(jdbcTemplate).update(contains("INSERT INTO holdings"),
-                eq(3), eq("AAPL"), eq("Apple"), eq(new BigDecimal("5")),
-                eq(new BigDecimal("180.50")), eq("USD"));
     }
 
     @Test

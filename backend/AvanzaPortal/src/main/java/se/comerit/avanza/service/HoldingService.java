@@ -14,6 +14,8 @@ import se.comerit.avanza.dto.holdings.CreateHoldingRequestDTO;
 import se.comerit.avanza.dto.holdings.HoldingAccountDTO;
 import se.comerit.avanza.dto.holdings.HoldingItemDTO;
 import se.comerit.avanza.dto.holdings.HoldingResponseDTO;
+import se.comerit.avanza.entity.Account;
+import se.comerit.avanza.entity.Holdings;
 import se.comerit.avanza.entity.User;
 import se.comerit.avanza.repository.AccountRepository;
 import se.comerit.avanza.repository.HoldingsRepository;
@@ -102,9 +104,19 @@ public class HoldingService {
     }
 
     public void addHolding(Integer accountId, String ticker, String instrumentName, String quantity, String avgBuyPrice, String currency) {
-        String sql = "INSERT INTO holdings (account_id, ticker, instrument_name, quantity, avg_buy_price, currency) " +
-                "VALUES (?, ?, ?, ?, ?, ?)";
-        jdbcTemplate.update(sql, accountId, ticker.toUpperCase(), instrumentName, new BigDecimal(quantity), new BigDecimal(avgBuyPrice), currency);
+
+        BigDecimal parsedQuantity = new BigDecimal(quantity);
+        BigDecimal parsedAvgBuyPrice = new BigDecimal(avgBuyPrice);
+
+        Account account = accountRepository.findById(accountId.longValue())
+                .orElseThrow(() -> new IllegalArgumentException("Account not found"));
+
+        Holdings holding = new Holdings(ticker.toUpperCase(), instrumentName, parsedQuantity, parsedAvgBuyPrice, currency, account);
+
+        holdingsRepository.save(holding);
+
+        
+        
     }
 
     // This method retrieves the holdings and accounts for the authenticated user based on their email.
