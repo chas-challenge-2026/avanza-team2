@@ -205,7 +205,7 @@ class HoldingServiceTest {
         when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
         when(jdbcTemplate.queryForList(contains("FROM holdings h"), eq(7)))
                 .thenReturn(List.of(holding));
-        when(accountRepository.findAllByUser_Id(7L)).thenReturn(List.of(account));
+        when(accountRepository.findByUserId(7L)).thenReturn(List.of(account));
 
         // Act
         HoldingResponseDTO result = holdingService.getHoldingsForAuthenticatedUser(email);
@@ -219,7 +219,7 @@ class HoldingServiceTest {
         assertEquals("ISK", result.accounts().get(0).accountType());
         verify(userRepository).findByEmail(email);
         verify(jdbcTemplate).queryForList(contains("FROM holdings h"), eq(7));
-        verify(accountRepository).findAllByUser_Id(7L);
+        verify(accountRepository).findByUserId(7L);
     }
 
     @Test

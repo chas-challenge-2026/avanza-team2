@@ -51,8 +51,8 @@ public class HoldingService {
         return accountRepository.findByUserId(userId).stream()
                 .map(account -> new HoldingAccountDTO(
                         account.getId(),
-                        account.getAccount_name(),
-                        account.getAccount_type()))
+                        account.getAccount_type(),
+                        account.getAccount_name()))
                 .toList();
     }
 
