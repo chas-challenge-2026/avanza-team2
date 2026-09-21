@@ -2,12 +2,11 @@ import { createContext } from 'react';
 
 export interface AuthContextValue {
   isAuthenticated: boolean;
+  isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextValue | undefined>(
   undefined,
 );
-
-export const AuthStorageKey = 'avanza_auth_token';

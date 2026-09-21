@@ -1,5 +1,7 @@
 package se.comerit.avanza.security;
 
+import java.util.List;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -12,8 +14,6 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-
-import java.util.List;
 
 @Configuration
 public class SecurityConfig {
@@ -37,24 +37,31 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // Enable CORS for requests from the React frontend
+                // Enable CORS for requests from the React frontend.
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
-                // Disable CSRF for stateless API (REST endpoints don't need it)
+                // Disable CSRF for stateless API.
                 .csrf(AbstractHttpConfigurer::disable)
 
-                // Use stateless session policy (no HttpSession tracking)
+                // Use stateless session policy.
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-                // Define endpoint access rules
-                // Protected endpoints (require authentication)
+                // Define endpoint access rules.
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll()
+                        // Login and logout are public endpoints.
+                        .requestMatchers(
+                                "/api/auth/login",
+                                "/api/auth/logout"
+                        ).permitAll()
+
+                        // All other endpoints require authentication.
                         .anyRequest().authenticated())
 
-                // Run JwtFilter before Spring's default auth
-                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+                // Run JwtFilter before Spring's default authentication filter.
+                .addFilterBefore(
+                        jwtFilter,
+                        UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
@@ -66,24 +73,28 @@ public class SecurityConfig {
      */
     @Bean
     CorsConfigurationSource corsConfigurationSource() {
+
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // Allow requests from the local React/Vite frontend
+        // Allow requests from the local React/Vite frontend.
         configuration.setAllowedOrigins(
                 List.of("http://localhost:5173")
         );
 
-        // Allow the HTTP methods used by the frontend
+        // Allow the HTTP methods used by the frontend.
         configuration.setAllowedMethods(
                 List.of("GET", "POST", "PUT", "DELETE", "OPTIONS")
         );
 
-        // Allow all request headers, including Content-Type and Authorization
-configuration.setAllowedHeaders(
-        List.of("Content-Type", "Authorization")
-);
+        // Only allow the request headers used by the application.
+        configuration.setAllowedHeaders(
+                List.of("Content-Type", "Authorization")
+        );
 
-        // Apply this CORS configuration to all API endpoints
+        // Allow the browser to send HttpOnly cookies with requests.
+        configuration.setAllowCredentials(true);
+
+        // Apply this CORS configuration to all endpoints.
         UrlBasedCorsConfigurationSource source =
                 new UrlBasedCorsConfigurationSource();
 
