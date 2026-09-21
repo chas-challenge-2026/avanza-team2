@@ -12,15 +12,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import org.mockito.Mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 
@@ -45,14 +41,11 @@ class HoldingServiceTest {
     @Mock
     private HoldingsRepository holdingsRepository;
 
-    @Mock
-    private JdbcTemplate jdbcTemplate;
-    
     private HoldingService holdingService;
 
     @BeforeEach
     void setUp() {
-        holdingService = new HoldingService(jdbcTemplate, userRepository, accountRepository, holdingsRepository);
+        holdingService = new HoldingService(userRepository, accountRepository, holdingsRepository);
     }
 
     @Test
@@ -173,8 +166,7 @@ class HoldingServiceTest {
                 )
         );
 
-        verify(jdbcTemplate, never())
-                .update(anyString(), any(Object[].class));
+        verifyNoInteractions(accountRepository,holdingsRepository);
     }
 
     @Test
@@ -188,7 +180,7 @@ class HoldingServiceTest {
 
         // Assert
         verify(holdingsRepository).deleteOwnedHolding(15L, 7L);
-        verifyNoInteractions(jdbcTemplate);
+        verifyNoInteractions(accountRepository);
     }
 
     @Test
@@ -242,7 +234,7 @@ class HoldingServiceTest {
         assertThrows(BadCredentialsException.class,
                 () -> holdingService.getHoldingsForAuthenticatedUser(email));
         verify(userRepository).findByEmail(email);
-        verifyNoInteractions(jdbcTemplate);
+        verifyNoInteractions(accountRepository, holdingsRepository);
     }
 
     @Test
@@ -295,7 +287,7 @@ class HoldingServiceTest {
         assertThrows(AccessDeniedException.class,
                 () -> holdingService.addHoldingForAuthenticatedUser(email, request));
         verify(accountRepository).existsByIdAndUser_Id(3L, 7L);
-        verifyNoInteractions(jdbcTemplate);
+        verifyNoInteractions(holdingsRepository);
     }
 
     @Test
@@ -310,7 +302,7 @@ class HoldingServiceTest {
         assertThrows(BadCredentialsException.class,
                 () -> holdingService.addHoldingForAuthenticatedUser(email, request));
         verify(userRepository).findByEmail(email);
-        verifyNoInteractions(accountRepository, jdbcTemplate);
+        verifyNoInteractions(accountRepository, holdingsRepository);
     }
 
     @Test
@@ -319,7 +311,7 @@ class HoldingServiceTest {
         assertThrows(NumberFormatException.class,
                 () -> holdingService.addHolding(
                         3, "AAPL", "Apple", "5", "invalid-price", "USD"));
-        verifyNoInteractions(jdbcTemplate);
+        verifyNoInteractions(accountRepository, holdingsRepository);
     }
 
     @Test
@@ -330,11 +322,10 @@ class HoldingServiceTest {
         when(userRepository.findByEmail("anna@example.com")).thenReturn(Optional.of(user));
         when(holdingsRepository.deleteOwnedHolding(15L, 7L)).thenReturn(0);
 
-        // Act and Assert: never fall back to an unrestricted SQL delete.
+        // Act and Assert: reject deletion when no holding belongs to the user
         assertThrows(AccessDeniedException.class,
                 () -> holdingService.deleteHoldingForAuthenticatedUser("anna@example.com", 15));
         verify(holdingsRepository).deleteOwnedHolding(15L, 7L);
-        verifyNoInteractions(jdbcTemplate);
     }
 
     @Test
@@ -342,7 +333,7 @@ class HoldingServiceTest {
         when(userRepository.findByEmail("missing@example.com")).thenReturn(Optional.empty());
         assertThrows(BadCredentialsException.class,
                 () -> holdingService.deleteHoldingForAuthenticatedUser("missing@example.com", 15));
-        verifyNoInteractions(holdingsRepository, jdbcTemplate);
+        verifyNoInteractions(accountRepository,holdingsRepository);
     }
 
 }
