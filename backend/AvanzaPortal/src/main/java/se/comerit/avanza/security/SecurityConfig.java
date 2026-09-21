@@ -79,7 +79,9 @@ public class SecurityConfig {
         );
 
         // Allow all request headers, including Content-Type and Authorization
-        configuration.setAllowedHeaders(List.of("*"));
+configuration.setAllowedHeaders(
+        List.of("Content-Type", "Authorization")
+);
 
         // Apply this CORS configuration to all API endpoints
         UrlBasedCorsConfigurationSource source =
