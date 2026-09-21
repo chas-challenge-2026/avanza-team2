@@ -6,6 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import se.comerit.avanza.entity.Holdings;
 
@@ -20,11 +21,15 @@ public interface HoldingsRepository extends JpaRepository<Holdings, Long> {
     @org.springframework.transaction.annotation.Transactional
     @Query("DELETE FROM Holdings h WHERE h.id = ?1 AND h.account.id IN (SELECT a.id FROM Account a WHERE a.user.id = ?2)")
     int deleteOwnedHolding(Long holdingId, Long userId);
+    @Query("""
+    SELECT h FROM Holdings h
+    JOIN FETCH h.account a
+    WHERE a.user.id = :userId
+    ORDER BY a.account_type, h.ticker
+    """)
+    List<Holdings> findHoldingsForUser(@Param("userId") Long userId);
+
     @Query("SELECT h FROM Holdings h WHERE h.account.user.id = ?1")
-    List<Holdings> findHoldingsForUser(
-        @org.springframework.data.repository.query.Param("userId") Long userId);
-
-
     Page<Holdings> findAllByUserId(Long userId, Pageable pageable);
 
     Page<Holdings> findAllByAccountIdIn(List<Long> accountIds, Pageable pageable);
