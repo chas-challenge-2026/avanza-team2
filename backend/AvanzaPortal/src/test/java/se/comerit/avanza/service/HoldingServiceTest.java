@@ -26,8 +26,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 
-import se.comerit.avanza.dto.holdings.HoldingResponseDTO;
 import se.comerit.avanza.dto.holdings.CreateHoldingRequestDTO;
+import se.comerit.avanza.dto.holdings.HoldingResponseDTO;
+import se.comerit.avanza.entity.Account;
 import se.comerit.avanza.entity.User;
 import se.comerit.avanza.repository.AccountRepository;
 import se.comerit.avanza.repository.HoldingsRepository;
@@ -196,16 +197,15 @@ class HoldingServiceTest {
         holding.put("quantity", new BigDecimal("10"));
         holding.put("avg_buy_price", new BigDecimal("50"));
 
-        Map<String, Object> account = new HashMap<>();
-        account.put("id", 3);
-        account.put("account_type", "ISK");
-        account.put("account_name", "Annas ISK");
+        Account account = new Account();
+        account.setId(3L);
+        account.setAccount_type("ISK");
+        account.setAccount_name("Annas ISK");
 
         when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
         when(jdbcTemplate.queryForList(contains("FROM holdings h"), eq(7)))
                 .thenReturn(List.of(holding));
-        when(jdbcTemplate.queryForList(contains("FROM accounts"), eq(7)))
-                .thenReturn(List.of(account));
+        when(accountRepository.findAllByUser_Id(7L)).thenReturn(List.of(account));
 
         // Act
         HoldingResponseDTO result = holdingService.getHoldingsForAuthenticatedUser(email);
@@ -219,7 +219,7 @@ class HoldingServiceTest {
         assertEquals("ISK", result.accounts().get(0).accountType());
         verify(userRepository).findByEmail(email);
         verify(jdbcTemplate).queryForList(contains("FROM holdings h"), eq(7));
-        verify(jdbcTemplate).queryForList(contains("FROM accounts"), eq(7));
+        verify(accountRepository).findAllByUser_Id(7L);
     }
 
     @Test
