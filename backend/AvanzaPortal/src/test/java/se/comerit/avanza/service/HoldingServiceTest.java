@@ -1,7 +1,6 @@
 package se.comerit.avanza.service;
 
 import java.math.BigDecimal;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -29,6 +28,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import se.comerit.avanza.dto.holdings.CreateHoldingRequestDTO;
 import se.comerit.avanza.dto.holdings.HoldingResponseDTO;
 import se.comerit.avanza.entity.Account;
+import se.comerit.avanza.entity.Holdings;
 import se.comerit.avanza.entity.User;
 import se.comerit.avanza.repository.AccountRepository;
 import se.comerit.avanza.repository.HoldingsRepository;
@@ -60,29 +60,28 @@ class HoldingServiceTest {
     void shouldReturnHoldingsForUser() {
 
         // Arrange
-        Integer userId = 1;
+        Account account = new Account();
+        account.setAccount_type("ISK");
+        account.setAccount_name("Annas ISK");
 
-        Map<String, Object> holding = new HashMap<>();
-        holding.put("id", 10);
-        holding.put("ticker", "ERIC-B");
+        Holdings holding = new Holdings();
+        holding.setId(10L);
+        holding.setTicker("ERIC-B");
+        holding.setAccount(account);
 
-        List<Map<String, Object>> expectedHoldings = List.of(holding);
-
-        when(jdbcTemplate.queryForList(anyString(), eq(userId))).thenReturn(expectedHoldings);
+        when(holdingsRepository.findHoldingsForUser(1L)).thenReturn(List.of(holding));
 
         // Act
-        List<Map<String, Object>> actualHoldings = holdingService.getHoldingsForUser(userId);
+        List<Map<String, Object>> actualHoldings = holdingService.getHoldingsForUser(1);
 
         // Assert
-        assertEquals(expectedHoldings, actualHoldings);
         assertEquals(1, actualHoldings.size());
+        assertEquals(10L, actualHoldings.get(0).get("id"));
         assertEquals("ERIC-B", actualHoldings.get(0).get("ticker"));
+        assertEquals("ISK", actualHoldings.get(0).get("account_type"));
+        assertEquals("Annas ISK", actualHoldings.get(0).get("account_name"));
 
-        verify(jdbcTemplate).queryForList(anyString(), eq(userId));
-
-
-
-        
+        verify(holdingsRepository).findHoldingsForUser(1L);
     }
 
     @Test
@@ -90,12 +89,14 @@ class HoldingServiceTest {
         // Arrange
         Integer userId = 1;
 
-        Map<String, Object> holding = new HashMap<>();
-        holding.put("ticker", "ERIC-B");
-        holding.put("quantity", new BigDecimal("10"));
-        holding.put("avg_buy_price", new BigDecimal("50"));
+        Account account = new Account();
+        Holdings holding = new Holdings();
+        holding.setTicker("ERIC-B");
+        holding.setQuantity(new BigDecimal("10"));
+        holding.setAvg_buy_price(new BigDecimal("50"));
+        holding.setAccount(account);
 
-        when(jdbcTemplate.queryForList(anyString(), eq(userId)))
+        when(holdingsRepository.findHoldingsForUser(userId.longValue()))
                 .thenReturn(List.of(holding));
 
         // Act
@@ -108,6 +109,7 @@ class HoldingServiceTest {
         assertEquals(74.20, enrichedHolding.get("currentPrice"));
         assertEquals(742.0, enrichedHolding.get("marketValue"));
         assertEquals(242.0, enrichedHolding.get("pnl"));
+        verify(holdingsRepository).findHoldingsForUser(userId.longValue());
     }
 
     @Test
@@ -115,7 +117,7 @@ class HoldingServiceTest {
         // Arrange
         Integer userId = 1;
 
-        when(jdbcTemplate.queryForList(anyString(), eq(userId)))
+        when(holdingsRepository.findHoldingsForUser(userId.longValue()))
                 .thenReturn(List.of());
 
         // Act
@@ -124,6 +126,7 @@ class HoldingServiceTest {
 
         // Assert
         assertTrue(result.isEmpty());
+        verify(holdingsRepository).findHoldingsForUser(userId.longValue());
     }
 
     @Test
@@ -192,25 +195,27 @@ class HoldingServiceTest {
         user.setName("Anna");
         user.setEmail(email);
 
-        Map<String, Object> holding = new HashMap<>();
-        holding.put("ticker", "ERIC-B");
-        holding.put("quantity", new BigDecimal("10"));
-        holding.put("avg_buy_price", new BigDecimal("50"));
-
         Account account = new Account();
         account.setId(3L);
         account.setAccount_type("ISK");
         account.setAccount_name("Annas ISK");
 
+        Holdings holding = new Holdings();
+        holding.setId(10L);
+        holding.setTicker("ERIC-B");
+        holding.setQuantity(new BigDecimal("10"));
+        holding.setAvg_buy_price(new BigDecimal("50"));
+        holding.setAccount(account);
+
         when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
-        when(jdbcTemplate.queryForList(contains("FROM holdings h"), eq(7)))
+        when(holdingsRepository.findHoldingsForUser(7L))
                 .thenReturn(List.of(holding));
         when(accountRepository.findByUserId(7L)).thenReturn(List.of(account));
 
         // Act
         HoldingResponseDTO result = holdingService.getHoldingsForAuthenticatedUser(email);
 
-        // Assert: both queries use the user's database ID.
+        // Assert: both repositories use the authenticated user's database ID.
         assertEquals("Anna", result.userName());
         assertEquals(1, result.holdings().size());
         assertEquals("ERIC-B", result.holdings().get(0).ticker());
@@ -218,7 +223,7 @@ class HoldingServiceTest {
         assertEquals(3L, result.accounts().get(0).id());
         assertEquals("ISK", result.accounts().get(0).accountType());
         verify(userRepository).findByEmail(email);
-        verify(jdbcTemplate).queryForList(contains("FROM holdings h"), eq(7));
+        verify(holdingsRepository).findHoldingsForUser(7L);
         verify(accountRepository).findByUserId(7L);
     }
 
