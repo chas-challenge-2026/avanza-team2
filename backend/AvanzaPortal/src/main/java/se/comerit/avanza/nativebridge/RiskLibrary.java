@@ -3,7 +3,7 @@ package se.comerit.avanza.nativebridge;
 import com.sun.jna.Library;
 
 public interface RiskLibrary extends Library {
-    double risk_calc_sharpe_ratio_double(double[] data, int length, double riskFreeRate, int yearFreq);
+    double risk_calc_sharpe_ratio_double(double[] data, long length, double riskFreeRate, long yearFreq);
 
     double risk_calc_volatility_double(double[] data, int length);
 

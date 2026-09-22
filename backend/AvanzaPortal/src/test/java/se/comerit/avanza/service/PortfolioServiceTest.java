@@ -3,6 +3,9 @@ package se.comerit.avanza.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import java.util.HashMap;
@@ -45,6 +48,9 @@ class PortfolioServiceTest {
 
         @Mock
         private MarketService marketService;
+
+        @Mock
+        private se.comerit.avanza.nativebridge.RiskLibrary riskLibrary;
 
         @InjectMocks
         private PortfolioService portfolioService;
@@ -232,6 +238,21 @@ class PortfolioServiceTest {
                         assertEquals(0.0, row.actual(), 0.001);
                         assertFalse(row.overThreshold());
                 }
+        }
+
+        @Test
+        void shouldCalculatePortfolioSharpeFromHistoricalValues() {
+                // Arrange
+                when(riskLibrary.risk_calc_sharpe_ratio_double(any(double[].class), anyLong(), eq(0.02), eq(252L)))
+                                .thenReturn(1.75);
+
+                // Act
+                double result = portfolioService.calculatePortfolioSharpeRatio(
+                                List.of(100.0, 110.0, 104.5, 113.0),
+                                0.02);
+
+                // Assert
+                assertEquals(1.75, result, 0.001);
         }
 
         @Test
