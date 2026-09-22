@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.validation.Valid;
 import se.comerit.avanza.dto.holdings.CreateHoldingRequestDTO;
 import se.comerit.avanza.dto.holdings.HoldingResponseDTO;
 import se.comerit.avanza.service.HoldingService;
@@ -35,7 +36,7 @@ public class HoldingController {
     }
 
     @PostMapping("/holdings/add")
-    public ResponseEntity<Void> addHolding(@RequestBody CreateHoldingRequestDTO requestDTO, Authentication authentication) {
+    public ResponseEntity<Void> addHolding(@Valid @RequestBody CreateHoldingRequestDTO requestDTO, Authentication authentication) {
         // Spring security authentication check instead of session check
         holdingService.addHoldingForAuthenticatedUser(authentication.getName(), requestDTO);
 
