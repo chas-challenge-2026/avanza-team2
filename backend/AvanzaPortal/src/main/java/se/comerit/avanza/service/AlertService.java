@@ -1,8 +1,13 @@
 package se.comerit.avanza.service;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 
 import se.comerit.avanza.dto.alerts.LiveDriftAlertDTO;
@@ -15,11 +20,6 @@ import se.comerit.avanza.repository.AccountRepository;
 import se.comerit.avanza.repository.AlertsRepository;
 import se.comerit.avanza.repository.TargetRepository;
 import se.comerit.avanza.repository.UserRepository;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Service class for managing alerts related to account holdings and target
@@ -161,7 +161,7 @@ public class AlertService {
                 String currency = holding.getCurrency();
 
                 double quantity = holding.getQuantity() != null
-                        ? holding.getQuantity()
+                        ? holding.getQuantity().doubleValue()
                         : 0.0;
 
                 double currentPrices = getCurrentPrices().getOrDefault(ticker, 100.0);

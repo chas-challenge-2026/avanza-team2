@@ -158,6 +158,21 @@ char* rates_handler_fetch_from_rbapi(RateType _Type)
 
 /************************ Interface defs ************************/
 
+int rates_handler_get_latest_swestr(double* _rate)
+{
+  int res;
+  Rate R = {0};
+  
+  res = rates_handler_get_latest(&R, Swestr);
+
+  if (res != 0)
+    return res;
+
+  *_rate = R.value;
+
+  return res;
+}
+
 int rates_handler_get_latest(Rate* _R, RateType _Type)
 {
   int res;
