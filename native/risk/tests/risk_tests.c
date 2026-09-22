@@ -3,6 +3,7 @@
 #include "test_data.h"
 #include "ma.h"
 #include "rates_handler.h"
+#include "data_utils.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -49,7 +50,7 @@ int risk_test_ma(void)
   // time_s = (double)time_ns / 1e9;
 
   if (!sma_result_d)
-    return 2;
+    return 4;
 
   printf("\n--SMA (double) results--\n");
   printf("risk_calc_sma_double took %zu ns\n", time_ns);
@@ -71,7 +72,7 @@ int risk_test_ma(void)
   // time_s = (double)time_ns / 1e9;
 
   if (!wma_result_d)
-    return 3;
+    return 5;
 
   printf("\n--WMA (double) results--\n");
   printf("risk_calc_wma_double took %zu ns\n", time_ns);
@@ -93,7 +94,7 @@ int risk_test_ma(void)
   // time_s = (double)time_ns / 1e9;
 
   if (!ema_result_d)
-    return 4;
+    return 6;
 
   printf("\n--EMA (double) results--\n");
   printf("risk_calc_ema_double took %zu ns\n", time_ns);
@@ -111,7 +112,7 @@ int risk_test_ma(void)
   /*** Float test ***/
   float* arr_f = calloc(1, (arr_n * sizeof(float)));
   if (!arr_f)
-    return 5;
+    return 7;
 
   float arr_base_start_f = 100.0;     // Initial base value
   float arr_base_step_f = 0.01;       // Increase base by this amount each iteration
@@ -226,9 +227,19 @@ int risk_test_volatility(void)
   // for (size_t i = 0; i < arr_n; i++)
   //   printf("%lf,", arr[i]);
 
+  printf("Converting array of values to returns \n");
+  double* ret_arr_d = calloc(1, (arr_n * sizeof(double)));
+  if (!ret_arr_d)
+    return 2;
+
+  if (data_convert_values_to_returns(arr_d, ret_arr_d, arr_n) != 0)
+    return 3;
+  printf("First return: %lf\n", ret_arr_d[0]);
+  printf("Last return (index %ld): %lf\n",arr_n-1, ret_arr_d[arr_n-1]);
+
   /* Run and time calculations on array */
   time_start = system_monotonic_ns(); 
-  volatility_d = risk_calc_volatility_double(arr_d, arr_n);
+  volatility_d = risk_calc_volatility_double(ret_arr_d, arr_n);
   time_end = system_monotonic_ns(); 
   time_ns = time_end - time_start;
   // time_s = (double)time_ns / 1e9;
@@ -237,7 +248,7 @@ int risk_test_volatility(void)
   printf("Volatility: %lf\n", volatility_d);
 
   time_start = system_monotonic_ns(); 
-  volatility_d = risk_calc_volatility_double_simd(arr_d, arr_n);
+  volatility_d = risk_calc_volatility_double_simd(ret_arr_d, arr_n);
   time_end = system_monotonic_ns(); 
   time_ns = time_end - time_start;
   // time_s = (double)time_ns / 1e9;
@@ -247,6 +258,7 @@ int risk_test_volatility(void)
   printf("Volatility: %lf\n", volatility_d);
 
   free(arr_d);
+  free(ret_arr_d);
 
   /*** Float test ***/
   float arr_base_start_f = 100.0;     // Initial base value
@@ -256,7 +268,7 @@ int risk_test_volatility(void)
 
   float* arr_f = calloc(1, (arr_n * sizeof(float)));
   if (!arr_f)
-    return 2;
+    return 4;
 
   printf("Generating an array of %ld float\n", arr_n);
   test_gen_sample_arr_float(arr_f, 
@@ -302,9 +314,9 @@ int risk_test_sharpe(void)
   // double time_s;
 
   /*** Double test ***/
-  double arr_base_start_d = 0.001;     // Initial base value
-  double arr_base_step_d = 0.0;      // Increase base by this amount each iteration
-  double arr_noise_magnitude_d = 0.1; // Randomize +/- this amount
+  double arr_base_start_d = 100.0;     // Initial base value
+  double arr_base_step_d = 1;      // Increase base by this amount each iteration
+  double arr_noise_magnitude_d = 10; // Randomize +/- this amount
   double sharpe_d;
 
   double* arr_d = calloc(1, (arr_n * sizeof(double)));
@@ -322,6 +334,16 @@ int risk_test_sharpe(void)
   // for (size_t i = 0; i < arr_n; i++)
   //   printf("%lf,", arr[i]);
 
+  printf("Converting array of values to returns \n");
+  double* ret_arr_d = calloc(1, (arr_n * sizeof(double)));
+  if (!ret_arr_d)
+    return 2;
+
+  if (data_convert_values_to_returns(arr_d, ret_arr_d, arr_n) != 0)
+    return 3;
+  printf("First return: %lf\n", ret_arr_d[0]);
+  printf("Last return (index %ld): %lf\n",arr_n-1, ret_arr_d[arr_n-1]);
+
   // Get overnight annualized return rate
   Rate R = {0};
   rates_handler_get_latest(&R, Swestr);
@@ -332,7 +354,7 @@ int risk_test_sharpe(void)
   /* Run and time calculations on array */
   size_t year_freq = 252; // Standard annual returns
   time_start = system_monotonic_ns(); 
-  sharpe_d = risk_calc_sharpe_ratio_double(arr_d, arr_n, R.value, year_freq);
+  sharpe_d = risk_calc_sharpe_ratio_double(ret_arr_d, arr_n, R.value, year_freq);
   time_end = system_monotonic_ns(); 
   time_ns = time_end - time_start;
   // time_s = (double)time_ns / 1e9;
@@ -341,6 +363,7 @@ int risk_test_sharpe(void)
   printf("Sharpe ratio: %lf\n", sharpe_d);
 
   free(arr_d);
+  free(ret_arr_d);
 
   return 0;
 }
@@ -476,6 +499,49 @@ int risk_test_rates_handler(void)
 
 }
 
+int risk_test_max_drawdown(void)
+{
+  printf("\n### MAX DRAWDOWN TESTS ###\n");
+
+  const size_t arr_n = SAMPLE_ARR_SIZE; // Array size
+  uint64_t time_start;
+  uint64_t time_end;
+  uint64_t time_ns;
+  // double time_s;
+
+  /*** Double test ***/
+  double arr_base_start_d = 100.0;     // Initial base value
+  double arr_base_step_d = 1;      // Increase base by this amount each iteration
+  double arr_noise_magnitude_d = 10; // Randomize +/- this amount
+  double max_dd;
+
+  double* arr_d = calloc(1, (arr_n * sizeof(double)));
+  if (!arr_d)
+    return 1;
+
+  printf("Generating an array of %ld doubles\n", arr_n);
+  test_gen_sample_arr_double(arr_d, 
+                      arr_n, 
+                      arr_base_start_d, 
+                      arr_base_step_d, 
+                      arr_noise_magnitude_d);
+  printf("First result: %lf\n", arr_d[0]);
+  printf("Last result (index %ld): %lf\n",arr_n-1, arr_d[arr_n-1]);
+
+  /* Run and time calculations on array */
+  time_start = system_monotonic_ns(); 
+  max_dd = risk_calc_max_drawdown(arr_d, arr_n);
+  time_end = system_monotonic_ns(); 
+  time_ns = time_end - time_start;
+
+  printf("risk_calc_max_drawdown %zu ns\n", time_ns);
+  printf("Max drawdown: %lf\n", max_dd);
+
+  free(arr_d);
+
+  return 0;
+}
+
 int main(void) 
 {
   // bool test_ok;
@@ -491,6 +557,9 @@ int main(void)
   
   assert(risk_test_sharpe() == 0);
   printf("\nrisk_test_sharpe SUCCESS!\n");
+
+  assert(risk_test_max_drawdown() == 0);
+  printf("\nrisk_test_max_drawdown SUCCESS!\n");
 
   return 0;
 }
