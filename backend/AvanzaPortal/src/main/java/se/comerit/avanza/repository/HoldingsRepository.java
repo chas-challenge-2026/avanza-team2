@@ -5,8 +5,10 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import se.comerit.avanza.entity.Holdings;
 
@@ -17,8 +19,8 @@ import se.comerit.avanza.entity.Holdings;
  */
 public interface HoldingsRepository extends JpaRepository<Holdings, Long> {
     // Enforce ownership in the delete itself, not in a separate pre-check.
-    @org.springframework.data.jpa.repository.Modifying
-    @org.springframework.transaction.annotation.Transactional
+    @Modifying 
+    @Transactional 
     @Query("DELETE FROM Holdings h WHERE h.id = ?1 AND h.account.id IN (SELECT a.id FROM Account a WHERE a.user.id = ?2)")
     int deleteOwnedHolding(Long holdingId, Long userId);
     @Query("""
