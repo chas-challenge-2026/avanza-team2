@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
+import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -219,8 +220,8 @@ class PortfolioServiceTest {
                 Holdings holding = new Holdings(
                                 "ERIC-B",
                                 "Ericsson",
-                                10,
-                                50.0,
+                                new BigDecimal("10"),
+                                new BigDecimal("50.00"),
                                 "SEK",
                                 null);
 
@@ -246,8 +247,8 @@ class PortfolioServiceTest {
                 Holdings holding = new Holdings(
                                 "AAPL",
                                 "Apple",
-                                2,
-                                100.0,
+                                new BigDecimal("2"),
+                                new BigDecimal("100.00"),
                                 "USD",
                                 null);
 
@@ -272,8 +273,8 @@ class PortfolioServiceTest {
                 Holdings holding = new Holdings(
                                 "ERIC-B",
                                 "Ericsson",
-                                10,
-                                50.0,
+                                new BigDecimal("10"),
+                                new BigDecimal("50.00"),
                                 "SEK",
                                 account);
 

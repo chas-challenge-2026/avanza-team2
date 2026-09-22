@@ -7,26 +7,24 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import se.comerit.avanza.entity.Alerts;
-import org.springframework.stereotype.Service;
-import se.comerit.avanza.repository.AlertsRepository;
-
-import se.comerit.avanza.repository.AccountRepository;
-import se.comerit.avanza.repository.HoldingsRepository;
-import se.comerit.avanza.repository.TargetRepository;
-import se.comerit.avanza.repository.UserRepository;
-
 import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
 
 import se.comerit.avanza.dto.alerts.AlertsResponseDTO;
 import se.comerit.avanza.dto.portfolio.AccountSummaryDTO;
 import se.comerit.avanza.dto.portfolio.AllocationRowDTO;
 import se.comerit.avanza.dto.portfolio.EnrichedHoldingDTO;
 import se.comerit.avanza.entity.Account;
+import se.comerit.avanza.entity.Alerts;
 import se.comerit.avanza.entity.Holdings;
 import se.comerit.avanza.entity.TargetAllocations;
 import se.comerit.avanza.entity.User;
 import se.comerit.avanza.nativebridge.RiskLibrary;
+import se.comerit.avanza.repository.AccountRepository;
+import se.comerit.avanza.repository.AlertsRepository;
+import se.comerit.avanza.repository.HoldingsRepository;
+import se.comerit.avanza.repository.TargetRepository;
+import se.comerit.avanza.repository.UserRepository;
 
 /**
  * PortfolioService is a layer in between the controller and the repository.
@@ -195,8 +193,8 @@ public class PortfolioService {
     public EnrichedHoldingDTO enrichSingleHolding(Holdings holdings, Map<String, Double> currentPrices) {
         String ticker = holdings.getTicker();
         String currency = holdings.getCurrency();
-        double quantity = holdings.getQuantity();
-        double avgBuy = holdings.getAvgBuy();
+        double quantity = holdings.getQuantity().doubleValue();
+        double avgBuy = holdings.getAvgBuy().doubleValue();
 
         // Get current price (or default if unknown ticker)
         double price = currentPrices.getOrDefault(ticker, currentPrices.get("DEFAULT"));

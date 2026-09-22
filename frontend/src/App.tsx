@@ -22,10 +22,10 @@ function App() {
   const navigate = useNavigate()
   const auth = useAuth()
 
-  const handleLogin = () => {
-    auth.login()
-    navigate('/')
-  }
+  const handleLogin = async (email: string, password: string) => {
+  await auth.login(email, password);
+  navigate('/');
+};
 
   const routes = [
     { path: '/', title: 'Min Portfölj', element: <ProtectedRoute><Overview /></ProtectedRoute> },
