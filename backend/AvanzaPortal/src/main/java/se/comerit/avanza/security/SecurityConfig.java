@@ -18,88 +18,85 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @Configuration
 public class SecurityConfig {
 
-    private final JwtFilter jwtFilter;
+        private final JwtFilter jwtFilter;
 
-    public SecurityConfig(JwtFilter jwtFilter) {
-        this.jwtFilter = jwtFilter;
-    }
+        public SecurityConfig(JwtFilter jwtFilter) {
+                this.jwtFilter = jwtFilter;
+        }
 
-    /**
-     * Provides a BCrypt password encoder bean with a strength of 12.
-     *
-     * @return a BCryptPasswordEncoder instance with strength 12
-     */
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(12);
-    }
+        /**
+         * Provides a BCrypt password encoder bean with a strength of 12.
+         *
+         * @return a BCryptPasswordEncoder instance with strength 12
+         */
+        @Bean
+        public PasswordEncoder passwordEncoder() {
+                return new BCryptPasswordEncoder(12);
+        }
 
-    @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-                // Enable CORS for requests from the React frontend.
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+        @Bean
+        SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+                http
+                                // Enable CORS for requests from the React frontend.
+                                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
-                // Disable CSRF for stateless API.
-                .csrf(AbstractHttpConfigurer::disable)
+                                // Disable CSRF for stateless API.
+                                .csrf(AbstractHttpConfigurer::disable)
 
-                // Use stateless session policy.
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                                // Use stateless session policy.
+                                .sessionManagement(session -> session
+                                                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-                // Define endpoint access rules.
-                .authorizeHttpRequests(auth -> auth
-                        // Login and logout are public endpoints.
-                        .requestMatchers(
-                                "/api/auth/login",
-                                "/api/auth/logout"
-                        ).permitAll()
+                                // Define endpoint access rules.
+                                .authorizeHttpRequests(auth -> auth
+                                                // Login and logout are public endpoints.
+                                                .requestMatchers(
+                                                                "/api/auth/login",
+                                                                "/api/auth/logout",
+                                                                "/api/auth/me")
+                                                .permitAll()
 
-                        // All other endpoints require authentication.
-                        .anyRequest().authenticated())
+                                                // All other endpoints require authentication.
+                                                .anyRequest().authenticated())
 
-                // Run JwtFilter before Spring's default authentication filter.
-                .addFilterBefore(
-                        jwtFilter,
-                        UsernamePasswordAuthenticationFilter.class);
+                                // Run JwtFilter before Spring's default authentication filter.
+                                .addFilterBefore(
+                                                jwtFilter,
+                                                UsernamePasswordAuthenticationFilter.class);
 
-        return http.build();
-    }
+                return http.build();
+        }
 
-    /**
-     * Configures CORS for the React frontend running locally on port 5173.
-     *
-     * @return the CORS configuration source used by Spring Security
-     */
-    @Bean
-    CorsConfigurationSource corsConfigurationSource() {
+        /**
+         * Configures CORS for the React frontend running locally on port 5173.
+         *
+         * @return the CORS configuration source used by Spring Security
+         */
+        @Bean
+        CorsConfigurationSource corsConfigurationSource() {
 
-        CorsConfiguration configuration = new CorsConfiguration();
+                CorsConfiguration configuration = new CorsConfiguration();
 
-        // Allow requests from the local React/Vite frontend.
-        configuration.setAllowedOrigins(
-                List.of("http://localhost:5173")
-        );
+                // Allow requests from the local React/Vite frontend.
+                configuration.setAllowedOrigins(
+                                List.of("http://localhost:5173"));
 
-        // Allow the HTTP methods used by the frontend.
-        configuration.setAllowedMethods(
-                List.of("GET", "POST", "PUT", "DELETE", "OPTIONS")
-        );
+                // Allow the HTTP methods used by the frontend.
+                configuration.setAllowedMethods(
+                                List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
 
-        // Only allow the request headers used by the application.
-        configuration.setAllowedHeaders(
-                List.of("Content-Type", "Authorization")
-        );
+                // Only allow the request headers used by the application.
+                configuration.setAllowedHeaders(
+                                List.of("Content-Type", "Authorization"));
 
-        // Allow the browser to send HttpOnly cookies with requests.
-        configuration.setAllowCredentials(true);
+                // Allow the browser to send HttpOnly cookies with requests.
+                configuration.setAllowCredentials(true);
 
-        // Apply this CORS configuration to all endpoints.
-        UrlBasedCorsConfigurationSource source =
-                new UrlBasedCorsConfigurationSource();
+                // Apply this CORS configuration to all endpoints.
+                UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
 
-        source.registerCorsConfiguration("/**", configuration);
+                source.registerCorsConfiguration("/**", configuration);
 
-        return source;
-    }
+                return source;
+        }
 }
