@@ -1,19 +1,15 @@
 # avanza-2-native/fx Makefile
 
-ROOT_DIR := ..
-
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
-	CC  := clang
 	CXX := clang++
 else
-	CC  := gcc
 	CXX := g++
 endif
 
 BUILD_DIR := build
 
-# Shared library for the JNA bridge (fx_rates.h's extern "C" surface)
+# Shared library for the JNA bridge (rates.h's extern "C" surface)
 SO := $(BUILD_DIR)/libfx.so
 
 # Test binary: offline self-test, `--live` hits the network
@@ -27,23 +23,13 @@ SRC := $(shell find -L $(SRC_DIR) -type f -name '*.cpp')
 TEST_DIR := test
 TEST_SRC := $(shell find -L $(TEST_DIR) -type f -name '*.cpp')
 
-# Linked libraries (plain C, compiled as C and linked in)
-LIBS := common/modules
-
-# ----- Library Source Processing -----
-LIB_SRC_DIRS := $(foreach lib,$(LIBS),$(ROOT_DIR)/$(lib)/src)
-LIB_SRC      := $(shell find -L $(LIB_SRC_DIRS) -type f -name '*.c' 2>/dev/null)
-LIB_INCLUDES := $(foreach lib,$(LIBS),-I$(ROOT_DIR)/$(lib)/include)
-
 WARN := -Wall -Wextra -Wfatal-errors
 
-# Local sources build as C++17, shared helpers stay C11
-CXXFLAGS := -std=c++17 -MMD -MP $(WARN) -g -fPIC -Iinclude $(LIB_INCLUDES)
-CFLAGS   := -std=c11   -MMD -MP $(WARN) -g -fPIC $(LIB_INCLUDES)
+CXXFLAGS := -std=c++17 -MMD -MP $(WARN) -g -fPIC -Iinclude
 
 ASAN_FLAGS := -O1 -g3 -fno-omit-frame-pointer -fsanitize=address,undefined
 
-# libcurl is pulled in via common/modules/curl_helper
+# ecb.cpp calls libcurl directly
 ifeq ($(UNAME_S),Darwin)
 	LDFLAGS := -flto -lcurl
 else
@@ -51,20 +37,11 @@ else
 endif
 
 # Map local .cpp → .o (the library, linked into both $(SO) and $(TEST_BIN))
-OBJ_LOCAL := $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/$(SRC_DIR)/%.o,$(SRC))
-
-# Map library .c → .o
-# Converts: ../common/modules/src/bar.c -> build/common/modules/src/bar.o
-OBJ_LIB := $(foreach src,$(LIB_SRC),$(BUILD_DIR)/$(patsubst $(ROOT_DIR)/%,%,$(src:.c=.o)))
-
-# Combine all library objects
-OBJ := $(OBJ_LOCAL) $(OBJ_LIB)
+OBJ := $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/$(SRC_DIR)/%.o,$(SRC))
 
 # Same mapping again, but under build/so so PIC objects never collide with
 # the plain ones $(TEST_BIN) uses.
-SO_OBJ_LOCAL := $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/so/$(SRC_DIR)/%.o,$(SRC))
-SO_OBJ_LIB   := $(foreach src,$(LIB_SRC),$(BUILD_DIR)/so/$(patsubst $(ROOT_DIR)/%,%,$(src:.c=.o)))
-SO_OBJ       := $(SO_OBJ_LOCAL) $(SO_OBJ_LIB)
+SO_OBJ := $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/so/$(SRC_DIR)/%.o,$(SRC))
 
 # Map test .cpp → .o, linked with $(OBJ) into $(TEST_BIN)
 TEST_OBJ_LOCAL := $(patsubst $(TEST_DIR)/%.cpp,$(BUILD_DIR)/$(TEST_DIR)/%.o,$(TEST_SRC))
@@ -98,14 +75,13 @@ $(TEST_BIN): $(TEST_OBJ)
 
 asan: clean
 	@echo "Building ASan test binary..."
-	@$(MAKE) CXXFLAGS="$(CXXFLAGS) $(ASAN_FLAGS)" CFLAGS="$(CFLAGS) $(ASAN_FLAGS)" \
+	@$(MAKE) CXXFLAGS="$(CXXFLAGS) $(ASAN_FLAGS)" \
 		LDFLAGS="$(LDFLAGS) $(ASAN_FLAGS)" test
 
 profile: clean
 	@echo "Building profiling test binary..."
 	@$(MAKE) \
 		CXXFLAGS="$(CXXFLAGS) -pg -O0 -g" \
-		CFLAGS="$(CFLAGS) -pg -O0 -g" \
 		LDFLAGS="-Wl,--gc-sections -pg -lcurl" \
 		test
 
@@ -114,12 +90,6 @@ $(BUILD_DIR)/$(SRC_DIR)/%.o: $(SRC_DIR)/%.cpp
 	@echo "Compiling $<..."
 	@mkdir -p $(dir $@)
 	@$(CXX) $(CXXFLAGS) -c $< -o $@
-
-# Rule for shared C library source files
-$(BUILD_DIR)/%.o: $(ROOT_DIR)/%.c
-	@echo "Compiling lib $<..."
-	@mkdir -p $(dir $@)
-	@$(CC) $(CFLAGS) -c $< -o $@
 
 # Rule for test source files
 $(BUILD_DIR)/$(TEST_DIR)/%.o: $(TEST_DIR)/%.cpp
@@ -132,11 +102,6 @@ $(BUILD_DIR)/so/$(SRC_DIR)/%.o: $(SRC_DIR)/%.cpp
 	@echo "Compiling (PIC) $<..."
 	@mkdir -p $(dir $@)
 	@$(CXX) $(CXXFLAGS) -fPIC -c $< -o $@
-
-$(BUILD_DIR)/so/%.o: $(ROOT_DIR)/%.c
-	@echo "Compiling lib (PIC) $<..."
-	@mkdir -p $(dir $@)
-	@$(CC) $(CFLAGS) -fPIC -c $< -o $@
 
 run: $(TEST_BIN)
 	@echo "Running $(TEST_BIN)..."
@@ -162,7 +127,6 @@ gdb: $(TEST_BIN)
 print:
 	@echo "Local Source files: $(SRC)"
 	@echo "Test source files: $(TEST_SRC)"
-	@echo "Library Source files: $(LIB_SRC)"
 	@echo "Total Object files: $(OBJ) $(SO_OBJ) $(TEST_OBJ_LOCAL)"
 	@echo "Dependency files: $(DEP)"
 
