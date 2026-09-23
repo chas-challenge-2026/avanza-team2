@@ -1,7 +1,9 @@
+#include "ecb.hpp"
 #include "table.hpp"
 
 #include <cmath>
 #include <iostream>
+#include <string_view>
 
 namespace {
 
@@ -28,6 +30,18 @@ bool approx_equal(double _a, double _b, double _eps = 1e-9)
 
 namespace {
 
+// A trimmed eurofxref-daily.xml payload, so parsing is tested without the network.
+constexpr std::string_view sample_xml = R"(
+<gesmes:Envelope>
+  <Cube>
+    <Cube time='2026-09-04'>
+      <Cube currency='USD' rate='1.1032'/>
+      <Cube currency='SEK' rate='11.1875'/>
+      <Cube currency='GBP' rate='0.8621'/>
+    </Cube>
+  </Cube>
+</gesmes:Envelope>)";
+
 void test_table()
 {
   std::cout << "FxTable\n";
@@ -43,11 +57,24 @@ void test_table()
   CHECK(approx_equal(table.rate("USD", "SEK").value_or(0.0), 11.1875 / 1.1032));
 }
 
+void test_parse()
+{
+  std::cout << "parse_xml\n";
+
+  FxTable table = ecb::parse_xml(sample_xml);
+  CHECK(table.size() == 4); // EUR is always added, plus USD, SEK and GBP
+
+  CHECK(approx_equal(table.per_eur("USD").value_or(0.0), 1.1032));
+  CHECK(approx_equal(table.per_eur("SEK").value_or(0.0), 11.1875));
+  CHECK(approx_equal(table.per_eur("GBP").value_or(0.0), 0.8621));
+}
+
 } // namespace
 
 int main()
 {
   test_table();
+  test_parse();
 
   std::cout << '\n' << (checks_run - checks_failed) << '/' << checks_run << " checks passed\n";
 
