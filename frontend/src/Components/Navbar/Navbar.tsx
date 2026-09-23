@@ -11,7 +11,7 @@ const mainNavItems: NavItem[] = [
   { to: '/innehav', label: 'Innehav', icon: 'fa-users' },
   { to: '/notiser', label: 'Notiser', icon: 'fa-bell' },
   { to: '/analyser', label: 'Analyser', icon: 'fa-chart-line' },
-  { to: '/rapporter', label: 'Rapporter', icon: 'fa-file-lines' },
+  { to: '/documents', label: 'Dokument', icon: 'fa-file-lines' },
   { to: '/installningar', label: 'Inställningar', icon: 'fa-gear' },
 ];
 
