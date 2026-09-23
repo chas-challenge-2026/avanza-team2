@@ -1,6 +1,6 @@
 #include "ecb_source.hpp"
-#include "fx_history.hpp"
-#include "fx_table.hpp"
+#include "history.hpp"
+#include "table.hpp"
 
 #include <iomanip>
 #include <iostream>
