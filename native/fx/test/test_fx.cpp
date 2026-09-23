@@ -110,13 +110,49 @@ void test_parse_history()
   CHECK(history.at_or_before("2020-01-01") == nullptr);
 }
 
+// Only run with --live, since these reach ECB over the network.
+void test_live()
+{
+  std::cout << "fetch_latest (--live)\n";
+
+  auto table = ecb::fetch_latest();
+  CHECK(table.has_value());
+  if (!table)
+    return;
+
+  CHECK(table->per_eur("USD").value_or(-1.0) > 0.0);
+  CHECK(table->rate("USD", "SEK").value_or(-1.0) > 0.0);
+}
+
+void test_live_history()
+{
+  std::cout << "fetch_history (--live)\n";
+
+  auto history = ecb::fetch_history();
+  CHECK(history.has_value());
+  if (!history)
+    return;
+
+  CHECK(history->size() > 1000); // ECB history goes back to 1999
+
+  const FxTable* jan_2021 = history->at_or_before("2021-01-04");
+  CHECK(jan_2021 != nullptr);
+  if (jan_2021)
+    CHECK(jan_2021->rate("USD", "SEK").value_or(-1.0) > 0.0);
+}
+
 } // namespace
 
-int main()
+int main(int _argc, char** _argv)
 {
   test_table();
   test_parse();
   test_parse_history();
+
+  if (_argc > 1 && std::string_view(_argv[1]) == "--live") {
+    test_live();
+    test_live_history();
+  }
 
   std::cout << '\n' << (checks_run - checks_failed) << '/' << checks_run << " checks passed\n";
 
