@@ -1,5 +1,6 @@
-#include "ecb_source.hpp"
-#include "curl_session.hpp"
+#include "ecb.hpp"
+
+#include <curl/curl.h>
 
 #include <charconv>
 #include <string>
@@ -40,6 +41,41 @@ std::optional<double> to_double(std::string_view _text)
   return value;
 }
 
+// curl_global_init isn't thread-safe, and curl_easy_init's implicit
+// auto-init isn't either; a function-local static runs it exactly once
+// even if fetch_latest()/fetch_history() are ever called concurrently.
+void ensure_curl_global_init()
+{
+  static const bool once = (curl_global_init(CURL_GLOBAL_DEFAULT) == CURLE_OK);
+  (void)once;
+}
+
+std::size_t write_callback(char* _data, std::size_t _size, std::size_t _count, void* _out)
+{
+  static_cast<std::string*>(_out)->append(_data, _size * _count);
+  return _size * _count;
+}
+
+std::optional<std::string> http_get(const std::string& _url)
+{
+  ensure_curl_global_init();
+
+  CURL* curl = curl_easy_init();
+  if (!curl)
+    return std::nullopt;
+
+  std::string body;
+  curl_easy_setopt(curl, CURLOPT_URL, _url.c_str());
+  curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+  curl_easy_setopt(curl, CURLOPT_WRITEDATA, &body);
+
+  CURLcode result = curl_easy_perform(curl);
+  curl_easy_cleanup(curl);
+
+  return result == CURLE_OK ? std::optional(body) : std::nullopt;
+}
+
 } // namespace
 
 namespace ecb {
@@ -74,9 +110,7 @@ FxTable parse_xml(std::string_view _xml)
 
 std::optional<FxTable> fetch_latest()
 {
-  CurlSession session;
-
-  auto body = session.get(std::string(daily_url));
+  auto body = http_get(std::string(daily_url));
   if (!body)
     return std::nullopt;
 
@@ -118,9 +152,7 @@ FxHistory parse_hist_xml(std::string_view _xml)
 
 std::optional<FxHistory> fetch_history()
 {
-  CurlSession session;
-
-  auto body = session.get(std::string(hist_url));
+  auto body = http_get(std::string(hist_url));
   if (!body)
     return std::nullopt;
 
