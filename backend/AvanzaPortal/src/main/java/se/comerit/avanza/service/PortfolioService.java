@@ -19,6 +19,7 @@ import se.comerit.avanza.entity.Alerts;
 import se.comerit.avanza.entity.Holdings;
 import se.comerit.avanza.entity.TargetAllocations;
 import se.comerit.avanza.entity.User;
+import se.comerit.avanza.nativebridge.RiskLibrary;
 import se.comerit.avanza.repository.AccountRepository;
 import se.comerit.avanza.repository.AlertsRepository;
 import se.comerit.avanza.repository.HoldingsRepository;
@@ -38,16 +39,18 @@ public class PortfolioService {
     private AlertsRepository alertRepository;
     private UserRepository userRepository;
     private MarketService marketService;
+    private RiskLibrary riskLibrary;
 
     public PortfolioService(AccountRepository accountRepository, HoldingsRepository holdingsRepository,
             TargetRepository targetRepository, AlertsRepository alertRepository, UserRepository userRepository,
-            MarketService marketService) {
+            MarketService marketService, RiskLibrary riskLibrary) {
         this.accountRepository = accountRepository;
         this.holdingsRepository = holdingsRepository;
         this.targetRepository = targetRepository;
         this.alertRepository = alertRepository;
         this.userRepository = userRepository;
         this.marketService = marketService;
+        this.riskLibrary = riskLibrary;
     }
 
     // Find user by email (used for authentication)
@@ -141,6 +144,45 @@ public class PortfolioService {
     }
 
     /**
+     * Calculates the Sharpe ratio for a given set of returns.
+     *
+     * @param returns      an array of historical returns.
+     * @param riskFreeRate the risk-free rate to use in the calculation.
+     * @param yearFreq     the frequency of the returns (e.g., 252 for daily
+     *                     returns).
+     * @return the calculated Sharpe ratio.
+     */
+    public double calculateSharpeRatio(double[] returns, double riskFreeRate, long yearFreq) {
+        if (returns == null || returns.length < 2 || yearFreq <= 0) {
+            return 0.0;
+        }
+        return riskLibrary.risk_calc_sharpe_ratio_double(returns, returns.length, riskFreeRate, yearFreq);
+    }
+
+    /**
+     * Converts a sequence of historical portfolio values into returns and then
+     * calculates the Sharpe ratio at portfolio level.
+     *
+     * @param portfolioValues historical portfolio values in SEK.
+     * @param riskFreeRate    annual risk-free rate.
+     * @return the calculated Sharpe ratio.
+     */
+    public double calculatePortfolioSharpeRatio(List<Double> portfolioValues, double riskFreeRate) {
+        if (portfolioValues == null || portfolioValues.size() < 2) {
+            return 0.0;
+        }
+
+        double[] returns = new double[portfolioValues.size() - 1];
+        for (int i = 1; i < portfolioValues.size(); i++) {
+            double previous = portfolioValues.get(i - 1);
+            double current = portfolioValues.get(i);
+            returns[i - 1] = previous == 0.0 ? 0.0 : (current - previous) / previous;
+        }
+
+        return calculateSharpeRatio(returns, riskFreeRate, 252L);
+    }
+
+    /**
      * Enriches a single holding with calculated market values and metrics.
      * 
      * @param holdings      the holding to be enriched.
@@ -171,10 +213,15 @@ public class PortfolioService {
         double unrealizedReturn = valueSek - costBasis;
         double unrealizedReturnPct = costBasis > 0 ? (unrealizedReturn / costBasis) * 100 : 0;
 
-        // Sharpe ratio — completely wrong here, just to show the pattern
-        // risk-free rate hardcoded to 0.02 (2%), volatility hardcoded to 0.15 (15%)
-        // This is per-holding which makes no sense, but it's v1
-        double sharpe = (unrealizedReturnPct / 100 - 0.02) / 0.15;
+        /**
+         * Sharpe ratio — completely wrong here, just to show the pattern
+         * risk-free rate hardcoded to 0.02 (2%), volatility hardcoded to 0.15 (15%)
+         * This is per-holding which makes no sense, but it's v1
+         * 
+         * Still just a placeholder and not meaningful for real analysis.
+         * TODO: replace with realtime returns
+         */
+        double sharpe = 0.0;
 
         // Build output DTO with all metrics
         return new EnrichedHoldingDTO(
