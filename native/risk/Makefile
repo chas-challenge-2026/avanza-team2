@@ -124,6 +124,8 @@ all: $(BIN) $(SO)
 so: $(SO)
 	@echo "Build complete."
 
+solib: so
+
 $(BIN): $(OBJ)
 	@echo "Archiving build as $(BIN)..."
 	@mkdir -p $(dir $@)
