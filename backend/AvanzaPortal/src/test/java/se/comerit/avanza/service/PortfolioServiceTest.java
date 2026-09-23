@@ -106,8 +106,10 @@ class PortfolioServiceTest {
                 // Arrange
                 Long userId = 1L;
                 PageRequest pageable = PageRequest.of(0, 10);
-                Holdings holding1 = new Holdings("ERIC-B", "Ericsson", 10, 50.0, "SEK", null);
-                Holdings holding2 = new Holdings("VOLV-B", "Volvo", 5, 100.0, "SEK", null);
+                Holdings holding1 = new Holdings("ERIC-B", "Ericsson", new BigDecimal("10"),
+                                new BigDecimal("50.0"), "SEK", null);
+                Holdings holding2 = new Holdings("VOLV-B", "Volvo", new BigDecimal("5"),
+                                new BigDecimal("100.0"), "SEK", null);
                 when(holdingsRepository.findAllByUserId(userId, pageable))
                                 .thenReturn(new PageImpl<>(List.of(holding1, holding2)));
 
