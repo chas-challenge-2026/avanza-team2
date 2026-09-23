@@ -1,4 +1,5 @@
 #include "ecb.hpp"
+#include "history.hpp"
 #include "table.hpp"
 
 #include <cmath>
@@ -42,6 +43,22 @@ constexpr std::string_view sample_xml = R"(
   </Cube>
 </gesmes:Envelope>)";
 
+// A trimmed eurofxref-hist.xml payload with two trading days. 2026-09-05 and
+// 2026-09-06 are a weekend, so ECB has no rates for them.
+constexpr std::string_view sample_hist_xml = R"(
+<gesmes:Envelope>
+  <Cube>
+    <Cube time='2026-09-04'>
+      <Cube currency='USD' rate='1.1032'/>
+      <Cube currency='SEK' rate='11.1875'/>
+    </Cube>
+    <Cube time='2026-09-03'>
+      <Cube currency='USD' rate='1.1020'/>
+      <Cube currency='SEK' rate='11.1500'/>
+    </Cube>
+  </Cube>
+</gesmes:Envelope>)";
+
 void test_table()
 {
   std::cout << "FxTable\n";
@@ -69,12 +86,37 @@ void test_parse()
   CHECK(approx_equal(table.per_eur("GBP").value_or(0.0), 0.8621));
 }
 
+void test_parse_history()
+{
+  std::cout << "parse_hist_xml\n";
+
+  FxHistory history = ecb::parse_hist_xml(sample_hist_xml);
+  CHECK(history.size() == 2);
+
+  const FxTable* sep_3 = history.at_or_before("2026-09-03");
+  CHECK(sep_3 != nullptr);
+  if (sep_3)
+    CHECK(approx_equal(sep_3->per_eur("USD").value_or(0.0), 1.1020));
+
+  const FxTable* sep_4 = history.at_or_before("2026-09-04");
+  CHECK(sep_4 != nullptr);
+  if (sep_4)
+    CHECK(approx_equal(sep_4->per_eur("USD").value_or(0.0), 1.1032));
+
+  // A weekend date uses the Friday before it.
+  CHECK(history.at_or_before("2026-09-06") == sep_4);
+
+  // A date before the first entry has no rates.
+  CHECK(history.at_or_before("2020-01-01") == nullptr);
+}
+
 } // namespace
 
 int main()
 {
   test_table();
   test_parse();
+  test_parse_history();
 
   std::cout << '\n' << (checks_run - checks_failed) << '/' << checks_run << " checks passed\n";
 
