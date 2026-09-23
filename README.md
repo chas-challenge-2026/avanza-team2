@@ -1,3 +1,7 @@
+[![Backend CI](https://github.com/chas-challenge-2026/avanza-team2/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/chas-challenge-2026/avanza-team2/actions/workflows/backend-ci.yml)
+[![Frontend CI](https://github.com/chas-challenge-2026/avanza-team2/actions/workflows/frontend-ci.yml/badge.svg)](https://github.com/chas-challenge-2026/avanza-team2/actions/workflows/frontend-ci.yml)
+[![Native CI](https://github.com/chas-challenge-2026/avanza-team2/actions/workflows/native-build-test.yml/badge.svg)](https://github.com/chas-challenge-2026/avanza-team2/actions/workflows/native-build-test.yml)
+
 # Avanza Portföljhälsa
 
 Pedagogisk kodbas för kursen "Java Backend-utveckling med Spring Boot" på Chas Academy.
