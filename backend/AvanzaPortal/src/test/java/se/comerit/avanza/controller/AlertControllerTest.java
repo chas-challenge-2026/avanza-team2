@@ -73,7 +73,7 @@ class AlertControllerTest {
                                 "test@test.com")).thenReturn(List.of());
 
                 when(alertService.getDriftThreshold())
-                                .thenReturn(7);
+                                .thenReturn(7.0);
 
                 // Act
                 ResponseEntity<Map<String, Object>> response = alertController.listAlerts(
