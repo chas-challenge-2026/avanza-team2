@@ -29,18 +29,26 @@ DB_PASSWORD=some_local_password
 JWT_SECRET=change_me_to_a_random_32_char_min_string
 ```
 
-4. Därefter kan du öppna terminal och starta projektet på följande vis:
+4. Öppna **Terminal 1** och följande kommando för att starta docker:
 
 ```bash
 cd infra
 docker compose --env-file .env up --build
 ```
 
-5. Öppna din lokala websida på denna porten och använd följande test användare:
+5. Öppna **Terminal 2** och följande kommando för att starta frontend:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+6.  Öppna din lokala websida på denna porten och använd följande test användare:
 
 **Port**
 
-- `http://localhost:8082`
+- `http://localhost:5173`
 
 **Testanvändare:**
 
