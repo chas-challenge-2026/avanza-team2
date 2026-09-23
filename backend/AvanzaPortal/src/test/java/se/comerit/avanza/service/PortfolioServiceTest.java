@@ -316,6 +316,38 @@ class PortfolioServiceTest {
         }
 
         @Test
+        void shouldSkipHoldingWhenAccountTypeIsNull() {
+                // Arrange
+                Account account = new Account();
+                account.setId(10L);
+                account.setAccount_type(null);
+
+                Holdings holding = new Holdings(
+                                "ERIC-B",
+                                "Ericsson",
+                                new BigDecimal("10"),
+                                new BigDecimal("50.00"),
+                                "SEK",
+                                account);
+
+                Map<Long, String> accountTypeMap = Map.of(); // No account types
+
+                Map<String, Double> accountTypeTotals = portfolioService.initializeAccountTypeTotals();
+
+                Map<String, Double> prices = portfolioService.getCurrentPrices();
+
+                // Act
+                double result = portfolioService.calculatePortfolioTotals(
+                                List.of(holding),
+                                prices,
+                                accountTypeMap,
+                                accountTypeTotals);
+
+                // Assert
+                assertEquals(0.0, result, 742.0);
+        }
+
+        @Test
         void shouldDetectAllocationDriftOverThreshold() {
                 // Arrange
                 Map<String, Double> totals = new HashMap<>();
@@ -376,6 +408,26 @@ class PortfolioServiceTest {
 
                 // Assert
                 assertEquals(1.75, result, 0.001);
+        }
+
+        @Test
+        void shouldReturnZeroSharpeRatio() {
+                // Act
+                double result = portfolioService.calculateSharpeRatio(null, 0, 0);
+
+                // Assert
+                assertEquals(0.0, result, 0.001);
+        }
+
+        @Test
+        void shouldReturnZeroSharpeRatioForEmptyHistoricalValues() {
+                // Act
+                double result = portfolioService.calculatePortfolioSharpeRatio(
+                                List.of(),
+                                0.02);
+
+                // Assert
+                assertEquals(0.0, result, 0.001);
         }
 
         @Test
