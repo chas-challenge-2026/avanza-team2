@@ -1,9 +1,9 @@
-#ifndef __FX_RATES_H__
-#define __FX_RATES_H__
+#ifndef __RATES_H__
+#define __RATES_H__
 
 /*
 FX rate lookup. These are the C linkage entry points for the JNA bridge; the
-implementation behind them is C++ (see fx_table.hpp / ecb_source.hpp).
+implementation behind them is C++ (see table.hpp / ecb.hpp).
 
 Rates come from the ECB euro reference rates, which are quoted against EUR, so
 any pair is resolved as a cross rate through EUR:
@@ -42,4 +42,4 @@ double fx_convert(double _amount, const char* _from, const char* _to, long _date
 } // extern "C"
 #endif
 
-#endif // __FX_RATES_H__
+#endif // __RATES_H__
