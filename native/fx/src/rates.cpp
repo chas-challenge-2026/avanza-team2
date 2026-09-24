@@ -38,6 +38,16 @@ bool same_utc_day(Clock::time_point _a, Clock::time_point _b)
   return ta.tm_year == tb.tm_year && ta.tm_yday == tb.tm_yday;
 }
 
+// ECB publishes around 16:00 CET, which is 15:00 UTC in winter and 14:00 UTC
+// in summer. Shifting both times back by 15:30 makes the cache roll over
+// shortly after each publication instead of at midnight UTC.
+constexpr auto publish_offset = std::chrono::hours(15) + std::chrono::minutes(30);
+
+bool same_publication_day(Clock::time_point _a, Clock::time_point _b)
+{
+  return same_utc_day(_a - publish_offset, _b - publish_offset);
+}
+
 std::shared_ptr<const FxTable> latest()
 {
   std::shared_ptr<const FxTable> cached;
@@ -45,7 +55,7 @@ std::shared_ptr<const FxTable> latest()
   {
     std::lock_guard<std::mutex> lock(cache_mutex);
     cached = latest_cached;
-    stale  = !cached || !same_utc_day(latest_fetched_at, Clock::now());
+    stale  = !cached || !same_publication_day(latest_fetched_at, Clock::now());
   }
 
   if (!stale)
@@ -73,7 +83,7 @@ std::shared_ptr<const FxHistory> history()
   {
     std::lock_guard<std::mutex> lock(cache_mutex);
     cached = history_cached;
-    stale  = !cached || !same_utc_day(history_fetched_at, Clock::now());
+    stale  = !cached || !same_publication_day(history_fetched_at, Clock::now());
   }
 
   if (!stale)

@@ -15,9 +15,9 @@ Currency conversion for foreign holdings, backing the base-currency switch
 
 - A historical lookup resolves to the ECB trading day at or before the
   requested date, since ECB doesn't publish on weekends or bank holidays.
-- Both fetches sit behind a cache that's invalidated once per UTC calendar
-  day, matching how often ECB actually publishes, instead of refetching on
-  every lookup. A failed refetch keeps serving the last known good table.
+- Both fetches sit behind a cache that's invalidated once a day at 15:30
+  UTC, shortly after ECB publishes around 16:00 CET, instead of refetching
+  on every lookup. A failed refetch keeps serving the last known good table.
 
 ## Layout
 
