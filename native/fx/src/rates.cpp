@@ -13,69 +13,37 @@
 namespace {
 
 using rates::Clock;
-using rates::same_publication_day;
 
-// ECB publishes the daily rate once around 16:00 CET; the full history file
-// only grows by that same one entry a day. Neither needs to be refetched
-// more than once per calendar day.
-
-std::mutex cache_mutex;
-
-std::shared_ptr<const FxTable> latest_cached;
-Clock::time_point              latest_fetched_at;
-
-std::shared_ptr<const FxHistory> history_cached;
-Clock::time_point                history_fetched_at;
-
-std::shared_ptr<const FxTable> latest()
+template <typename T>
+struct Cached
 {
-  std::shared_ptr<const FxTable> cached;
-  bool stale;
+  std::shared_ptr<const T> value;
+  Clock::time_point        fetched_at;
+};
+
+std::mutex        cache_mutex;
+Cached<FxTable>   latest_cache;
+Cached<FxHistory> history_cache;
+
+// The fetch runs without the lock so other lookups don't wait on ECB.
+// If it fails the old value is kept until the next publication, and with
+// nothing cached yet every call tries again.
+template <typename T, typename Fetch>
+std::shared_ptr<const T> refresh(Cached<T>& _cache, Fetch _fetch)
+{
   {
     std::lock_guard<std::mutex> lock(cache_mutex);
-    cached = latest_cached;
-    stale  = !cached || !same_publication_day(latest_fetched_at, Clock::now());
+    if (_cache.value && rates::same_publication_day(_cache.fetched_at, Clock::now()))
+      return _cache.value;
   }
 
-  if (!stale)
-    return cached;
-
-  // The blocking ECB fetch runs without the lock held, so a stale cache
-  // doesn't make every concurrent caller queue behind this one HTTP call.
-  auto fetched = ecb::fetch_latest();
+  auto fetched = _fetch();
 
   std::lock_guard<std::mutex> lock(cache_mutex);
-
-  // A failed refetch keeps serving the last known good table instead of
-  // dropping it; the timestamp still advances so we don't hammer ECB on
-  // every call while it's unreachable.
   if (fetched)
-    latest_cached = std::make_shared<const FxTable>(std::move(*fetched));
-  latest_fetched_at = Clock::now();
-  return latest_cached;
-}
-
-std::shared_ptr<const FxHistory> history()
-{
-  std::shared_ptr<const FxHistory> cached;
-  bool stale;
-  {
-    std::lock_guard<std::mutex> lock(cache_mutex);
-    cached = history_cached;
-    stale  = !cached || !same_publication_day(history_fetched_at, Clock::now());
-  }
-
-  if (!stale)
-    return cached;
-
-  auto fetched = ecb::fetch_history();
-
-  std::lock_guard<std::mutex> lock(cache_mutex);
-
-  if (fetched)
-    history_cached = std::make_shared<const FxHistory>(std::move(*fetched));
-  history_fetched_at = Clock::now();
-  return history_cached;
+    _cache.value = std::make_shared<const T>(std::move(*fetched));
+  _cache.fetched_at = Clock::now();
+  return _cache.value;
 }
 
 std::optional<double> lookup(const char* _from, const char* _to, long _date)
@@ -84,11 +52,11 @@ std::optional<double> lookup(const char* _from, const char* _to, long _date)
     return std::nullopt;
 
   if (_date == 0) {
-    auto table = latest();
+    auto table = refresh(latest_cache, ecb::fetch_latest);
     return table ? table->rate(_from, _to) : std::nullopt;
   }
 
-  auto hist = history();
+  auto hist = refresh(history_cache, ecb::fetch_history);
   if (!hist)
     return std::nullopt;
 

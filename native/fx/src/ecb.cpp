@@ -7,11 +7,8 @@
 
 namespace {
 
-/*
-Reads the value of `name="..."` (or `name='...'`) from within a single element.
-Searching is bounded to `_element`, so a missing attribute never picks up a
-value from a neighbouring element.
-*/
+// Only searches inside _element, so a missing attribute can't pick up the
+// value from the next element.
 std::optional<std::string_view> attr_value(std::string_view _element, std::string_view _name)
 {
   std::size_t key = _element.find(_name);
@@ -41,9 +38,7 @@ std::optional<double> to_double(std::string_view _text)
   return value;
 }
 
-// curl_global_init isn't thread-safe, and curl_easy_init's implicit
-// auto-init isn't either; a function-local static runs it exactly once
-// even if fetch_latest()/fetch_history() are ever called concurrently.
+// curl_global_init isn't thread-safe, the static makes sure it runs once.
 void ensure_curl_global_init()
 {
   static const bool once = (curl_global_init(CURL_GLOBAL_DEFAULT) == CURLE_OK);
@@ -52,8 +47,7 @@ void ensure_curl_global_init()
 
 std::size_t write_callback(char* _data, std::size_t _size, std::size_t _count, void* _out)
 {
-  // An exception must not pass through libcurl's C code. Returning a count
-  // that doesn't match makes curl abort the transfer as a write error instead.
+  // An exception can't pass through libcurl's C code, returning 0 aborts instead.
   try {
     static_cast<std::string*>(_out)->append(_data, _size * _count);
   } catch (...) {
@@ -73,11 +67,8 @@ std::optional<std::string> http_get(const std::string& _url)
   std::string body;
   curl_easy_setopt(curl, CURLOPT_URL, _url.c_str());
   curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
-  // Treat HTTP 4xx/5xx as a failed request instead of parsing the error page.
   curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1L);
-  // Without these curl waits indefinitely, and the first lookup of the day
-  // runs this fetch on the caller's thread, so a hanging ECB would block it.
-  // The total limit is sized for the full history file, which is several MB.
+  // The history file is several MB, 30 s leaves plenty of room.
   curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 5L);
   curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
@@ -100,9 +91,8 @@ FxTable parse_xml(std::string_view _xml)
 {
   FxTable table;
 
-  // Walk one <Cube ...> element at a time and pull both attributes from that
-  // same element, so an entry without a rate is skipped rather than pairing
-  // the currency with the next entry's rate.
+  // Currency and rate are read from the same element, so an entry without a
+  // rate is skipped.
   std::size_t pos = 0;
   while ((pos = _xml.find("<Cube ", pos)) != std::string_view::npos) {
     std::size_t tag_end = _xml.find('>', pos);
@@ -141,9 +131,7 @@ FxHistory parse_hist_xml(std::string_view _xml)
 {
   FxHistory history;
 
-  // Walk one <Cube time="..."> block at a time and hand its inner
-  // <Cube currency=".." rate=".."/> entries to parse_xml, so each trading
-  // day's rates stay grouped under that day's date.
+  // Each <Cube time="..."> block holds one trading day.
   std::size_t pos = 0;
   while ((pos = _xml.find("<Cube time=", pos)) != std::string_view::npos) {
     std::size_t open_end = _xml.find('>', pos);

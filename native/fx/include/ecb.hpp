@@ -17,8 +17,7 @@ Every rate sits in an element like
   <Cube currency="USD" rate="1.1032"/>
 
 under a <Cube time="YYYY-MM-DD"> element for the trading day. The daily file
-has exactly one such block; the historical file repeats it, one per trading
-day, all nested inside a wrapping <Cube> element.
+has one such block and the history file has one per trading day.
 */
 
 namespace ecb {

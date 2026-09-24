@@ -3,19 +3,17 @@
 #include <chrono>
 
 /*
-Cache rollover rules used by rates.cpp. They live here instead of inside
-rates.cpp so the self-test can check them directly. rates.h stays the plain
-extern "C" surface for the JNA bridge.
-
-ECB publishes around 16:00 CET, which is 15:00 UTC in winter and 14:00 UTC
-in summer. Shifting times back by 15:30 before comparing days makes the
-cache roll over shortly after each publication instead of at midnight UTC.
+Decides when the cached ECB tables in rates.cpp are out of date.
 */
 
 namespace rates {
 
 using Clock = std::chrono::system_clock;
 
+/**
+ * @brief Start of the cache day. ECB publishes around 16:00 CET, which is
+ * 15:00 UTC in winter and 14:00 UTC in summer.
+ */
 inline constexpr auto publish_offset = std::chrono::hours(15) + std::chrono::minutes(30);
 
 /**
