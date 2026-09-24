@@ -6,6 +6,7 @@ int data_convert_values_to_returns(const double* _values_in, double* _returns_ou
     return 1;
 
   double prev_val = 0.0;
+  _returns_out[0] = 0.0; // no return exists for the first value
   for (size_t i = 1; i < _n; i++)
   {
     prev_val = _values_in[i-1];
