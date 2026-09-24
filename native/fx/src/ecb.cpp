@@ -4,6 +4,7 @@
 
 #include <charconv>
 #include <string>
+#include <utility>
 
 namespace {
 
@@ -102,6 +103,11 @@ FxTable parse_xml(std::string_view _xml)
     std::string_view element = _xml.substr(pos, tag_end - pos);
     pos                      = tag_end + 1;
 
+    if (auto date = attr_value(element, "time=")) {
+      table.set_date(*date);
+      continue;
+    }
+
     auto currency = attr_value(element, "currency=");
     auto rate     = attr_value(element, "rate=");
     if (!currency || !rate)
@@ -147,8 +153,12 @@ FxHistory parse_hist_xml(std::string_view _xml)
     std::string_view block = _xml.substr(open_end + 1, block_end - (open_end + 1));
     pos                    = block_end + std::string_view("</Cube>").size();
 
-    if (date)
-      history.set(std::string(*date), parse_xml(block));
+    if (!date)
+      continue;
+
+    FxTable table = parse_xml(block);
+    table.set_date(*date);
+    history.set(std::string(*date), std::move(table));
   }
 
   return history;

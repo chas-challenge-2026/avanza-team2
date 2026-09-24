@@ -8,42 +8,28 @@
 #include <chrono>
 #include <ctime>
 #include <memory>
-#include <mutex>
+#include <optional>
 
 namespace {
 
 using rates::Clock;
 
-template <typename T>
-struct Cached
+rates::Cached<FxTable>   latest_cache;
+rates::Cached<FxHistory> history_cache;
+
+// The table used for a lookup at _date, 0 meaning the latest one.
+std::shared_ptr<const FxTable> table_for(long _date)
 {
-  std::shared_ptr<const T> value;
-  Clock::time_point        fetched_at;
-};
+  if (_date == 0)
+    return rates::refresh(latest_cache, ecb::fetch_latest, Clock::now());
 
-std::mutex        cache_mutex;
-Cached<FxTable>   latest_cache;
-Cached<FxHistory> history_cache;
+  auto hist = rates::refresh(history_cache, ecb::fetch_history, Clock::now());
+  const FxTable* table = hist ? hist->at_or_before(_date) : nullptr;
+  if (!table)
+    return nullptr;
 
-// The fetch runs without the lock so other lookups don't wait on ECB.
-// If it fails the old value is kept until the next publication, and with
-// nothing cached yet every call tries again.
-template <typename T, typename Fetch>
-std::shared_ptr<const T> refresh(Cached<T>& _cache, Fetch _fetch)
-{
-  {
-    std::lock_guard<std::mutex> lock(cache_mutex);
-    if (_cache.value && rates::same_publication_day(_cache.fetched_at, Clock::now()))
-      return _cache.value;
-  }
-
-  auto fetched = _fetch();
-
-  std::lock_guard<std::mutex> lock(cache_mutex);
-  if (fetched)
-    _cache.value = std::make_shared<const T>(std::move(*fetched));
-  _cache.fetched_at = Clock::now();
-  return _cache.value;
+  // Points at one day's table but keeps the whole history alive.
+  return std::shared_ptr<const FxTable>(hist, table);
 }
 
 std::optional<double> lookup(const char* _from, const char* _to, long _date)
@@ -51,16 +37,7 @@ std::optional<double> lookup(const char* _from, const char* _to, long _date)
   if (_from == nullptr || _to == nullptr)
     return std::nullopt;
 
-  if (_date == 0) {
-    auto table = refresh(latest_cache, ecb::fetch_latest);
-    return table ? table->rate(_from, _to) : std::nullopt;
-  }
-
-  auto hist = refresh(history_cache, ecb::fetch_history);
-  if (!hist)
-    return std::nullopt;
-
-  const FxTable* table = hist->at_or_before(_date);
+  auto table = table_for(_date);
   return table ? table->rate(_from, _to) : std::nullopt;
 }
 
@@ -97,4 +74,18 @@ extern "C" double fx_convert(double _amount, const char* _from, const char* _to,
 {
   auto rate = lookup(_from, _to, _date);
   return rate ? _amount * *rate : -1.0;
+}
+
+extern "C" long fx_rate_date(long _date)
+{
+  auto table = table_for(_date);
+  if (!table)
+    return -1;
+
+  std::tm     tm{};
+  const char* end = strptime(table->date().c_str(), "%Y-%m-%d", &tm);
+  if (end == nullptr || *end != '\0')
+    return -1;
+
+  return static_cast<long>(timegm(&tm));
 }

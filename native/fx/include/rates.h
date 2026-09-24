@@ -37,6 +37,15 @@ double fx_rate(const char* _from, const char* _to, long _date);
  */
 double fx_convert(double _amount, const char* _from, const char* _to, long _date);
 
+/**
+ * @brief The ECB trading day a lookup at _date uses, so callers can tell how
+ * old a rate is.
+ * @param _date Unix timestamp, 0 for the latest daily rate.
+ * @return Midnight UTC of that trading day as a Unix timestamp, or a negative
+ * value on failure.
+ */
+long fx_rate_date(long _date);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

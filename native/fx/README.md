@@ -17,7 +17,10 @@ Currency conversion for foreign holdings, backing the base-currency switch
   requested date, since ECB doesn't publish on weekends or bank holidays.
 - Both fetches sit behind a cache that's invalidated once a day at 15:30
   UTC, shortly after ECB publishes around 16:00 CET, instead of refetching
-  on every lookup. A failed refetch keeps serving the last known good table.
+  on every lookup. A failed refetch keeps serving the last known good table
+  and tries ECB again after 5 minutes.
+- `fx_rate_date` tells the caller which ECB trading day a lookup uses, so an
+  old rate can be told apart from today's.
 
 ## Layout
 
@@ -25,12 +28,12 @@ Currency conversion for foreign holdings, backing the base-currency switch
     ├── Makefile
     ├── include/
     │   ├── rates.h    # extern "C" entry points for the JNA bridge
-    │   ├── rates.hpp  # cache rollover rules, exposed for the self-test
+    │   ├── rates.hpp  # the cache and its rollover rules, exposed for the self-test
     │   ├── table.hpp  # FxTable: currency -> per EUR, cross rates
     │   ├── history.hpp # FxHistory: date -> FxTable, at_or_before lookup
     │   └── ecb.hpp    # ecb::parse_xml/parse_hist_xml, fetch_latest/fetch_history
     ├── src/
-    │   ├── rates.cpp  # C shim + the day-based cache, over the C++ implementation
+    │   ├── rates.cpp  # C shim over the cache and the C++ implementation
     │   ├── table.cpp
     │   ├── history.cpp
     │   └── ecb.cpp    # parses the XML, fetches over HTTP via libcurl directly
@@ -51,5 +54,5 @@ the library, it has no entry point of its own, `test/` is what supplies
     make fx/run          # build + run the offline self-test (used by CI)
     make fx/run-live     # same, but also hits real ECB endpoints
 
-`libfx.so` exports `fx_rate`/`fx_convert` from `rates.h` for the JNA
-bridge to load.
+`libfx.so` exports `fx_rate`/`fx_convert`/`fx_rate_date` from `rates.h`
+for the JNA bridge to load.

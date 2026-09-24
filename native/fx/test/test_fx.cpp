@@ -1,11 +1,13 @@
 #include "ecb.hpp"
 #include "history.hpp"
+#include "rates.h"
 #include "rates.hpp"
 #include "table.hpp"
 
 #include <cmath>
 #include <ctime>
 #include <iostream>
+#include <optional>
 #include <string_view>
 
 namespace {
@@ -82,6 +84,7 @@ void test_parse()
 
   FxTable table = ecb::parse_xml(sample_xml);
   CHECK(table.size() == 4); // EUR is always added, plus USD, SEK and GBP
+  CHECK(table.date() == "2026-09-04");
 
   CHECK(approx_equal(table.per_eur("USD").value_or(0.0), 1.1032));
   CHECK(approx_equal(table.per_eur("SEK").value_or(0.0), 11.1875));
@@ -97,8 +100,10 @@ void test_parse_history()
 
   const FxTable* sep_3 = history.at_or_before("2026-09-03");
   CHECK(sep_3 != nullptr);
-  if (sep_3)
+  if (sep_3) {
     CHECK(approx_equal(sep_3->per_eur("USD").value_or(0.0), 1.1020));
+    CHECK(sep_3->date() == "2026-09-03");
+  }
 
   const FxTable* sep_4 = history.at_or_before("2026-09-04");
   CHECK(sep_4 != nullptr);
@@ -149,6 +154,44 @@ void test_rollover()
   CHECK(!same_publication_day(utc(2026, 12, 31, 16, 0), utc(2027, 1, 1, 16, 0)));
 }
 
+void test_refresh()
+{
+  std::cout << "cache refresh\n";
+
+  // A fake ECB that counts fetches and can be taken down.
+  rates::Cached<int> cache;
+  int  fetches = 0;
+  int  next    = 1;
+  bool ecb_up  = false;
+
+  auto fetch = [&]() -> std::optional<int> {
+    ++fetches;
+    return ecb_up ? std::optional(next) : std::nullopt;
+  };
+  auto get = [&](rates::Clock::time_point _now) {
+    auto value = rates::refresh(cache, fetch, _now);
+    return value ? *value : 0;
+  };
+
+  // ECB down with nothing cached, then no new try until 5 minutes have passed.
+  CHECK(get(utc(2026, 9, 24, 10, 0)) == 0 && fetches == 1);
+  CHECK(get(utc(2026, 9, 24, 10, 2)) == 0 && fetches == 1);
+
+  ecb_up = true;
+  CHECK(get(utc(2026, 9, 24, 10, 5)) == 1 && fetches == 2);
+  CHECK(get(utc(2026, 9, 24, 14, 0)) == 1 && fetches == 2);
+
+  // A failed fetch after the 15:30 rollover keeps the old value and tries
+  // again after 5 minutes instead of waiting for the next day.
+  ecb_up = false;
+  next   = 2;
+  CHECK(get(utc(2026, 9, 24, 15, 31)) == 1 && fetches == 3);
+  CHECK(get(utc(2026, 9, 24, 15, 34)) == 1 && fetches == 3);
+
+  ecb_up = true;
+  CHECK(get(utc(2026, 9, 24, 15, 36)) == 2 && fetches == 4);
+}
+
 // Only run with --live, since these reach ECB over the network.
 void test_live()
 {
@@ -161,6 +204,11 @@ void test_live()
 
   CHECK(table->per_eur("USD").value_or(-1.0) > 0.0);
   CHECK(table->rate("USD", "SEK").value_or(-1.0) > 0.0);
+
+  // ECB never skips more than a long weekend, so the latest rate is recent.
+  long now  = static_cast<long>(std::time(nullptr));
+  long date = fx_rate_date(0);
+  CHECK(date > now - 6 * 24 * 3600 && date <= now);
 }
 
 void test_live_history()
@@ -188,6 +236,7 @@ int main(int _argc, char** _argv)
   test_parse();
   test_parse_history();
   test_rollover();
+  test_refresh();
 
   if (_argc > 1 && std::string_view(_argv[1]) == "--live") {
     test_live();
