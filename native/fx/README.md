@@ -25,6 +25,7 @@ Currency conversion for foreign holdings, backing the base-currency switch
     ├── Makefile
     ├── include/
     │   ├── rates.h    # extern "C" entry points for the JNA bridge
+    │   ├── rates.hpp  # cache rollover rules, exposed for the self-test
     │   ├── table.hpp  # FxTable: currency -> per EUR, cross rates
     │   ├── history.hpp # FxHistory: date -> FxTable, at_or_before lookup
     │   └── ecb.hpp    # ecb::parse_xml/parse_hist_xml, fetch_latest/fetch_history

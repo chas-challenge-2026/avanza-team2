@@ -1,8 +1,10 @@
 #include "ecb.hpp"
 #include "history.hpp"
+#include "rates.hpp"
 #include "table.hpp"
 
 #include <cmath>
+#include <ctime>
 #include <iostream>
 #include <string_view>
 
@@ -110,6 +112,43 @@ void test_parse_history()
   CHECK(history.at_or_before("2020-01-01") == nullptr);
 }
 
+// Builds a UTC time point from a calendar date and time of day.
+rates::Clock::time_point utc(int _year, int _month, int _day, int _hour, int _minute)
+{
+  std::tm tm{};
+  tm.tm_year = _year - 1900;
+  tm.tm_mon  = _month - 1;
+  tm.tm_mday = _day;
+  tm.tm_hour = _hour;
+  tm.tm_min  = _minute;
+  return rates::Clock::from_time_t(timegm(&tm));
+}
+
+void test_rollover()
+{
+  std::cout << "cache rollover\n";
+
+  using rates::same_publication_day;
+  using rates::same_utc_day;
+
+  // Plain UTC days still split at midnight.
+  CHECK(same_utc_day(utc(2026, 9, 24, 0, 1), utc(2026, 9, 24, 23, 59)));
+  CHECK(!same_utc_day(utc(2026, 9, 24, 23, 59), utc(2026, 9, 25, 0, 1)));
+
+  // The publication day rolls over at 15:30 UTC.
+  CHECK(same_publication_day(utc(2026, 9, 24, 10, 0), utc(2026, 9, 24, 15, 29)));
+  CHECK(!same_publication_day(utc(2026, 9, 24, 15, 29), utc(2026, 9, 24, 15, 31)));
+
+  // Midnight is no longer a boundary, so an evening fetch is still current
+  // the next morning until that day's publication.
+  CHECK(same_publication_day(utc(2026, 9, 24, 15, 31), utc(2026, 9, 25, 15, 29)));
+  CHECK(!same_publication_day(utc(2026, 9, 24, 15, 31), utc(2026, 9, 25, 15, 31)));
+
+  // Year end, where tm_yday wraps back to 0.
+  CHECK(same_publication_day(utc(2026, 12, 31, 16, 0), utc(2027, 1, 1, 10, 0)));
+  CHECK(!same_publication_day(utc(2026, 12, 31, 16, 0), utc(2027, 1, 1, 16, 0)));
+}
+
 // Only run with --live, since these reach ECB over the network.
 void test_live()
 {
@@ -148,6 +187,7 @@ int main(int _argc, char** _argv)
   test_table();
   test_parse();
   test_parse_history();
+  test_rollover();
 
   if (_argc > 1 && std::string_view(_argv[1]) == "--live") {
     test_live();
