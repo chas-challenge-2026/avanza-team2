@@ -52,7 +52,13 @@ void ensure_curl_global_init()
 
 std::size_t write_callback(char* _data, std::size_t _size, std::size_t _count, void* _out)
 {
-  static_cast<std::string*>(_out)->append(_data, _size * _count);
+  // An exception must not pass through libcurl's C code. Returning a count
+  // that doesn't match makes curl abort the transfer as a write error instead.
+  try {
+    static_cast<std::string*>(_out)->append(_data, _size * _count);
+  } catch (...) {
+    return 0;
+  }
   return _size * _count;
 }
 
@@ -67,6 +73,8 @@ std::optional<std::string> http_get(const std::string& _url)
   std::string body;
   curl_easy_setopt(curl, CURLOPT_URL, _url.c_str());
   curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+  // Treat HTTP 4xx/5xx as a failed request instead of parsing the error page.
+  curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1L);
   // Without these curl waits indefinitely, and the first lookup of the day
   // runs this fetch on the caller's thread, so a hanging ECB would block it.
   // The total limit is sized for the full history file, which is several MB.
@@ -78,7 +86,10 @@ std::optional<std::string> http_get(const std::string& _url)
   CURLcode result = curl_easy_perform(curl);
   curl_easy_cleanup(curl);
 
-  return result == CURLE_OK ? std::optional(body) : std::nullopt;
+  if (result != CURLE_OK)
+    return std::nullopt;
+
+  return body;
 }
 
 } // namespace

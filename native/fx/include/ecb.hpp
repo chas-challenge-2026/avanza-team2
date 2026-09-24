@@ -29,7 +29,7 @@ inline constexpr std::string_view hist_url =
   "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist.xml";
 
 /**
- * @brief Parses a single-day eurofxref XML document, the daily file or one, <Cube time="..."> block from a historical file.
+ * @brief Parses a single-day eurofxref XML document, the daily file or one <Cube time="..."> block from a historical file.
  * @param _xml Document body.
  * @return A table with at least the seeded EUR entry; unparseable entries are skipped.
  */
