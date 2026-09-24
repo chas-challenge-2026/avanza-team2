@@ -67,6 +67,11 @@ std::optional<std::string> http_get(const std::string& _url)
   std::string body;
   curl_easy_setopt(curl, CURLOPT_URL, _url.c_str());
   curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+  // Without these curl waits indefinitely, and the first lookup of the day
+  // runs this fetch on the caller's thread, so a hanging ECB would block it.
+  // The total limit is sized for the full history file, which is several MB.
+  curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 5L);
+  curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
   curl_easy_setopt(curl, CURLOPT_WRITEDATA, &body);
 
