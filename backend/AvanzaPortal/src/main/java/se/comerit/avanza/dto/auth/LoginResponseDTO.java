@@ -1,7 +1,9 @@
 package se.comerit.avanza.dto.auth;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 public record LoginResponseDTO(
-        String token,
+        @JsonIgnore String token,
         String name,
         String email) {
 }

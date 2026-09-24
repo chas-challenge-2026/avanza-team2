@@ -1,7 +1,6 @@
 package se.comerit.avanza.service;
 
 import java.math.BigDecimal;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -12,22 +11,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.contains;
-import static org.mockito.ArgumentMatchers.eq;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 
-import se.comerit.avanza.dto.holdings.HoldingResponseDTO;
 import se.comerit.avanza.dto.holdings.CreateHoldingRequestDTO;
+import se.comerit.avanza.dto.holdings.HoldingResponseDTO;
+import se.comerit.avanza.entity.Account;
+import se.comerit.avanza.entity.Holdings;
 import se.comerit.avanza.entity.User;
 import se.comerit.avanza.repository.AccountRepository;
 import se.comerit.avanza.repository.HoldingsRepository;
@@ -45,43 +41,39 @@ class HoldingServiceTest {
     @Mock
     private HoldingsRepository holdingsRepository;
 
-    @Mock
-    private JdbcTemplate jdbcTemplate;
-    
     private HoldingService holdingService;
 
     @BeforeEach
     void setUp() {
-        holdingService = new HoldingService(jdbcTemplate, userRepository, accountRepository, holdingsRepository);
+        holdingService = new HoldingService(userRepository, accountRepository, holdingsRepository);
     }
 
     @Test
     void shouldReturnHoldingsForUser() {
 
         // Arrange
-        Integer userId = 1;
+        Account account = new Account();
+        account.setAccount_type("ISK");
+        account.setAccount_name("Annas ISK");
 
-        Map<String, Object> holding = new HashMap<>();
-        holding.put("id", 10);
-        holding.put("ticker", "ERIC-B");
+        Holdings holding = new Holdings();
+        holding.setId(10L);
+        holding.setTicker("ERIC-B");
+        holding.setAccount(account);
 
-        List<Map<String, Object>> expectedHoldings = List.of(holding);
-
-        when(jdbcTemplate.queryForList(anyString(), eq(userId))).thenReturn(expectedHoldings);
+        when(holdingsRepository.findHoldingsForUser(1L)).thenReturn(List.of(holding));
 
         // Act
-        List<Map<String, Object>> actualHoldings = holdingService.getHoldingsForUser(userId);
+        List<Map<String, Object>> actualHoldings = holdingService.getHoldingsForUser(1);
 
         // Assert
-        assertEquals(expectedHoldings, actualHoldings);
         assertEquals(1, actualHoldings.size());
+        assertEquals(10L, actualHoldings.get(0).get("id"));
         assertEquals("ERIC-B", actualHoldings.get(0).get("ticker"));
+        assertEquals("ISK", actualHoldings.get(0).get("account_type"));
+        assertEquals("Annas ISK", actualHoldings.get(0).get("account_name"));
 
-        verify(jdbcTemplate).queryForList(anyString(), eq(userId));
-
-
-
-        
+        verify(holdingsRepository).findHoldingsForUser(1L);
     }
 
     @Test
@@ -89,12 +81,14 @@ class HoldingServiceTest {
         // Arrange
         Integer userId = 1;
 
-        Map<String, Object> holding = new HashMap<>();
-        holding.put("ticker", "ERIC-B");
-        holding.put("quantity", new BigDecimal("10"));
-        holding.put("avg_buy_price", new BigDecimal("50"));
+        Account account = new Account();
+        Holdings holding = new Holdings();
+        holding.setTicker("ERIC-B");
+        holding.setQuantity(new BigDecimal("10"));
+        holding.setAvg_buy_price(new BigDecimal("50"));
+        holding.setAccount(account);
 
-        when(jdbcTemplate.queryForList(anyString(), eq(userId)))
+        when(holdingsRepository.findHoldingsForUser(userId.longValue()))
                 .thenReturn(List.of(holding));
 
         // Act
@@ -107,6 +101,7 @@ class HoldingServiceTest {
         assertEquals(74.20, enrichedHolding.get("currentPrice"));
         assertEquals(742.0, enrichedHolding.get("marketValue"));
         assertEquals(242.0, enrichedHolding.get("pnl"));
+        verify(holdingsRepository).findHoldingsForUser(userId.longValue());
     }
 
     @Test
@@ -114,7 +109,7 @@ class HoldingServiceTest {
         // Arrange
         Integer userId = 1;
 
-        when(jdbcTemplate.queryForList(anyString(), eq(userId)))
+        when(holdingsRepository.findHoldingsForUser(userId.longValue()))
                 .thenReturn(List.of());
 
         // Act
@@ -123,10 +118,15 @@ class HoldingServiceTest {
 
         // Assert
         assertTrue(result.isEmpty());
+        verify(holdingsRepository).findHoldingsForUser(userId.longValue());
     }
 
     @Test
     void shouldUppercaseTickerWhenAddingHolding() {
+
+        Account account = new Account();
+        account.setId(2L);
+        when(accountRepository.findById((2L))).thenReturn(Optional.of(account));
         // Act
         holdingService.addHolding(
                 2,
@@ -138,15 +138,17 @@ class HoldingServiceTest {
         );
 
         // Assert
-        verify(jdbcTemplate).update(
-                anyString(),
-                eq(2),
-                eq("AAPL"),
-                eq("Apple"),
-                eq(new BigDecimal("5")),
-                eq(new BigDecimal("180.50")),
-                eq("USD")
-        );
+        ArgumentCaptor<Holdings> captor = ArgumentCaptor.forClass(Holdings.class);
+        verify(holdingsRepository).save(captor.capture());
+
+        Holdings savedHolding = captor.getValue();
+
+        assertEquals("AAPL", savedHolding.getTicker());
+        assertEquals("Apple", savedHolding.getInstrument_name());
+        assertEquals(new BigDecimal("5"), savedHolding.getQuantity());
+        assertEquals(new BigDecimal("180.50"), savedHolding.getAvg_buy_price());
+        assertEquals("USD", savedHolding.getCurrency());
+        assertEquals(account, savedHolding.getAccount());
     }
 
     @Test
@@ -164,8 +166,7 @@ class HoldingServiceTest {
                 )
         );
 
-        verify(jdbcTemplate, never())
-                .update(anyString(), any(Object[].class));
+        verifyNoInteractions(accountRepository,holdingsRepository);
     }
 
     @Test
@@ -179,7 +180,7 @@ class HoldingServiceTest {
 
         // Assert
         verify(holdingsRepository).deleteOwnedHolding(15L, 7L);
-        verifyNoInteractions(jdbcTemplate);
+        verifyNoInteractions(accountRepository);
     }
 
     @Test
@@ -191,26 +192,27 @@ class HoldingServiceTest {
         user.setName("Anna");
         user.setEmail(email);
 
-        Map<String, Object> holding = new HashMap<>();
-        holding.put("ticker", "ERIC-B");
-        holding.put("quantity", new BigDecimal("10"));
-        holding.put("avg_buy_price", new BigDecimal("50"));
+        Account account = new Account();
+        account.setId(3L);
+        account.setAccount_type("ISK");
+        account.setAccount_name("Annas ISK");
 
-        Map<String, Object> account = new HashMap<>();
-        account.put("id", 3);
-        account.put("account_type", "ISK");
-        account.put("account_name", "Annas ISK");
+        Holdings holding = new Holdings();
+        holding.setId(10L);
+        holding.setTicker("ERIC-B");
+        holding.setQuantity(new BigDecimal("10"));
+        holding.setAvg_buy_price(new BigDecimal("50"));
+        holding.setAccount(account);
 
         when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
-        when(jdbcTemplate.queryForList(contains("FROM holdings h"), eq(7)))
+        when(holdingsRepository.findHoldingsForUser(7L))
                 .thenReturn(List.of(holding));
-        when(jdbcTemplate.queryForList(contains("FROM accounts"), eq(7)))
-                .thenReturn(List.of(account));
+        when(accountRepository.findByUserId(7L)).thenReturn(List.of(account));
 
         // Act
         HoldingResponseDTO result = holdingService.getHoldingsForAuthenticatedUser(email);
 
-        // Assert: both queries use the user's database ID.
+        // Assert: both repositories use the authenticated user's database ID.
         assertEquals("Anna", result.userName());
         assertEquals(1, result.holdings().size());
         assertEquals("ERIC-B", result.holdings().get(0).ticker());
@@ -218,8 +220,8 @@ class HoldingServiceTest {
         assertEquals(3L, result.accounts().get(0).id());
         assertEquals("ISK", result.accounts().get(0).accountType());
         verify(userRepository).findByEmail(email);
-        verify(jdbcTemplate).queryForList(contains("FROM holdings h"), eq(7));
-        verify(jdbcTemplate).queryForList(contains("FROM accounts"), eq(7));
+        verify(holdingsRepository).findHoldingsForUser(7L);
+        verify(accountRepository).findByUserId(7L);
     }
 
     @Test
@@ -232,7 +234,7 @@ class HoldingServiceTest {
         assertThrows(BadCredentialsException.class,
                 () -> holdingService.getHoldingsForAuthenticatedUser(email));
         verify(userRepository).findByEmail(email);
-        verifyNoInteractions(jdbcTemplate);
+        verifyNoInteractions(accountRepository, holdingsRepository);
     }
 
     @Test
@@ -244,18 +246,29 @@ class HoldingServiceTest {
         user.setEmail(email);
         CreateHoldingRequestDTO request = new CreateHoldingRequestDTO(
                 3, "aapl", "Apple", "5", "180.50", "USD");
-
+        
         when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
         when(accountRepository.existsByIdAndUser_Id(3L, 7L)).thenReturn(true);
+
+        Account account = new Account();
+        account.setId(3L);
+        when(accountRepository.findById(3L)).thenReturn(Optional.of(account));
 
         // Act
         holdingService.addHoldingForAuthenticatedUser(email, request);
 
         // Assert: ownership is checked and the holding is saved with normalized values.
+        ArgumentCaptor<Holdings> captor = ArgumentCaptor.forClass(Holdings.class);
+        verify(holdingsRepository).save(captor.capture());
+
+        Holdings savedHolding = captor.getValue();
+        assertEquals("AAPL", savedHolding.getTicker());
+        assertEquals("Apple", savedHolding.getInstrument_name());
+        assertEquals(new BigDecimal("5"), savedHolding.getQuantity());
+        assertEquals(new BigDecimal("180.50"), savedHolding.getAvg_buy_price());
+
+        assertEquals(account, savedHolding.getAccount());
         verify(accountRepository).existsByIdAndUser_Id(3L, 7L);
-        verify(jdbcTemplate).update(contains("INSERT INTO holdings"),
-                eq(3), eq("AAPL"), eq("Apple"), eq(new BigDecimal("5")),
-                eq(new BigDecimal("180.50")), eq("USD"));
     }
 
     @Test
@@ -274,7 +287,7 @@ class HoldingServiceTest {
         assertThrows(AccessDeniedException.class,
                 () -> holdingService.addHoldingForAuthenticatedUser(email, request));
         verify(accountRepository).existsByIdAndUser_Id(3L, 7L);
-        verifyNoInteractions(jdbcTemplate);
+        verifyNoInteractions(holdingsRepository);
     }
 
     @Test
@@ -289,7 +302,7 @@ class HoldingServiceTest {
         assertThrows(BadCredentialsException.class,
                 () -> holdingService.addHoldingForAuthenticatedUser(email, request));
         verify(userRepository).findByEmail(email);
-        verifyNoInteractions(accountRepository, jdbcTemplate);
+        verifyNoInteractions(accountRepository, holdingsRepository);
     }
 
     @Test
@@ -298,7 +311,7 @@ class HoldingServiceTest {
         assertThrows(NumberFormatException.class,
                 () -> holdingService.addHolding(
                         3, "AAPL", "Apple", "5", "invalid-price", "USD"));
-        verifyNoInteractions(jdbcTemplate);
+        verifyNoInteractions(accountRepository, holdingsRepository);
     }
 
     @Test
@@ -309,11 +322,10 @@ class HoldingServiceTest {
         when(userRepository.findByEmail("anna@example.com")).thenReturn(Optional.of(user));
         when(holdingsRepository.deleteOwnedHolding(15L, 7L)).thenReturn(0);
 
-        // Act and Assert: never fall back to an unrestricted SQL delete.
+        // Act and Assert: reject deletion when no holding belongs to the user
         assertThrows(AccessDeniedException.class,
                 () -> holdingService.deleteHoldingForAuthenticatedUser("anna@example.com", 15));
         verify(holdingsRepository).deleteOwnedHolding(15L, 7L);
-        verifyNoInteractions(jdbcTemplate);
     }
 
     @Test
@@ -321,7 +333,7 @@ class HoldingServiceTest {
         when(userRepository.findByEmail("missing@example.com")).thenReturn(Optional.empty());
         assertThrows(BadCredentialsException.class,
                 () -> holdingService.deleteHoldingForAuthenticatedUser("missing@example.com", 15));
-        verifyNoInteractions(holdingsRepository, jdbcTemplate);
+        verifyNoInteractions(accountRepository,holdingsRepository);
     }
 
 }

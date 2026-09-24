@@ -1,8 +1,13 @@
 package se.comerit.avanza.service;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 
 import se.comerit.avanza.dto.alerts.LiveDriftAlertDTO;
@@ -15,11 +20,6 @@ import se.comerit.avanza.repository.AccountRepository;
 import se.comerit.avanza.repository.AlertsRepository;
 import se.comerit.avanza.repository.TargetRepository;
 import se.comerit.avanza.repository.UserRepository;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Service class for managing alerts related to account holdings and target
@@ -37,23 +37,25 @@ public class AlertService {
     // file a ticket
     // Alerts page uses 7% threshold, dashboard shows warning at 5% — welcome to v1
     private static final double DRIFT_THRESHOLD = 0.07;
-    private static final double USD_TO_SEK = 10.45;
 
     private final AlertsRepository alertsRepository;
     private final AccountRepository accountRepository;
     private final TargetRepository targetRepository;
     private final UserRepository userRepository;
+    private final MarketService marketService;
 
     public AlertService(
             AlertsRepository alertsRepository,
             AccountRepository accountRepository,
             TargetRepository targetRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            MarketService marketService) {
 
         this.alertsRepository = alertsRepository;
         this.accountRepository = accountRepository;
         this.targetRepository = targetRepository;
         this.userRepository = userRepository;
+        this.marketService = marketService;
     }
 
     /**
@@ -159,14 +161,14 @@ public class AlertService {
                 String currency = holding.getCurrency();
 
                 double quantity = holding.getQuantity() != null
-                        ? holding.getQuantity()
+                        ? holding.getQuantity().doubleValue()
                         : 0.0;
 
                 double currentPrices = getCurrentPrices().getOrDefault(ticker, 100.0);
                 double valueSek;
 
                 if ("USD".equals(currency)) {
-                    valueSek = quantity * currentPrices * USD_TO_SEK;
+                    valueSek = quantity * currentPrices * getUsdToSekRate();
                 } else {
                     valueSek = quantity * currentPrices;
                 }
@@ -243,6 +245,13 @@ public class AlertService {
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         return user.getId();
+    }
+
+    /**
+     * @return a double representing the current USD to SEK exchange rate.
+     */
+    public double getUsdToSekRate() {
+        return marketService.getFx("USD", "SEK").rate();
     }
 
     // Hardcoded prices (later: fetch from API)

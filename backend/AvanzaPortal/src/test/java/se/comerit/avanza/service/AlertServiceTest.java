@@ -10,6 +10,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -49,6 +50,9 @@ class AlertServiceTest {
         @Mock
         private UserRepository userRepository;
 
+        @Mock
+        private MarketService marketService;
+
         private AlertService alertService;
 
         @BeforeEach
@@ -57,7 +61,8 @@ class AlertServiceTest {
                                 alertsRepository,
                                 accountRepository,
                                 targetRepository,
-                                userRepository);
+                                userRepository,
+                                marketService);
         }
 
         @Test
@@ -160,8 +165,8 @@ class AlertServiceTest {
                 Holdings holding = new Holdings(
                                 "ERIC-B",
                                 "Ericsson",
-                                10,
-                                50.0,
+                                new BigDecimal("10"),
+                                new BigDecimal("50.00"),
                                 "SEK",
                                 null);
 

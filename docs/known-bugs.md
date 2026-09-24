@@ -29,16 +29,12 @@ String sql = "SELECT id, name, email FROM users WHERE email = '" + email
 
 **Fix:** Vi har löst denna problemet genom att använda JPA i UserRepository. Den metoden används sedan i AuthController och AuthService
 
----
-
 ### MD5-lösenord
 
 ~~**Fil:** `AuthController.java`, metod `md5Hash`~~
 ~~**Problem:** MD5 är kryptografiskt brutet sedan 1996. Regnbågstabeller finns för vanliga lösenord.~~
 
 **Fix:** Byt till BCrypt via Spring Security: `BCryptPasswordEncoder`.
-
----
 
 ### IDOR — Innehav (Insecure Direct Object Reference)
 
@@ -48,8 +44,6 @@ String sql = "SELECT id, name, email FROM users WHERE email = '" + email
 ~~**Fix:** Lägg till `AND account_id IN (SELECT id FROM accounts WHERE user_id = ?)`.~~
 
 **Fix:** vi kollar upp först om användare tillhör en holding via UserRepository.findbyemail
-
----
 
 ### IDOR — Notiser
 
@@ -65,27 +59,32 @@ String sql = "SELECT id, name, email FROM users WHERE email = '" + email
 **Filer:** `DashboardController.java` (0.05) och `AlertController.java` (0.07)
 **Problem:** Dashboard varnar vid 5% avvikelse, notissidan beräknar notiser vid 7%. Användaren ser
 olika resultat beroende på vilken sida de tittar på.
+
 **Fix:** Extrahera till en konstant i en delad konfigurationsklass.
 
 ### Hårdkodad USD/SEK-kurs
 
-**Fil:** `DashboardController.java`
-**Problem:** `private static final double USD_TO_SEK = 10.45;`
-Kursen ändras kontinuerligt. Portföljvärden i SEK är alltid fel.
-**Fix:** Integrera ett FX-API (t.ex. ECB, Riksbanken, eller en betaltjänst).
+~~**Fil:** `DashboardController.java`~~
+~~**Problem:** `private static final double USD_TO_SEK = 10.45;`~~
+~~Kursen ändras kontinuerligt. Portföljvärden i SEK är alltid fel.~~
+
+**Fix:** Vi hämtar data från native Fx library.
 
 ### Hårdkodade kurspriser
 
 **Filer:** `DashboardController.java`, `HoldingController.java`, `AlertController.java`
 **Problem:** Aktiekurser hårdkodas på tre ställen oberoende av varandra. Lägg till ett nytt innehav
 och det syns inte i beräkningarna.
+
 **Fix:** Marknadsdataservice med caching.
 
 ### Felaktig Sharpe-beräkning
 
-**Fil:** `DashboardController.java`
-**Problem:** Sharpe beräknas per innehav med hårdkodad volatilitet (0.15). Det är inte meningsfullt —
-Sharpe är ett portföljmått, inte ett per-tillgångsmått. Volatiliteten ska beräknas från historisk data.
+~~**Fil:** `DashboardController.java`~~
+~~**Problem:** Sharpe beräknas per innehav med hårdkodad volatilitet (0.15). Det är inte meningsfullt —~~
+~~Sharpe är ett portföljmått, inte ett per-tillgångsmått. Volatiliteten ska beräknas från historisk data.~~
+
+**Fix:** Vi hämtar data från native Risk library.
 
 ## Skalningsproblem
 

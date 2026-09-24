@@ -372,8 +372,8 @@ int risk_test_rates_handler(void)
 {
   printf("\n### RATES HANDLER TESTS ###\n");
   int res;
-  Rate R = {0};
 
+  Rate R = {0};
   res = rates_handler_get_latest(&R, Swestr);
   if (res == 429)
   {
@@ -494,6 +494,24 @@ int risk_test_rates_handler(void)
     return 8;
   }
   memset(&R, 0, sizeof(Rate));
+
+  double rate;
+
+  res = rates_handler_get_latest_swestr(&rate);
+  if (res == 429)
+  {
+    printf("We were rate limited by riksbank! Need to wait 60 secs from first block.\n");
+  }
+  else if (res != 0)
+  {
+    fprintf(stderr, "librisk_rate_get_latest, res=%d\n", res);
+    return 1;
+  }
+  else
+  {
+    printf("Rate: %lf\n", rate);
+  }
+
 
   return 0;
 

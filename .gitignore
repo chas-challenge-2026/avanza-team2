@@ -6,6 +6,8 @@
 
 # No binary folders
 */bin/
+.DS_Store
+**/.DS_Store
 
 # No build folders
 */build/
