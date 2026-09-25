@@ -56,11 +56,11 @@ String sql = "SELECT id, name, email FROM users WHERE email = '" + email
 
 ### Inkonsekvent drifttröskel
 
-**Filer:** `DashboardController.java` (0.05) och `AlertController.java` (0.07)
-**Problem:** Dashboard varnar vid 5% avvikelse, notissidan beräknar notiser vid 7%. Användaren ser
-olika resultat beroende på vilken sida de tittar på.
+~~**Filer:** `DashboardController.java` (0.05) och `AlertController.java` (0.07)~~
+~~**Problem:** Dashboard varnar vid 5% avvikelse, notissidan beräknar notiser vid 7%. Användaren ser~~
+~~olika resultat beroende på vilken sida de tittar på.~~
 
-**Fix:** Extrahera till en konstant i en delad konfigurationsklass.
+**Fix:** Kod är extraherad till en DriftTresholdConfig klass vilken återanvänds i både PortfolioService och AlertService.
 
 ### Hårdkodad USD/SEK-kurs
 

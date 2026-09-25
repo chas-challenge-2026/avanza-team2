@@ -33,22 +33,25 @@ import se.comerit.avanza.repository.UserRepository;
 @Service
 public class PortfolioService {
 
-    private AccountRepository accountRepository;
     private HoldingsRepository holdingsRepository;
+    private AccountRepository accountRepository;
     private TargetRepository targetRepository;
     private AlertsRepository alertRepository;
     private UserRepository userRepository;
+    private DriftTresholdConfig tresholdConfig;
     private MarketService marketService;
     private RiskLibrary riskLibrary;
 
     public PortfolioService(AccountRepository accountRepository, HoldingsRepository holdingsRepository,
             TargetRepository targetRepository, AlertsRepository alertRepository, UserRepository userRepository,
+            DriftTresholdConfig tresholdConfig,
             MarketService marketService, RiskLibrary riskLibrary) {
         this.accountRepository = accountRepository;
         this.holdingsRepository = holdingsRepository;
         this.targetRepository = targetRepository;
         this.alertRepository = alertRepository;
         this.userRepository = userRepository;
+        this.tresholdConfig = tresholdConfig;
         this.marketService = marketService;
         this.riskLibrary = riskLibrary;
     }
@@ -275,10 +278,15 @@ public class PortfolioService {
     }
 
     /**
+     * @return Current threshold configuration 5%.
+     */
+    public double getDriftThreshold() {
+        return tresholdConfig.getDriftThreshold();
+    }
+
+    /**
      * Detects if the allocation for each account type has drifted beyond the
-     * defined threshold.
-     * 
-     * 
+     * defined threshold (5%).
      * 
      * @param accountTypeTotals   Current totals for each account type.
      * @param targets             Target allocations for each account type.
@@ -286,9 +294,6 @@ public class PortfolioService {
      * @return A list of AllocationRowDTO containing allocation and drift
      *         information for each account type.
      */
-    // TODO: Consolidate to single threshold in v2 — decide 5% or 7% with product
-    private static final double DRIFT_THRESHOLD = 0.05; // 5% drift threshold
-
     public List<AllocationRowDTO> detectDrift(Map<String, Double> accountTypeTotals,
             List<TargetAllocations> targets,
             double totalPortfolioValue) {
@@ -314,7 +319,7 @@ public class PortfolioService {
                     Math.round(actual * 100.0) / 100.0,
                     target,
                     Math.round(drift * 10000.0) / 100.0,
-                    drift > DRIFT_THRESHOLD));
+                    drift > getDriftThreshold()));
         }
 
         return allocationRows;

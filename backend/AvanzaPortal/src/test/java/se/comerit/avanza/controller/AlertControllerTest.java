@@ -73,7 +73,7 @@ class AlertControllerTest {
                                 "test@test.com")).thenReturn(List.of());
 
                 when(alertService.getDriftThreshold())
-                                .thenReturn(7);
+                                .thenReturn(7.0);
 
                 // Act
                 ResponseEntity<Map<String, Object>> response = alertController.listAlerts(
@@ -88,7 +88,7 @@ class AlertControllerTest {
                 assertNotNull(response.getBody().get("storedAlerts"));
                 assertNotNull(response.getBody().get("liveAlerts"));
                 assertEquals(
-                                7,
+                                7.0,
                                 response.getBody().get("driftThreshold"));
 
                 verify(alertService).getStoredAlertsByEmail(
