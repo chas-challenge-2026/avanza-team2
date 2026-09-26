@@ -6,7 +6,7 @@ import { Overview } from './Pages/Overview/Overview.tsx'
 import { Analyses } from './Pages/Analyses/Analyses.tsx'
 import { Holdings } from './Pages/Holdings/Holdings.tsx'
 import { Notifications } from './Pages/Notifications/Notifications.tsx'
-import { Reports } from './Pages/Reports/Reports.tsx'
+import { Documents } from './Pages/Documents/Documents.tsx'
 import { Settings } from './Pages/Settings/Settings.tsx'
 import { Login } from './Pages/Login/Login.tsx'
 import { ForgotPassword } from './Pages/ForgotPassword/ForgotPassword.tsx'
@@ -32,7 +32,7 @@ function App() {
     { path: '/innehav', title: 'Mina Innehav', element: <ProtectedRoute><Holdings /></ProtectedRoute> },
     { path: '/notiser', title: 'Notiser', element: <ProtectedRoute><Notifications /></ProtectedRoute> },
     { path: '/analyser', title: 'Analyser', element: <ProtectedRoute><Analyses /></ProtectedRoute> },
-    { path: '/rapporter', title: 'Rapporter', element: <ProtectedRoute><Reports /></ProtectedRoute> },
+    { path: '/documents', title: 'Dokument', element: <ProtectedRoute><Documents /></ProtectedRoute> },
     { path: '/installningar', title: 'Inställningar', element: <ProtectedRoute><Settings /></ProtectedRoute> },
     { path: LOGIN_PATH, title: 'Logga In', element: <Login onLogin={handleLogin} /> },
     { path: '/glomt-losenord', title: 'Glömt lösenord', element: <ForgotPassword /> },
