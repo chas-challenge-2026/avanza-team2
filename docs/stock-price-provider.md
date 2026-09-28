@@ -20,8 +20,8 @@ The remaining Nasdaq Stockholm symbols must be verified before implementation.
 
 ## Usage limits
 
-The free plan uses API credits and has minute-based and daily limits.
-Successful price responses should therefore be cached.
+The free plan allows 8 API credits per minute and 800 credits per day.
+The backend should cache successful responses to reduce API usage.
 
 ## Fallback behavior
 
