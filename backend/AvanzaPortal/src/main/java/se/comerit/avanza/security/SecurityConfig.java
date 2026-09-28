@@ -55,8 +55,10 @@ public class SecurityConfig {
                                                                 "/api/auth/logout")
                                                 .permitAll()
 
-                                                // All other endpoints require authentication.
-                                                .anyRequest().authenticated())
+                                                // Protect API endpoints while allowing the frontend and its assets to
+                                                // load.
+                                                .requestMatchers("/api/**").authenticated()
+                                                .anyRequest().permitAll())
 
                                 // Run JwtFilter before Spring's default authentication filter.
                                 .addFilterBefore(
