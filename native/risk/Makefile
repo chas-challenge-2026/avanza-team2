@@ -50,14 +50,14 @@ SO_CFLAGS := $(CFLAGS) -fPIC
 
 ## DETECT AVX version and add flags accordingly
 # Default to auto-detect if not specified
-# Can override this by setting AVX_LEVEL
+# Can override this by passing AVX_LEVEL flag
 AVX_LEVEL ?= auto
 
 ifeq ($(AVX_LEVEL),auto)
 
 	# Detect AVX512 support by checking CPU flags
 	ifeq ($(UNAME_S),Darwin)
-		# macOS: use sysctl to get hw.optional.avx512f (returns 1 if supported)
+		# macOS: use sysctl to get cpu flags (returns 1 if supported)
 		HAS_AVX512F := $(shell sysctl -n hw.optional.avx512f 2>/dev/null || echo 0)
 		HAS_AVX512BW := $(shell sysctl -n hw.optional.avx512bw 2>/dev/null || echo 0)
 		HAS_AVX512VL := $(shell sysctl -n hw.optional.avx512vl 2>/dev/null || echo 0)
@@ -66,7 +66,7 @@ ifeq ($(AVX_LEVEL),auto)
 		HAS_SSE2 := $(shell sysctl -n hw.optional.sse2 2>/dev/null || echo 0)
 		HAS_SSE := $(shell sysctl -n hw.optional.sse 2>/dev/null || echo 0)
 	else
-		# Linux: grep /proc/cpuinfo for flags
+		# Linux: use lscpu to get cpu flags
 		CPU_FLAGS := $(shell lscpu 2>/dev/null | grep "Flags" | cut -d':' -f2)
 		HAS_AVX512F := $(if $(findstring avx512f,$(CPU_FLAGS)),yes,no)
 		HAS_AVX512BW := $(if $(findstring avx512bw,$(CPU_FLAGS)),yes,no)
