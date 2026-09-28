@@ -52,8 +52,7 @@ public class SecurityConfig {
                                                 // Login and logout are public endpoints.
                                                 .requestMatchers(
                                                                 "/api/auth/login",
-                                                                "/api/auth/logout",
-                                                                "/api/auth/me")
+                                                                "/api/auth/logout")
                                                 .permitAll()
 
                                                 // All other endpoints require authentication.
