@@ -1,10 +1,13 @@
 ### General repo stuff ###
 
 # No environment files (can still add templates)
+.env.local
 .env
 
 # No binary folders
 */bin/
+.DS_Store
+**/.DS_Store
 
 # No build folders
 */build/
@@ -148,6 +151,16 @@ buildNumber.properties
 .mvn/timing.properties
 .mvn/wrapper/maven-wrapper.jar
 
+### Node.js / Frontend Stuff ###
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+
 ### LLM stuff ###
 
 AGENTS.md
+
+native/common/config/include/user_config.h

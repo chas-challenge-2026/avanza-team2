@@ -1,94 +1,104 @@
 package se.comerit.avanza.controller;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import jakarta.servlet.http.HttpSession;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.List;
-import java.util.Map;
+import se.comerit.avanza.dto.auth.LoginRequestDTO;
+import se.comerit.avanza.dto.auth.LoginResponseDTO;
+import se.comerit.avanza.service.AuthService;
 
-@Controller
+/**
+ * Controller responsible for handling authentication-related HTTP requests.
+ *
+ * The controller handles login, logout and authentication status requests.
+ * Authentication and password verification are handled by AuthService.
+ */
+@RestController
+@RequestMapping("/api/auth")
 public class AuthController {
 
-    // TODO: this should probably be in some kind of service class but it works fine
-    // here
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
+    private final AuthService authService;
 
-    @GetMapping("/login")
-    public String loginPage(HttpSession session, Model model) {
-        // If already logged in, go home
-        if (session.getAttribute("userId") != null) {
-            return "redirect:/";
-        }
-        return "login";
+    /**
+     * Creates an AuthController with the required AuthService.
+     *
+     * @param authService service responsible for authentication logic
+     */
+    public AuthController(AuthService authService) {
+        this.authService = authService;
     }
 
+    /**
+     * Attempts to authenticate a user using their email and password.
+     *
+     * Authentication is delegated to AuthService.
+     * If authentication succeeds, the JWT is stored in an HttpOnly cookie.
+     *
+     * @param loginRequest the login request containing email and password
+     * @return a ResponseEntity containing the login response
+     */
     @PostMapping("/login")
-    public String doLogin(@RequestParam String email,
-            @RequestParam String password,
-            HttpSession session,
-            Model model) {
+    public ResponseEntity<LoginResponseDTO> login(
+            @RequestBody LoginRequestDTO loginRequest) {
 
-        // Hash password with MD5 (TODO: upgrade to bcrypt... someday)
-        String md5 = md5Hash(password);
-        if (md5 == null) {
-            model.addAttribute("error", "Internt fel vid autentisering.");
-            return "login";
-        }
+        LoginResponseDTO response = authService.authenticate(loginRequest);
 
-        // Build query with string concat — quick and easy!
-        // TODO: use PreparedStatement instead of string concatenation
-        String sql = "SELECT id, name, email FROM users WHERE email = '" + email
-                + "' AND password_md5 = '" + md5 + "'";
+        // Store the JWT in an HttpOnly cookie so JavaScript cannot access it.
+        ResponseCookie cookie = ResponseCookie.from("jwt", response.token())
+                .httpOnly(true)
+                // HTTPS is required for Secure cookies in production.
+                .secure(false)
+                .path("/")
+                .sameSite("Lax")
+                .maxAge(60 * 60)
+                .build();
 
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql);
-
-        if (rows.isEmpty()) {
-            model.addAttribute("error", "Fel e-post eller lösenord.");
-            return "login";
-        }
-
-        Map<String, Object> user = rows.get(0);
-        Integer userId = (Integer) user.get("id");
-        String userName = (String) user.get("name");
-
-        // Store user info in session
-        session.setAttribute("userId", userId);
-        session.setAttribute("userName", userName);
-        session.setAttribute("userEmail", email);
-        // tenantId is just userId for now, multi-tenant is future work
-        session.setAttribute("tenantId", userId);
-
-        return "redirect:/";
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, cookie.toString())
+                .body(response);
     }
 
-    @GetMapping("/logout")
-    public String logout(HttpSession session) {
-        session.invalidate();
-        return "redirect:/login";
+    /**
+     * Checks whether the current request is authenticated.
+     *
+     * The JWT is read from the HttpOnly cookie by JwtFilter before
+     * this endpoint is reached.
+     *
+     * @param authentication the current Spring Security authentication
+     * @return 204 if the user is authenticated
+     */
+    @GetMapping("/me")
+    public ResponseEntity<Void> me(Authentication authentication) {
+        return ResponseEntity.noContent().build();
     }
 
-    // MD5 helper — lives here because there's nowhere else to put it
-    private String md5Hash(String input) {
-        try {
-            MessageDigest md = MessageDigest.getInstance("MD5");
-            byte[] hashBytes = md.digest(input.getBytes());
-            StringBuilder sb = new StringBuilder();
-            for (byte b : hashBytes) {
-                sb.append(String.format("%02x", b));
-            }
-            return sb.toString();
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-            return null;
-        }
+    /**
+     * Logs out the current user by clearing the JWT cookie.
+     *
+     * @return a ResponseEntity with 204 No Content status
+     */
+    @DeleteMapping("/logout")
+    public ResponseEntity<Void> logout() {
+
+        // Clear the JWT cookie by setting its max age to zero.
+        ResponseCookie cookie = ResponseCookie.from("jwt", "")
+                .httpOnly(true)
+                .secure(false)
+                .path("/")
+                .sameSite("Lax")
+                .maxAge(0)
+                .build();
+
+        return ResponseEntity.noContent()
+                .header(HttpHeaders.SET_COOKIE, cookie.toString())
+                .build();
     }
 }

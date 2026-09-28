@@ -4,19 +4,27 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
-import se.comerit.avanza.entity.Alerts;
-import org.springframework.stereotype.Service;
-import se.comerit.avanza.repository.AlertsRepository;
-
-import se.comerit.avanza.repository.AccountRepository;
-import se.comerit.avanza.repository.HoldingsRepository;
-import se.comerit.avanza.repository.TargetRepository;
 import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+
+import se.comerit.avanza.dto.alerts.AlertsResponseDTO;
+import se.comerit.avanza.dto.portfolio.AccountSummaryDTO;
+import se.comerit.avanza.dto.portfolio.AllocationRowDTO;
+import se.comerit.avanza.dto.portfolio.EnrichedHoldingDTO;
 import se.comerit.avanza.entity.Account;
+import se.comerit.avanza.entity.Alerts;
 import se.comerit.avanza.entity.Holdings;
 import se.comerit.avanza.entity.TargetAllocations;
+import se.comerit.avanza.entity.User;
+import se.comerit.avanza.nativebridge.RiskLibrary;
+import se.comerit.avanza.repository.AccountRepository;
+import se.comerit.avanza.repository.AlertsRepository;
+import se.comerit.avanza.repository.HoldingsRepository;
+import se.comerit.avanza.repository.TargetRepository;
+import se.comerit.avanza.repository.UserRepository;
 
 /**
  * PortfolioService is a layer in between the controller and the repository.
@@ -25,17 +33,32 @@ import se.comerit.avanza.entity.TargetAllocations;
 @Service
 public class PortfolioService {
 
-    private AccountRepository accountRepository;
     private HoldingsRepository holdingsRepository;
+    private AccountRepository accountRepository;
     private TargetRepository targetRepository;
     private AlertsRepository alertRepository;
+    private UserRepository userRepository;
+    private DriftTresholdConfig tresholdConfig;
+    private MarketService marketService;
+    private RiskLibrary riskLibrary;
 
     public PortfolioService(AccountRepository accountRepository, HoldingsRepository holdingsRepository,
-            TargetRepository targetRepository, AlertsRepository alertRepository) {
+            TargetRepository targetRepository, AlertsRepository alertRepository, UserRepository userRepository,
+            DriftTresholdConfig tresholdConfig,
+            MarketService marketService, RiskLibrary riskLibrary) {
         this.accountRepository = accountRepository;
         this.holdingsRepository = holdingsRepository;
         this.targetRepository = targetRepository;
         this.alertRepository = alertRepository;
+        this.userRepository = userRepository;
+        this.tresholdConfig = tresholdConfig;
+        this.marketService = marketService;
+        this.riskLibrary = riskLibrary;
+    }
+
+    // Find user by email (used for authentication)
+    public Optional<User> findByEmail(String email) {
+        return userRepository.findByEmail(email);
     }
 
     /**
@@ -76,8 +99,9 @@ public class PortfolioService {
      * @param userId the ID of the user whose recent alerts are to be retrieved.
      * @return a list of recent alerts associated with the specified user.
      */
-    public List<Alerts> getRecentAlertsForUser(Long userId) {
-        return alertRepository.findByUser_IdAndDismissedFalseOrderByCreatedAtDesc(userId);
+    public List<AlertsResponseDTO> getRecentAlertsForUser(Long userId) {
+        List<Alerts> alerts = alertRepository.findByUser_IdAndDismissedFalseOrderByCreatedAtDesc(userId);
+        return convertAlertsToDTO(alerts);
     }
 
     // Hardcoded prices (later: fetch from API)
@@ -93,7 +117,9 @@ public class PortfolioService {
     }
 
     // USD to SEK conversion
-    public static final double USD_TO_SEK = 10.45;
+    public double getUsdToSekRate() {
+        return marketService.getFx("USD", "SEK").rate();
+    }
 
     /**
      * @return a map with account types as keys and their initial totals set to 0.0
@@ -121,58 +147,101 @@ public class PortfolioService {
     }
 
     /**
-     * Enrich a single holding with calculated market values and metrics.
+     * Calculates the Sharpe ratio for a given set of returns.
+     *
+     * @param returns      an array of historical returns.
+     * @param riskFreeRate the risk-free rate to use in the calculation.
+     * @param yearFreq     the frequency of the returns (e.g., 252 for daily
+     *                     returns).
+     * @return the calculated Sharpe ratio.
+     */
+    public double calculateSharpeRatio(double[] returns, double riskFreeRate, long yearFreq) {
+        if (returns == null || returns.length < 2 || yearFreq <= 0) {
+            return 0.0;
+        }
+        return riskLibrary.risk_calc_sharpe_ratio_double(returns, returns.length, riskFreeRate, yearFreq);
+    }
+
+    /**
+     * Converts a sequence of historical portfolio values into returns and then
+     * calculates the Sharpe ratio at portfolio level.
+     *
+     * @param portfolioValues historical portfolio values in SEK.
+     * @param riskFreeRate    annual risk-free rate.
+     * @return the calculated Sharpe ratio.
+     */
+    public double calculatePortfolioSharpeRatio(List<Double> portfolioValues, double riskFreeRate) {
+        if (portfolioValues == null || portfolioValues.size() < 2) {
+            return 0.0;
+        }
+
+        double[] returns = new double[portfolioValues.size() - 1];
+        for (int i = 1; i < portfolioValues.size(); i++) {
+            double previous = portfolioValues.get(i - 1);
+            double current = portfolioValues.get(i);
+            returns[i - 1] = previous == 0.0 ? 0.0 : (current - previous) / previous;
+        }
+
+        return calculateSharpeRatio(returns, riskFreeRate, 252L);
+    }
+
+    /**
+     * Enriches a single holding with calculated market values and metrics.
      * 
      * @param holdings      the holding to be enriched.
      * @param currentPrices a map of current market prices keyed by ticker symbol.
-     * @return a map containing the enriched holding data, including calculated
-     *         market values and metrics.
+     * @return an EnrichedHoldingDTO containing the enriched holding data, including
+     *         calculated market values and metrics.
      */
-    public Map<String, Object> enrichSingleHolding(Holdings holdings, Map<String, Double> currentPrices) {
+    public EnrichedHoldingDTO enrichSingleHolding(Holdings holdings, Map<String, Double> currentPrices) {
         String ticker = holdings.getTicker();
         String currency = holdings.getCurrency();
-        double quantity = holdings.getQuantity();
-        double avgBuy = holdings.getAvgBuy();
+        double quantity = holdings.getQuantity().doubleValue();
+        double avgBuy = holdings.getAvgBuy().doubleValue();
 
         // Get current price (or default if unknown ticker)
         double price = currentPrices.getOrDefault(ticker, currentPrices.get("DEFAULT"));
 
         // Calculate market value in SEK (convert USD if needed)
+
         double valueSek;
         if ("USD".equals(currency)) {
-            valueSek = quantity * price * USD_TO_SEK;
+            valueSek = quantity * price * getUsdToSekRate();
         } else {
             valueSek = quantity * price;
         }
 
         // Simple return calculation inline (no IRR, no time-weighting, just naive)
-        double costBasis = quantity * avgBuy * ("USD".equals(currency) ? USD_TO_SEK : 1.0);
+        double costBasis = quantity * avgBuy * ("USD".equals(currency) ? getUsdToSekRate() : 1.0);
         double unrealizedReturn = valueSek - costBasis;
         double unrealizedReturnPct = costBasis > 0 ? (unrealizedReturn / costBasis) * 100 : 0;
 
-        // Sharpe ratio — completely wrong here, just to show the pattern
-        // risk-free rate hardcoded to 0.02 (2%), volatility hardcoded to 0.15 (15%)
-        // This is per-holding which makes no sense, but it's v1
-        double sharpe = (unrealizedReturnPct / 100 - 0.02) / 0.15;
+        /**
+         * Sharpe ratio — completely wrong here, just to show the pattern
+         * risk-free rate hardcoded to 0.02 (2%), volatility hardcoded to 0.15 (15%)
+         * This is per-holding which makes no sense, but it's v1
+         * 
+         * Still just a placeholder and not meaningful for real analysis.
+         * TODO: replace with realtime returns
+         */
+        double sharpe = 0.0;
 
-        // Build output map with all metrics
-        Map<String, Object> enriched = new HashMap<>();
-        enriched.put("id", holdings.getId());
-        enriched.put("ticker", ticker);
-        enriched.put("instrumentName", holdings.getInstrument_name());
-        enriched.put("quantity", quantity);
-        enriched.put("currentPrice", price);
-        enriched.put("valueSek", Math.round(valueSek * 100.0) / 100.0);
-        enriched.put("unrealizedReturn", Math.round(unrealizedReturn * 100.0) / 100.0);
-        enriched.put("unrealizedReturnPct", Math.round(unrealizedReturnPct * 100.0) / 100.0);
-        enriched.put("sharpe", Math.round(sharpe * 100.0) / 100.0);
-        enriched.put("displayCurrency", "USD".equals(currency) ? "USD→SEK" : "SEK");
-
-        return enriched;
+        // Build output DTO with all metrics
+        return new EnrichedHoldingDTO(
+                holdings.getId(),
+                ticker,
+                holdings.getInstrument_name(),
+                quantity,
+                price,
+                Math.round(valueSek * 100.0) / 100.0,
+                Math.round(unrealizedReturn * 100.0) / 100.0,
+                Math.round(unrealizedReturnPct * 100.0) / 100.0,
+                Math.round(sharpe * 100.0) / 100.0,
+                "USD".equals(currency) ? "USD→SEK" : "SEK");
     }
 
     /**
-     * Calculate the total portfolio value and update account type totals.
+     * Calculates the total portfolio value and updates the account type totals.
      * 
      * @param holdings          List of holdings to calculate totals for.
      * @param prices            Current prices for the holdings.
@@ -188,8 +257,8 @@ public class PortfolioService {
 
         for (Holdings h : holdings) {
             // Enrich this single holding
-            Map<String, Object> enriched = enrichSingleHolding(h, prices);
-            double valueSek = (double) enriched.get("valueSek");
+            EnrichedHoldingDTO enriched = enrichSingleHolding(h, prices);
+            double valueSek = enriched.valueSek();
 
             // Add to grand total
             totalPortfolioValue += valueSek;
@@ -197,6 +266,11 @@ public class PortfolioService {
             // Add to account type bucket
             Long accountId = h.getAccount().getId();
             String accType = accountTypeMap.get(accountId);
+
+            if (accType == null) {
+                continue;
+            }
+
             accountTypeTotals.put(accType, accountTypeTotals.getOrDefault(accType, 0.0) + valueSek);
         }
 
@@ -204,22 +278,27 @@ public class PortfolioService {
     }
 
     /**
+     * @return Current threshold configuration 5%.
+     */
+    public double getDriftThreshold() {
+        return tresholdConfig.getDriftThreshold();
+    }
+
+    /**
      * Detects if the allocation for each account type has drifted beyond the
-     * defined threshold.
+     * defined threshold (5%).
      * 
      * @param accountTypeTotals   Current totals for each account type.
      * @param targets             Target allocations for each account type.
      * @param totalPortfolioValue Total value of the portfolio.
-     * @return A list of maps containing allocation and drift information for each
-     *         account type.
+     * @return A list of AllocationRowDTO containing allocation and drift
+     *         information for each account type.
      */
-    private static final double DRIFT_THRESHOLD = 0.05; // 5% drift threshold
-
-    public List<Map<String, Object>> detectDrift(Map<String, Double> accountTypeTotals,
+    public List<AllocationRowDTO> detectDrift(Map<String, Double> accountTypeTotals,
             List<TargetAllocations> targets,
             double totalPortfolioValue) {
 
-        List<Map<String, Object>> allocationRows = new ArrayList<>();
+        List<AllocationRowDTO> allocationRows = new ArrayList<>();
 
         // Build target map
         Map<String, Double> targetMap = targets.stream()
@@ -228,7 +307,6 @@ public class PortfolioService {
                         t -> (double) t.getTarget_pct()));
 
         // For each account type, calculate drift
-        boolean anyDrift = false;
         for (String accType : new String[] { "ISK", "KF", "Depa", "Pension" }) {
             double actual = totalPortfolioValue > 0
                     ? (accountTypeTotals.getOrDefault(accType, 0.0) / totalPortfolioValue) * 100
@@ -236,15 +314,12 @@ public class PortfolioService {
             double target = targetMap.getOrDefault(accType, 0.0);
             double drift = Math.abs(actual - target) / 100.0;
 
-            Map<String, Object> row = new HashMap<>();
-            row.put("accountType", accType);
-            row.put("actual", Math.round(actual * 100.0) / 100.0);
-            row.put("target", target);
-            row.put("drift", Math.round(drift * 10000.0) / 100.0);
-            row.put("overThreshold", drift > DRIFT_THRESHOLD);
-            if (drift > DRIFT_THRESHOLD)
-                anyDrift = true;
-            allocationRows.add(row);
+            allocationRows.add(new AllocationRowDTO(
+                    accType,
+                    Math.round(actual * 100.0) / 100.0,
+                    target,
+                    Math.round(drift * 10000.0) / 100.0,
+                    drift > getDriftThreshold()));
         }
 
         return allocationRows;
@@ -253,27 +328,40 @@ public class PortfolioService {
     /**
      * Generates a summary of each account with its total value in SEK.
      * 
-     * @param accounts            List of account maps containing account details.
+     * @param accounts            List of accounts to summarize.
      * @param accountTypeTotals   Current totals for each account type.
      * @param totalPortfolioValue Total value of the portfolio.
-     * @return A list of maps containing account details along with their total
-     *         value in SEK.
+     * @return A list of AccountSummaryDTO containing summary information for each
+     *         account.
      */
-    public List<Map<String, Object>> getAccountSummary(List<Map<String, Object>> accounts,
+    public List<AccountSummaryDTO> getAccountSummary(List<Account> accounts,
             Map<String, Double> accountTypeTotals,
             double totalPortfolioValue) {
 
-        List<Map<String, Object>> summaryRows = new ArrayList<>();
-
-        for (Map<String, Object> acc : accounts) {
-            String accType = (String) acc.get("account_type");
-            double total = accountTypeTotals.getOrDefault(accType, 0.0);
-            Map<String, Object> summary = new HashMap<>(acc);
-            summary.put("totalValueSek", Math.round(total * 100.0) / 100.0);
-            summaryRows.add(summary);
-        }
-
-        return summaryRows;
+        return accounts.stream()
+                .map(acc -> new AccountSummaryDTO(
+                        acc.getId(),
+                        acc.getAccount_type(),
+                        acc.getAccount_name(),
+                        acc.getCurrency(),
+                        Math.round(accountTypeTotals.getOrDefault(acc.getAccount_type(), 0.0) * 100.0) / 100.0))
+                .collect(Collectors.toList());
     }
 
+    /**
+     * Converts a list of Alerts entities to a list of AlertsResponseDTO.
+     * 
+     * @param alerts List of Alerts entities to convert.
+     * @return A list of AlertsResponseDTO containing alert information.
+     */
+    public List<AlertsResponseDTO> convertAlertsToDTO(List<Alerts> alerts) {
+        return alerts.stream()
+                .map(alert -> new AlertsResponseDTO(
+                        alert.getId(),
+                        alert.getUser().getId(), // Extract userId from User relationship
+                        alert.getMessage(),
+                        alert.getDismissed(),
+                        alert.getCreatedAt().toString()))
+                .collect(Collectors.toList());
+    }
 }

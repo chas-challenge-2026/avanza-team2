@@ -5,32 +5,67 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
+
+import se.comerit.avanza.dto.holdings.CreateHoldingRequestDTO;
+import se.comerit.avanza.dto.holdings.HoldingAccountDTO;
+import se.comerit.avanza.dto.holdings.HoldingItemDTO;
+import se.comerit.avanza.dto.holdings.HoldingResponseDTO;
+import se.comerit.avanza.entity.Account;
+import se.comerit.avanza.entity.Holdings;
+import se.comerit.avanza.entity.User;
+import se.comerit.avanza.repository.AccountRepository;
+import se.comerit.avanza.repository.HoldingsRepository;
+import se.comerit.avanza.repository.UserRepository;
 
 @Service
 public class HoldingService {
 
-    private final JdbcTemplate jdbcTemplate;
 
-    public HoldingService(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
+    private final UserRepository userRepository;
+
+    private final AccountRepository accountRepository;
+    private final HoldingsRepository holdingsRepository;
+
+    public HoldingService(UserRepository userRepository, AccountRepository accountRepository, HoldingsRepository holdingsRepository) {
+        this.userRepository = userRepository;
+        this.accountRepository = accountRepository;
+        this.holdingsRepository = holdingsRepository;
     }
 
     public List<Map<String, Object>> getHoldingsForUser(Integer userId) {
-        String holdingSql = "SELECT h.id, h.ticker, h.instrument_name, " +
-                "h.quantity, h.avg_buy_price, h.currency, a.account_type, a.account_name " +
-                "FROM holdings h " +
-                "JOIN accounts a ON h.account_id = a.id " +
-                "WHERE a.user_id = ? " +
-                "ORDER BY a.account_type, h.ticker";
-        return jdbcTemplate.queryForList(holdingSql, userId);
-    }
+        return holdingsRepository.findHoldingsForUser(userId.longValue())
+        .stream()
+        .map (holding -> {
+            Map<String, Object> row = new HashMap<>();
+            row.put("id", holding.getId());
+            
+            row.put("ticker", holding.getTicker());
+            row.put("instrument_name", holding.getInstrument_name());
+            row.put("quantity", holding.getQuantity());
+            row.put("avg_buy_price", holding.getAvg_buy_price());
+            row.put("currency", holding.getCurrency());
 
-    public List<Map<String, Object>> getAccountsForUser(Integer userId) {
-        String accountSql = "SELECT id, account_type, account_name " +
-                "FROM accounts WHERE user_id = ?";
-        return jdbcTemplate.queryForList(accountSql, userId);
+            row.put("account_type", holding.getAccount().getAccount_type());
+            row.put("account_name", holding.getAccount().getAccount_name());
+        
+            
+            return row;
+        })
+        .toList();
+    }
+        
+    
+    // This method retrieves the accounts for a given user ID.
+    public List<HoldingAccountDTO> getAccountsForUser(Long userId) {
+        return accountRepository.findByUserId(userId).stream()
+                .map(account -> new HoldingAccountDTO(
+                        account.getId(),
+                        account.getAccount_type(),
+                        account.getAccount_name()))
+                .toList();
     }
 
     public List<Map<String, Object>> getEnrichedHoldingsForUser(Integer userId) {
@@ -66,13 +101,81 @@ public class HoldingService {
     }
 
     public void addHolding(Integer accountId, String ticker, String instrumentName, String quantity, String avgBuyPrice, String currency) {
-        String sql = "INSERT INTO holdings (account_id, ticker, instrument_name, quantity, avg_buy_price, currency) " +
-                "VALUES (?, ?, ?, ?, ?, ?)";
-        jdbcTemplate.update(sql, accountId, ticker.toUpperCase(), instrumentName, new BigDecimal(quantity), new BigDecimal(avgBuyPrice), currency);
+
+        BigDecimal parsedQuantity = new BigDecimal(quantity);
+        BigDecimal parsedAvgBuyPrice = new BigDecimal(avgBuyPrice);
+
+        Account account = accountRepository.findById(accountId.longValue())
+                .orElseThrow(() -> new IllegalArgumentException("Account not found"));
+
+        Holdings holding = new Holdings(ticker.toUpperCase(), instrumentName, parsedQuantity, parsedAvgBuyPrice, currency, account);
+
+        holdingsRepository.save(holding);
+
+        
+        
     }
 
-    public void deleteHolding(Integer holdingId) {
-        String sql = "DELETE FROM holdings WHERE id = ?";
-        jdbcTemplate.update(sql, holdingId);
+    // This method retrieves the holdings and accounts for the authenticated user based on their email.
+    public HoldingResponseDTO getHoldingsForAuthenticatedUser (String email) {
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new BadCredentialsException("Autentication failed: User not found"));
+        
+        // Convert the user ID from Long to Integer for compatibility with the rest of the code.
+        // Math is only used temporarily to avoid potential overflow issues when converting from Long to Integer.
+        Integer userId = Math.toIntExact(user.getId());
+
+        return new HoldingResponseDTO(
+            user.getName(),
+            getEnrichedHoldingsForUser(userId).stream().map(this::toHoldingDTO).toList(),
+            getAccountsForUser(user.getId())
+        );
     }
+
+    public void addHoldingForAuthenticatedUser(String email, CreateHoldingRequestDTO requestDTO) {
+            
+            User user = userRepository.findByEmail(email).orElseThrow(() -> new BadCredentialsException("Autentication failed: User not found"));
+            
+    
+            // Check if the account belongs to the authenticated user
+            boolean ownsAccount = accountRepository.existsByIdAndUser_Id(requestDTO.accountId().longValue(), user.getId());
+            if (!ownsAccount) {
+                throw new AccessDeniedException("You do not have permission to add a holding to this account.");
+            }
+    
+            addHolding(
+                requestDTO.accountId(),
+                requestDTO.ticker(),
+                requestDTO.instrumentName(),
+                requestDTO.quantity(),
+                requestDTO.avgBuyPrice(),
+                requestDTO.currency()
+            );
+    }
+
+    public void deleteHoldingForAuthenticatedUser(String email, Integer holdingId) {
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new BadCredentialsException("Autentication failed: User not found"));
+
+        // A single ownership-scoped delete prevents deleting another user's holding.
+        int deletedRows = holdingsRepository.deleteOwnedHolding(holdingId.longValue(), user.getId());
+        if (deletedRows == 0) {
+            throw new AccessDeniedException("You do not have permission to delete this holding.");
+        }
+    }
+
+    private HoldingItemDTO toHoldingDTO(Map<String, Object> row) {
+        return new HoldingItemDTO(toLong(row.get("id")), (String) row.get("ticker"),
+                (String) row.get("instrument_name"), (BigDecimal) row.get("quantity"),
+                (BigDecimal) row.get("avg_buy_price"), (String) row.get("currency"),
+                (String) row.get("account_type"), (String) row.get("account_name"),
+                ((Number) row.get("currentPrice")).doubleValue(),
+                ((Number) row.get("marketValue")).doubleValue(),
+                ((Number) row.get("pnl")).doubleValue());
+    }
+
+    private Long toLong(Object value) {
+        return value == null ? null : ((Number) value).longValue();
+    }
+
+
+
 }

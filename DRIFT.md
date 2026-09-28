@@ -56,6 +56,43 @@ Databasvolymen i er driftmiljö innehåller datafiler från nuvarande Postgres-v
 
 Ni kan inte själva nollställa databasen i stage/prod. Skicka ett techsupport-ärende: https://chas-challenge.comerit.se/support/
 
+## Hemlighethantering (secrets)
+
+**Princip:** Aldrig hardkodade hemligheter i koden eller docker-compose.yml. Använd miljövariabler istället.
+
+**Kör lokalt med secrets:**
+
+```bash
+cd infra
+docker compose --env-file .env.local up --build
+```
+
+**Stage/Prod:**
+
+- Secrets lagras i GitHub Actions secrets: https://github.com/settings/secrets/actions
+- Behöriga: team lead och driftansvarig
+- Deploy-workflowet injicerar dem vid bygge
+- Se `.github/workflows/` för implementation
+
+**Nuvarande secrets:**
+
+- `DB_PASSWORD` (PostgreSQL)
+- `JWT_SECRET` (säkerhet v1)
+- `FX_API_KEY` (v2-ej implementerad än)
+
+**Att lägga till nya secrets:**
+
+1. Definiera secret där det behövs for ex. i `docker-compose.yml` som `${SECRET_NAME}`
+2. Lägg till i `.env.local`
+3. Lägg till i GitHub Actions secrets (admin)
+
+**Rotation av stage/prod-secrets:**
+Om du byter lösenord i GitHub Actions secrets, behöver du:
+
+1. **Uppdatera GitHub Actions secret:** `DB_PASSWORD=nytt_lösenord`
+2. **Nollställa databasen:** Skicka techsupport-ärende (se ovan). DB-reset krävs för att ny lösenordshash ska gälla.
+3. **Verify:** Efter DB-reset, testa att login fungerar med gamla seed-data.
+
 ## Frontend i v2
 
 Bygg frontenden i samma Dockerfile som backend (eget byggsteg som kopierar in byggresultatet i backend-imagen). En separat frontend-container får ingen egen publik adress.
