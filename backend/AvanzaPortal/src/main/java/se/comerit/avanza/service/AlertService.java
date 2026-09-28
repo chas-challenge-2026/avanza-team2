@@ -33,15 +33,11 @@ import se.comerit.avanza.repository.UserRepository;
 @Service
 public class AlertService {
 
-    // NOTE: This is 0.07 but DashboardController uses 0.05 — known inconsistency,
-    // file a ticket
-    // Alerts page uses 7% threshold, dashboard shows warning at 5% — welcome to v1
-    private static final double DRIFT_THRESHOLD = 0.07;
-
     private final AlertsRepository alertsRepository;
     private final AccountRepository accountRepository;
     private final TargetRepository targetRepository;
     private final UserRepository userRepository;
+    private final DriftTresholdConfig tresholdConfig;
     private final MarketService marketService;
 
     public AlertService(
@@ -49,12 +45,14 @@ public class AlertService {
             AccountRepository accountRepository,
             TargetRepository targetRepository,
             UserRepository userRepository,
+            DriftTresholdConfig tresholdConfig,
             MarketService marketService) {
 
         this.alertsRepository = alertsRepository;
         this.accountRepository = accountRepository;
         this.targetRepository = targetRepository;
         this.userRepository = userRepository;
+        this.tresholdConfig = tresholdConfig;
         this.marketService = marketService;
     }
 
@@ -104,12 +102,10 @@ public class AlertService {
     }
 
     /**
-     * Get the drift threshold as a percentage.
-     *
-     * @return the drift threshold as an integer percentage
+     * @return Current threshold configuration of 5%.
      */
-    public int getDriftThreshold() {
-        return (int) (DRIFT_THRESHOLD * 100);
+    public double getDriftThreshold() {
+        return tresholdConfig.getDriftThreshold();
     }
 
     /**
@@ -201,7 +197,7 @@ public class AlertService {
             double target = targetMap.getOrDefault(accountType, 0.0);
             double drift = Math.abs(actual - target) / 100.0;
 
-            if (drift > DRIFT_THRESHOLD) {
+            if (drift > getDriftThreshold()) {
                 LiveDriftAlertDTO liveAlert = new LiveDriftAlertDTO(
                         "LIVE_DRIFT",
                         String.format(

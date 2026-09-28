@@ -53,6 +53,9 @@ class AlertServiceTest {
         @Mock
         private MarketService marketService;
 
+        @Mock
+        private DriftTresholdConfig tresholdConfig;
+
         private AlertService alertService;
 
         @BeforeEach
@@ -62,14 +65,17 @@ class AlertServiceTest {
                                 accountRepository,
                                 targetRepository,
                                 userRepository,
+                                tresholdConfig,
                                 marketService);
         }
 
         @Test
         void shouldReturnDriftThresholdAsSevenPercent() {
-                int result = alertService.getDriftThreshold();
+                when(tresholdConfig.getDriftThreshold()).thenReturn(0.05);
 
-                assertEquals(7, result);
+                double result = alertService.getDriftThreshold();
+
+                assertEquals(0.05, result);
         }
 
         @Test

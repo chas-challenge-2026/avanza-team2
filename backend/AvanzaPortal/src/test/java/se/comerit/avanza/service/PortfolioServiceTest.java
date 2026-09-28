@@ -63,6 +63,9 @@ class PortfolioServiceTest {
         @Mock
         private UserRepository userRepository;
 
+        @Mock
+        private DriftTresholdConfig tresholdConfig;
+
         @InjectMocks
         private PortfolioService portfolioService;
 
@@ -401,5 +404,4 @@ class PortfolioServiceTest {
                                 result.get(0).totalValueSek(),
                                 0.001);
         }
-
 }
