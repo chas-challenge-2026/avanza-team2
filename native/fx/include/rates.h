@@ -1,18 +1,17 @@
-#ifndef __FX_RATES_H__
-#define __FX_RATES_H__
+#pragma once
 
 /*
-FX rate lookup. These are the C linkage entry points for the JNA bridge; the
-implementation behind them is C++ (see fx_table.hpp / ecb_source.hpp).
+FX rate lookup. These are the C entry points for the JNA bridge, the rest of
+the module is C++.
 
 Rates come from the ECB euro reference rates, which are quoted against EUR, so
 any pair is resolved as a cross rate through EUR:
 
   rate(from -> to) = (units of `to` per EUR) / (units of `from` per EUR)
 
-`_date` is a Unix timestamp. Pass 0 for the latest daily rate; any other
-value resolves to the ECB trading day at or before that date, since ECB
-doesn't publish on weekends or bank holidays.
+`_date` is a Unix timestamp. Pass 0 for the latest daily rate. Any other value
+uses the ECB trading day at or before that date, since ECB doesn't publish on
+weekends or bank holidays.
 */
 
 #ifdef __cplusplus
@@ -38,8 +37,16 @@ double fx_rate(const char* _from, const char* _to, long _date);
  */
 double fx_convert(double _amount, const char* _from, const char* _to, long _date);
 
+/**
+ * @brief The ECB trading day a lookup at _date uses, so callers can tell how
+ * old a rate is.
+ * @param _date Unix timestamp, 0 for the latest daily rate.
+ * @return Midnight UTC of that trading day as a Unix timestamp, or a negative
+ * value on failure.
+ */
+long fx_rate_date(long _date);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
 
-#endif // __FX_RATES_H__

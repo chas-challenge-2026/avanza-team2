@@ -1,7 +1,7 @@
 #pragma once
 
-#include "fx_history.hpp"
-#include "fx_table.hpp"
+#include "history.hpp"
+#include "table.hpp"
 
 #include <optional>
 #include <string_view>
@@ -10,7 +10,6 @@
 ECB euro foreign exchange reference rates (eurofxref).
 
   latest day : https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml
-  last 90d   : https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist-90d.xml
   full hist  : https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist.xml
 
 Every rate sits in an element like
@@ -18,21 +17,18 @@ Every rate sits in an element like
   <Cube currency="USD" rate="1.1032"/>
 
 under a <Cube time="YYYY-MM-DD"> element for the trading day. The daily file
-has exactly one such block; the historical files repeat it, one per trading
-day, all nested inside a wrapping <Cube> element.
+has one such block and the history file has one per trading day.
 */
 
 namespace ecb {
 
 inline constexpr std::string_view daily_url =
   "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml";
-inline constexpr std::string_view hist_90d_url =
-  "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist-90d.xml";
 inline constexpr std::string_view hist_url =
   "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist.xml";
 
 /**
- * @brief Parses a single-day eurofxref XML document, the daily file or one, <Cube time="..."> block from a historical file.
+ * @brief Parses a single-day eurofxref XML document, the daily file or one <Cube time="..."> block from a historical file.
  * @param _xml Document body.
  * @return A table with at least the seeded EUR entry; unparseable entries are skipped.
  */
@@ -45,7 +41,7 @@ FxTable parse_xml(std::string_view _xml);
 std::optional<FxTable> fetch_latest();
 
 /**
- * @brief Parses a eurofxref-hist(-90d).xml document into one FxTable per
+ * @brief Parses a eurofxref-hist.xml document into one FxTable per
  * trading day.
  * @param _xml Document body.
  * @return A history keyed by each trading day's "YYYY-MM-DD" date.
@@ -53,8 +49,8 @@ std::optional<FxTable> fetch_latest();
 FxHistory parse_hist_xml(std::string_view _xml);
 
 /**
-   * @brief Fetches the full ECB rate history back to 1999, over HTTP.
-   * @return The history, or nullopt on a network error or an empty document.
+ * @brief Fetches the full ECB rate history back to 1999, over HTTP.
+ * @return The history, or nullopt on a network error or an empty document.
  */
 std::optional<FxHistory> fetch_history();
 

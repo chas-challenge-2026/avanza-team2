@@ -39,6 +39,18 @@ public:
    */
   std::optional<double> per_eur(std::string_view _currency) const;
 
+  /**
+   * @brief Records the ECB trading day the rates are from.
+   * @param _date Date, "YYYY-MM-DD".
+   */
+  void set_date(std::string_view _date) { date_ = _date; }
+
+  /**
+   * @brief The ECB trading day the rates are from.
+   * @return Date as "YYYY-MM-DD", or empty if the source had none.
+   */
+  const std::string& date() const { return date_; }
+
   const std::unordered_map<std::string, double>& rates() const { return rates_; }
 
   std::size_t size() const { return rates_.size(); }
@@ -46,4 +58,5 @@ public:
 
 private:
   std::unordered_map<std::string, double> rates_;
+  std::string                             date_;
 };

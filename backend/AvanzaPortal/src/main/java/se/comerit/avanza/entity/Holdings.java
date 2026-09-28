@@ -1,13 +1,15 @@
 package se.comerit.avanza.entity;
 
+import java.math.BigDecimal;
+
+import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
-import jakarta.persistence.Table;
-import jakarta.persistence.Id;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
-import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 
 /**
  * JPA Entity representing a holding for an account in the Avanza portfolio
@@ -29,8 +31,8 @@ public class Holdings {
 
     private String ticker;
     private String instrument_name;
-    private Integer quantity;
-    private Double avg_buy_price;
+    private BigDecimal quantity;
+    private BigDecimal avg_buy_price;
     private String currency;
 
     // Relationships
@@ -42,7 +44,7 @@ public class Holdings {
     public Holdings() {
     }
 
-    public Holdings(String ticker, String instrument_name, Integer quantity, Double avg_buy_price, String currency,
+    public Holdings(String ticker, String instrument_name, BigDecimal quantity, BigDecimal avg_buy_price, String currency,
             Account account) {
         this.ticker = ticker;
         this.instrument_name = instrument_name;
@@ -77,19 +79,19 @@ public class Holdings {
         this.instrument_name = instrument_name;
     }
 
-    public Integer getQuantity() {
+    public BigDecimal getQuantity() {
         return quantity;
     }
 
-    public void setQuantity(Integer quantity) {
+    public void setQuantity(BigDecimal quantity) {
         this.quantity = quantity;
     }
 
-    public Double getAvg_buy_price() {
+    public BigDecimal getAvg_buy_price() {
         return avg_buy_price;
     }
 
-    public void setAvg_buy_price(Double avg_buy_price) {
+    public void setAvg_buy_price(BigDecimal avg_buy_price) {
         this.avg_buy_price = avg_buy_price;
     }
 
@@ -109,7 +111,7 @@ public class Holdings {
         this.account = account;
     }
 
-    public double getAvgBuy() {
+    public BigDecimal getAvgBuy() {
         return avg_buy_price;
     }
 }

@@ -22,17 +22,17 @@ function App() {
   const navigate = useNavigate()
   const auth = useAuth()
 
-  const handleLogin = () => {
-    auth.login()
-    navigate('/')
-  }
+  const handleLogin = async (email: string, password: string) => {
+  await auth.login(email, password);
+  navigate('/');
+};
 
   const routes = [
     { path: '/', title: 'Min Portfölj', element: <ProtectedRoute><Overview /></ProtectedRoute> },
     { path: '/innehav', title: 'Mina Innehav', element: <ProtectedRoute><Holdings /></ProtectedRoute> },
     { path: '/notiser', title: 'Notiser', element: <ProtectedRoute><Notifications /></ProtectedRoute> },
     { path: '/analyser', title: 'Analyser', element: <ProtectedRoute><Analyses /></ProtectedRoute> },
-    { path: '/rapporter', title: 'Rapporter', element: <ProtectedRoute><Reports /></ProtectedRoute> },
+    { path: '/documents', title: 'Dokument', element: <ProtectedRoute><Documents /></ProtectedRoute> },
     { path: '/installningar', title: 'Inställningar', element: <ProtectedRoute><Settings /></ProtectedRoute> },
     { path: LOGIN_PATH, title: 'Logga In', element: <Login onLogin={handleLogin} /> },
     { path: '/glomt-losenord', title: 'Glömt lösenord', element: <ForgotPassword /> },

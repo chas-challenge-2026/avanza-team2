@@ -1,6 +1,10 @@
 #ifndef __RATES_HANDLER_H__
 #define __RATES_HANDLER_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <time.h>
 
 typedef enum 
@@ -31,8 +35,20 @@ typedef struct
  * NOTE: all rates are in SEK */
 int rates_handler_get_latest(Rate* _R, RateType _Type);
 
+/* Procures overnight riskfree interest rate in decimal form (i.e 0.036 for 3.6%) 
+ * Fetches rate from riskbanken API, caches and reuses response 
+ * Riksbank API rate limit: 5 Requests/min and 1000 requests/day
+ * Returns: 0 for success, 429 for request rate limit hit, else misc errors
+ * NOTE: all rates are in SEK 
+ * Simpler version without timestamp and only uses SWESTR series */
+int rates_handler_get_latest_swestr(double* _rate);
+
 /* Returns the equivalent SeriesId string per T-Bill type for riksbank API
  * Returns NULL on None or unknown type */
 const char* rates_handler_get_rbapi_seriesid(RateType _Type);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // __RATES_HANDLER_H__

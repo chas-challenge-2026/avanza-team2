@@ -7,25 +7,24 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import se.comerit.avanza.entity.Alerts;
-import org.springframework.stereotype.Service;
-import se.comerit.avanza.repository.AlertsRepository;
-
-import se.comerit.avanza.repository.AccountRepository;
-import se.comerit.avanza.repository.HoldingsRepository;
-import se.comerit.avanza.repository.TargetRepository;
-import se.comerit.avanza.repository.UserRepository;
-
 import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
 
 import se.comerit.avanza.dto.alerts.AlertsResponseDTO;
 import se.comerit.avanza.dto.portfolio.AccountSummaryDTO;
 import se.comerit.avanza.dto.portfolio.AllocationRowDTO;
 import se.comerit.avanza.dto.portfolio.EnrichedHoldingDTO;
 import se.comerit.avanza.entity.Account;
+import se.comerit.avanza.entity.Alerts;
 import se.comerit.avanza.entity.Holdings;
 import se.comerit.avanza.entity.TargetAllocations;
 import se.comerit.avanza.entity.User;
+import se.comerit.avanza.nativebridge.RiskLibrary;
+import se.comerit.avanza.repository.AccountRepository;
+import se.comerit.avanza.repository.AlertsRepository;
+import se.comerit.avanza.repository.HoldingsRepository;
+import se.comerit.avanza.repository.TargetRepository;
+import se.comerit.avanza.repository.UserRepository;
 
 /**
  * PortfolioService is a layer in between the controller and the repository.
@@ -34,22 +33,27 @@ import se.comerit.avanza.entity.User;
 @Service
 public class PortfolioService {
 
-    private AccountRepository accountRepository;
     private HoldingsRepository holdingsRepository;
+    private AccountRepository accountRepository;
     private TargetRepository targetRepository;
     private AlertsRepository alertRepository;
     private UserRepository userRepository;
+    private DriftTresholdConfig tresholdConfig;
     private MarketService marketService;
+    private RiskLibrary riskLibrary;
 
     public PortfolioService(AccountRepository accountRepository, HoldingsRepository holdingsRepository,
             TargetRepository targetRepository, AlertsRepository alertRepository, UserRepository userRepository,
-            MarketService marketService) {
+            DriftTresholdConfig tresholdConfig,
+            MarketService marketService, RiskLibrary riskLibrary) {
         this.accountRepository = accountRepository;
         this.holdingsRepository = holdingsRepository;
         this.targetRepository = targetRepository;
         this.alertRepository = alertRepository;
         this.userRepository = userRepository;
+        this.tresholdConfig = tresholdConfig;
         this.marketService = marketService;
+        this.riskLibrary = riskLibrary;
     }
 
     // Find user by email (used for authentication)
@@ -143,6 +147,45 @@ public class PortfolioService {
     }
 
     /**
+     * Calculates the Sharpe ratio for a given set of returns.
+     *
+     * @param returns      an array of historical returns.
+     * @param riskFreeRate the risk-free rate to use in the calculation.
+     * @param yearFreq     the frequency of the returns (e.g., 252 for daily
+     *                     returns).
+     * @return the calculated Sharpe ratio.
+     */
+    public double calculateSharpeRatio(double[] returns, double riskFreeRate, long yearFreq) {
+        if (returns == null || returns.length < 2 || yearFreq <= 0) {
+            return 0.0;
+        }
+        return riskLibrary.risk_calc_sharpe_ratio_double(returns, returns.length, riskFreeRate, yearFreq);
+    }
+
+    /**
+     * Converts a sequence of historical portfolio values into returns and then
+     * calculates the Sharpe ratio at portfolio level.
+     *
+     * @param portfolioValues historical portfolio values in SEK.
+     * @param riskFreeRate    annual risk-free rate.
+     * @return the calculated Sharpe ratio.
+     */
+    public double calculatePortfolioSharpeRatio(List<Double> portfolioValues, double riskFreeRate) {
+        if (portfolioValues == null || portfolioValues.size() < 2) {
+            return 0.0;
+        }
+
+        double[] returns = new double[portfolioValues.size() - 1];
+        for (int i = 1; i < portfolioValues.size(); i++) {
+            double previous = portfolioValues.get(i - 1);
+            double current = portfolioValues.get(i);
+            returns[i - 1] = previous == 0.0 ? 0.0 : (current - previous) / previous;
+        }
+
+        return calculateSharpeRatio(returns, riskFreeRate, 252L);
+    }
+
+    /**
      * Enriches a single holding with calculated market values and metrics.
      * 
      * @param holdings      the holding to be enriched.
@@ -153,8 +196,8 @@ public class PortfolioService {
     public EnrichedHoldingDTO enrichSingleHolding(Holdings holdings, Map<String, Double> currentPrices) {
         String ticker = holdings.getTicker();
         String currency = holdings.getCurrency();
-        double quantity = holdings.getQuantity();
-        double avgBuy = holdings.getAvgBuy();
+        double quantity = holdings.getQuantity().doubleValue();
+        double avgBuy = holdings.getAvgBuy().doubleValue();
 
         // Get current price (or default if unknown ticker)
         double price = currentPrices.getOrDefault(ticker, currentPrices.get("DEFAULT"));
@@ -173,10 +216,15 @@ public class PortfolioService {
         double unrealizedReturn = valueSek - costBasis;
         double unrealizedReturnPct = costBasis > 0 ? (unrealizedReturn / costBasis) * 100 : 0;
 
-        // Sharpe ratio — completely wrong here, just to show the pattern
-        // risk-free rate hardcoded to 0.02 (2%), volatility hardcoded to 0.15 (15%)
-        // This is per-holding which makes no sense, but it's v1
-        double sharpe = (unrealizedReturnPct / 100 - 0.02) / 0.15;
+        /**
+         * Sharpe ratio — completely wrong here, just to show the pattern
+         * risk-free rate hardcoded to 0.02 (2%), volatility hardcoded to 0.15 (15%)
+         * This is per-holding which makes no sense, but it's v1
+         * 
+         * Still just a placeholder and not meaningful for real analysis.
+         * TODO: replace with realtime returns
+         */
+        double sharpe = 0.0;
 
         // Build output DTO with all metrics
         return new EnrichedHoldingDTO(
@@ -230,10 +278,15 @@ public class PortfolioService {
     }
 
     /**
+     * @return Current threshold configuration 5%.
+     */
+    public double getDriftThreshold() {
+        return tresholdConfig.getDriftThreshold();
+    }
+
+    /**
      * Detects if the allocation for each account type has drifted beyond the
-     * defined threshold.
-     * 
-     * 
+     * defined threshold (5%).
      * 
      * @param accountTypeTotals   Current totals for each account type.
      * @param targets             Target allocations for each account type.
@@ -241,9 +294,6 @@ public class PortfolioService {
      * @return A list of AllocationRowDTO containing allocation and drift
      *         information for each account type.
      */
-    // TODO: Consolidate to single threshold in v2 — decide 5% or 7% with product
-    private static final double DRIFT_THRESHOLD = 0.05; // 5% drift threshold
-
     public List<AllocationRowDTO> detectDrift(Map<String, Double> accountTypeTotals,
             List<TargetAllocations> targets,
             double totalPortfolioValue) {
@@ -269,7 +319,7 @@ public class PortfolioService {
                     Math.round(actual * 100.0) / 100.0,
                     target,
                     Math.round(drift * 10000.0) / 100.0,
-                    drift > DRIFT_THRESHOLD));
+                    drift > getDriftThreshold()));
         }
 
         return allocationRows;

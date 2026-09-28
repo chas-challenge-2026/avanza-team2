@@ -10,6 +10,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -52,6 +53,9 @@ class AlertServiceTest {
         @Mock
         private MarketService marketService;
 
+        @Mock
+        private DriftTresholdConfig tresholdConfig;
+
         private AlertService alertService;
 
         @BeforeEach
@@ -61,14 +65,17 @@ class AlertServiceTest {
                                 accountRepository,
                                 targetRepository,
                                 userRepository,
+                                tresholdConfig,
                                 marketService);
         }
 
         @Test
         void shouldReturnDriftThresholdAsSevenPercent() {
-                int result = alertService.getDriftThreshold();
+                when(tresholdConfig.getDriftThreshold()).thenReturn(0.05);
 
-                assertEquals(7, result);
+                double result = alertService.getDriftThreshold();
+
+                assertEquals(0.05, result);
         }
 
         @Test
@@ -164,8 +171,8 @@ class AlertServiceTest {
                 Holdings holding = new Holdings(
                                 "ERIC-B",
                                 "Ericsson",
-                                10,
-                                50.0,
+                                new BigDecimal("10"),
+                                new BigDecimal("50.00"),
                                 "SEK",
                                 null);
 
