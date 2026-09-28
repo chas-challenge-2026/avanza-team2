@@ -31,6 +31,10 @@ jobs:
       working-directory: ./native
       run: make risk/test-run AVX_LEVEL=avx2
 
+    - name: Run backtest test
+      working-directory: ./native
+      run: make backtest/run AVX_LEVEL=avx2
+
     - name: Run fx offline parse test
       working-directory: ./native
       run: make fx/run
