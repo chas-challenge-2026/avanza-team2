@@ -4,6 +4,12 @@
 
 // TODO: proper logging
 
+// Returns computed from near-identical NAV values (e.g. a flat or perfectly
+// linear series) can leave a few ULPs of float noise in the variance, so
+// volatility comes out as something like 1e-16 instead of an exact 0.0.
+// Treat anything under this as "no volatility" rather than dividing by it.
+#define RISK_VOLATILITY_ZERO_EPS 1e-12
+
 double risk_calc_sharpe_ratio_double(const double* _returns, size_t _n, 
   double _rfrate, size_t _year_freq)
 {
@@ -55,13 +61,13 @@ double risk_calc_sharpe_ratio_double(const double* _returns, size_t _n,
     
     // Get volatility
     volatility = risk_calc_volatility_double_simd(_returns, _n);
-    if (volatility == 0.0) return 0.0;
+    if (volatility < RISK_VOLATILITY_ZERO_EPS) return 0.0;
   } 
   else 
   {
     // Get volatility
     volatility = risk_calc_volatility_double(_returns, _n);
-    if (volatility == 0.0) return 0.0;
+    if (volatility < RISK_VOLATILITY_ZERO_EPS) return 0.0;
 
     // Scalar instead
     for (i = 0; i < _n; i++)
@@ -73,7 +79,7 @@ double risk_calc_sharpe_ratio_double(const double* _returns, size_t _n,
   // Get volatility
   volatility = risk_calc_volatility_double(_returns, _n);
 
-  if (volatility == 0.0) return 0.0;
+  if (volatility < RISK_VOLATILITY_ZERO_EPS) return 0.0;
 
   // Calculate mean return
   for (i = 0; i < _n; i++)

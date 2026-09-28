@@ -28,9 +28,21 @@ LIB_SRC_DIRS := $(foreach lib,$(LIBS),$(ROOT_DIR)/$(lib)/src)
 LIB_SRC := $(shell find -L $(LIB_SRC_DIRS) -type f -name '*.c' 2>/dev/null)
 LIB_INCLUDES := $(foreach lib,$(LIBS),-I$(ROOT_DIR)/$(lib)/include)
 
+# risk/ headers only (volatility.h, data_utils.h) - the implementations come
+# from the prebuilt risk/build/librisk.a below, not from recompiling risk's
+# sources here. simd_config.h (pulled in by volatility.h) lives under
+# common/config, hence that include path too.
+RISK_INCLUDES := -I$(ROOT_DIR)/risk/include -I$(ROOT_DIR)/common/utils/include \
+	-I$(ROOT_DIR)/common/config/include
+
+# Run `make` from native/ (builds risk before backtest, per MODULES order in
+# native/Makefile) so this archive exists - `make -C backtest` alone assumes
+# it was already built.
+RISK_LIB := $(ROOT_DIR)/risk/build/librisk.a
+
 # Compilation flags
 CFLAGS := -std=c11 -MMD -MP -Wall -Wextra -Wfatal-errors -g -lm \
-	-Iinclude $(LIB_INCLUDES)
+	-Iinclude $(LIB_INCLUDES) $(RISK_INCLUDES)
 
 ASAN_FLAGS := -O1 -g3 -fno-omit-frame-pointer -fsanitize=address,undefined
 
@@ -61,10 +73,10 @@ DEP := $(DEP_LOCAL) $(DEP_LIB)
 all: $(BIN)
 	@echo "Build complete."
 
-$(BIN): $(OBJ)
+$(BIN): $(OBJ) $(RISK_LIB)
 	@echo "Linking..."
 	@mkdir -p $(dir $@)
-	@$(CC) $(OBJ) -o $@ $(LDFLAGS)
+	@$(CC) $(OBJ) $(RISK_LIB) -o $@ $(LDFLAGS)
 
 asan: clean
 	@echo "Building ASan binary..."
