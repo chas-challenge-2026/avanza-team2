@@ -22,6 +22,7 @@ import se.comerit.avanza.entity.TargetAllocations;
 import se.comerit.avanza.entity.User;
 import se.comerit.avanza.service.PortfolioService;
 
+import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -97,7 +98,8 @@ public class PortfolioControllerTest {
     private PortfolioResponseDTO stubHappyPath(User user) {
         Account account = new Account("ISK", "My ISK", "SEK", user, Collections.emptyList());
         account.setId(1L);
-        Holdings holding = new Holdings("AAPL", "Apple Inc", 10, 150.0, "USD", account);
+        Holdings holding = new Holdings("AAPL", "Apple Inc", new BigDecimal("10"),
+                new BigDecimal("150.00"), "USD", account);
         holding.setId(1L);
         TargetAllocations target = new TargetAllocations("ISK", 100.0, user);
 

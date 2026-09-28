@@ -4,6 +4,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.mockito.Mock;
 import org.springframework.security.core.context.SecurityContextHolder;
 import jakarta.servlet.FilterChain;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import static org.mockito.Mockito.verify;
 
@@ -39,12 +40,12 @@ public class JwtFilterTest {
     }
 
     @Test
-    @DisplayName("Valid JWT token - Sets authentication in context")
+    @DisplayName("Valid JWT cookie - Sets authentication in context")
     void doFilterInternal_ValidToken_SetsAuthentication() throws Exception {
         String token = "valid_jwt_token";
         String username = "john@example.com";
 
-        when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
+        when(request.getCookies()).thenReturn(new Cookie[] { new Cookie("jwt", token) });
         when(jwtUtil.extractUsername(token)).thenReturn(username);
         when(jwtUtil.validateToken(token, username)).thenReturn(true);
 
@@ -59,12 +60,12 @@ public class JwtFilterTest {
     }
 
     @Test
-    @DisplayName("Invalid JWT token - Does not set authentication")
+    @DisplayName("Invalid JWT cookie - Does not set authentication")
     void doFilterInternal_InvalidToken_DoesNotSetAuthentication() throws Exception {
         String token = "invalid_token";
         String username = "john@example.com";
 
-        when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
+        when(request.getCookies()).thenReturn(new Cookie[] { new Cookie("jwt", token) });
         when(jwtUtil.extractUsername(token)).thenReturn(username);
         when(jwtUtil.validateToken(token, username)).thenReturn(false);
 
@@ -76,10 +77,8 @@ public class JwtFilterTest {
     }
 
     @Test
-    @DisplayName("Missing Authorization header - Continues without authentication")
-    void doFilterInternal_NoAuthorizationHeader() throws Exception {
-        when(request.getHeader("Authorization")).thenReturn(null);
-
+    @DisplayName("Missing JWT cookie - Continues without authentication")
+    void doFilterInternal_NoJwtCookie() throws Exception {
         jwtFilter.doFilterInternal(request, response, chain);
 
         assertNull(SecurityContextHolder.getContext().getAuthentication());
@@ -87,9 +86,9 @@ public class JwtFilterTest {
     }
 
     @Test
-    @DisplayName("Malformed Authorization header - Continues without authentication")
-    void doFilterInternal_MalformedHeader() throws Exception {
-        when(request.getHeader("Authorization")).thenReturn("Basic xyz123");
+    @DisplayName("Malformed JWT cookie - Continues without authentication")
+    void doFilterInternal_MalformedCookie() throws Exception {
+        when(request.getCookies()).thenReturn(new Cookie[] { new Cookie("jwt", " ") });
 
         jwtFilter.doFilterInternal(request, response, chain);
 
@@ -102,7 +101,7 @@ public class JwtFilterTest {
     void doFilterInternal_ExtractionThrowsException() throws Exception {
         String token = "broken_token";
 
-        when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
+        when(request.getCookies()).thenReturn(new Cookie[] { new Cookie("jwt", token) });
         when(jwtUtil.extractUsername(token)).thenThrow(new RuntimeException("Invalid token format"));
 
         jwtFilter.doFilterInternal(request, response, chain);

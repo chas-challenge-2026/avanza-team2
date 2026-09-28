@@ -1,4 +1,4 @@
-#include "fx_table.hpp"
+#include "table.hpp"
 
 FxTable::FxTable()
 {
@@ -15,7 +15,6 @@ void FxTable::set(std::string_view _currency, double _per_eur)
 
 std::optional<double> FxTable::per_eur(std::string_view _currency) const
 {
-  // No heterogeneous lookup before C++20, so a temporary string it is.
   auto it = rates_.find(std::string(_currency));
   if (it == rates_.end())
     return std::nullopt;

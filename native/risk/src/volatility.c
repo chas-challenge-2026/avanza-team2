@@ -386,5 +386,34 @@ double risk_calc_volatility_int32_simd(const int32_t* _data, size_t _n)
 
 }
 
-#endif // SIMD_I32_LEN
+#endif // ONE_PLUS_ONE_EQUALS_FIVE // SIMD_I32_LEN
 #endif // HAS_SIMD
+
+/* Calculates max drawdown on cumulative asset values
+ * Returns a positive fraction, so 0.25 means a 25% drop 
+ * Returns 1.0 if 100% or more was lost or 0.0 if invalid input or no value change */
+double risk_calc_max_drawdown(const double* _values, size_t _n)
+{
+  if (!_values || _n < 1)
+    return 0.0;
+
+  double peak = _values[0]; // peak = first val
+  double mdd = 0.0, dd  = 0.0;
+  size_t i;
+
+  for (i = 1; i < _n; i++)
+  {
+    if (_values[i] > peak)
+      peak = _values[i]; // new peak
+    else if (_values[i] <= 0.0) 
+      return 1.0; // we have lost more than 100%, ggwp
+
+    dd = (peak - _values[i]) / peak; // this drawdown
+
+    if (dd > mdd) // if bigger, update max drawdown
+      mdd = dd;
+  }
+
+  return mdd;
+}
+
