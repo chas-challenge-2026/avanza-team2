@@ -6,6 +6,9 @@ import java.util.Optional;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
+
+import se.comerit.avanza.dto.market.TwelveDataPriceResponseDTO;
 
 
 @Component 
@@ -23,9 +26,37 @@ public class TwelveDataStockPriceClient implements StockPriceClient {
 
     @Override
     public Optional<BigDecimal> fetchPrice(String symbol, String exchange) {
-        // Implement the logic to fetch the price from TwelveData API
-        // For now, return an empty Optional as a placeholder
+
+        if (symbol == null || symbol.isEmpty() || exchange == null || exchange.isEmpty()) {
+            return Optional.empty();
+        }
+
+        try {
+            TwelveDataPriceResponseDTO response = restClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/price")
+                        .queryParam("symbol", symbol)
+                        .queryParam("exchange", exchange)
+                        .queryParam("apikey", apiKey)
+                        .build())
+                .retrieve()
+                .body(TwelveDataPriceResponseDTO.class);
+
+                if(response == null || response.price() == null || response.price().isBlank()) {
+                    return Optional.empty();
+        }
+
+        BigDecimal price = new BigDecimal(response.price());
+
+        if(price.signum() <= 0) {
+            return Optional.empty();
+        }
+
+        return Optional.of(price);
+    } catch (RestClientException | NumberFormatException exception) {
         return Optional.empty();
+    }
+        
     }
     
 }
