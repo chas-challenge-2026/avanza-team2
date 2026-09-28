@@ -22,7 +22,7 @@ public class TwelveDataStockPriceClient implements StockPriceClient {
     }
 
     @Override
-    public Optional<BigDecimal> fetchPrince(String symbol, String exchange) {
+    public Optional<BigDecimal> fetchPrice(String symbol, String exchange) {
         // Implement the logic to fetch the price from TwelveData API
         // For now, return an empty Optional as a placeholder
         return Optional.empty();

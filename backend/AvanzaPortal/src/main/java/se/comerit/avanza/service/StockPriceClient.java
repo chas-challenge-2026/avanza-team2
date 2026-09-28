@@ -5,6 +5,6 @@ import java.util.Optional;
 
 public interface StockPriceClient {
 
-    Optional<BigDecimal> fetchPrince(String symbol, String excange);
+    Optional<BigDecimal> fetchPrice(String symbol, String excange);
     
 }
