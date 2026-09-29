@@ -10,6 +10,9 @@ import org.springframework.web.client.RestClientException;
 
 import se.comerit.avanza.dto.market.MarketstackPriceResponseDTO;
 
+/**
+ * Retrieves end-of-day stock prices from the Marketstack API.
+ */
 @Component
 public class MarketstackStockPriceClient implements StockPriceClient {
 
@@ -23,6 +26,13 @@ public class MarketstackStockPriceClient implements StockPriceClient {
         this.apiKey = apiKey;
     }
 
+    /**
+     * Fetches and validates the latest end-of-day closing price.
+     *
+     * @param symbol   the Marketstack ticker symbol
+     * @param exchange the instrument exchange, used to validate the request input
+     * @return a positive closing price, or empty when unavailable
+     */
     @Override
     public Optional<BigDecimal> fetchPrice(String symbol, String exchange) {
 

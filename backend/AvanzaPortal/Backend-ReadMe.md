@@ -106,7 +106,7 @@ miljövariabel och ska aldrig sparas i Git:
 MARKETSTACK_API_KEY=your_marketstack_api_key
 ```
 
-`StockPriceService` översätter applikationens tickers till Marketstacks
+`MarketService` översätter applikationens tickers till Marketstacks
 symbolformat och cachar hämtade priser för att minska antalet externa anrop.
 Svenska aktier använder Nasdaq Stockholm (`XSTO`), exempelvis `ERIC-B.ST` och
 `VOLV-B.ST`. Om en ticker saknas eller leverantören inte returnerar ett giltigt
