@@ -14,7 +14,7 @@ name: avanza
 
 services:
   db:
-    image: postgres:12
+    image: postgres:15
     environment:
       POSTGRES_DB: avanza
       POSTGRES_USER: ${DB_USERNAME}
