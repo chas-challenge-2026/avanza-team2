@@ -39,6 +39,7 @@ services:
       - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
+      - MARKETSTACK_API_KEY=${MARKETSTACK_API_KEY}
     depends_on:
       db:
         condition: service_healthy

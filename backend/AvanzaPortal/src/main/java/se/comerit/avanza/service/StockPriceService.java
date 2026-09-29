@@ -11,11 +11,11 @@ import org.springframework.stereotype.Service;
 public class StockPriceService {
 
     private static final Map<String, MarketSymbol> MARKET_SYMBOLS = Map.of(
-        "ERIC-B", new MarketSymbol("ERIC.B", "OMX"),
-        "VOLV-B", new MarketSymbol("VOLV.B", "OMX"),
-        "AAPL", new MarketSymbol("AAPL", "NASDAQ"),
-        "SWED-A", new MarketSymbol("SWED.A", "OMX"),
-        "SAND", new MarketSymbol("SAND", "OMX")
+        "ERIC-B", new MarketSymbol("ERIC-B.ST", "XSTO"),
+        "VOLV-B", new MarketSymbol("VOLV-B.ST", "XSTO"),
+        "AAPL", new MarketSymbol("AAPL", "XNAS"),
+        "SWED-A", new MarketSymbol("SWED-A.ST", "XSTO"),
+        "SAND", new MarketSymbol("SAND.ST", "XSTO")
     );
 
     private final StockPriceClient stockPriceClient;
@@ -50,18 +50,8 @@ public class StockPriceService {
         fetchedPrice.ifPresent(price -> priceCache.put(normalizedTicker, price));
 
         return fetchedPrice;
-        
-
-
-        
     }
 
-    private record MarketSymbol(String symbol, String exchange) {
+private record MarketSymbol(String symbol, String exchange) {
     }
-
-
-
-
-    
 }
- 
