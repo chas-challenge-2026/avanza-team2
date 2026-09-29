@@ -27,7 +27,8 @@ public class TwelveDataStockPriceClient implements StockPriceClient {
     @Override
     public Optional<BigDecimal> fetchPrice(String symbol, String exchange) {
 
-        if (symbol == null || symbol.isEmpty() || exchange == null || exchange.isEmpty()) {
+        if (symbol == null || symbol.isBlank() || exchange == null || exchange.isBlank()
+        || apiKey == null || apiKey.isBlank()) {
             return Optional.empty();
         }
 
