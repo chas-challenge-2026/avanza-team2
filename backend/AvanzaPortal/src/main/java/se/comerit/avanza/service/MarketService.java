@@ -9,6 +9,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.stereotype.Service;
 
+import se.comerit.avanza.client.StockPriceClient;
 import se.comerit.avanza.dto.market.FxRateResponseDTO;
 import se.comerit.avanza.nativebridge.FxLibrary;
 

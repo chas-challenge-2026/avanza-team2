@@ -1,4 +1,4 @@
-package se.comerit.avanza.service;
+package se.comerit.avanza.client;
 
 import java.math.BigDecimal;
 import java.util.Optional;

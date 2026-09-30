@@ -5,6 +5,7 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import se.comerit.avanza.nativebridge.FxLibrary;
+import se.comerit.avanza.client.StockPriceClient;
 import se.comerit.avanza.dto.market.FxRateResponseDTO;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
