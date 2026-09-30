@@ -7,6 +7,7 @@ import { DonutChart } from '../../Components/DonutChart/DonutChart.tsx'
 import { RecentActivity } from '../../Components/RecentActivity/RecentActivity.tsx'
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
+const POLL_INTERVAL_MS = 30_000
 
 interface PortfolioResponse {
   accountSummary: {
@@ -72,9 +73,13 @@ export const Overview = () => {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const controller = new AbortController()
+    let timeoutId: number | undefined
+    let activeController: AbortController | undefined
 
     const loadPortfolio = async () => {
+      const controller = new AbortController()
+      activeController = controller
+
       try {
         const response = await fetch(`${API_URL}/api/portfolio`, {
           credentials: 'include',
@@ -87,6 +92,7 @@ export const Overview = () => {
 
         const data = (await response.json()) as PortfolioResponse
         setPortfolio(data)
+        setError(null)
       } catch {
         if (!controller.signal.aborted) {
           setError('Kunde inte hämta portföljen. Kontrollera anslutningen och försök igen.')
@@ -94,12 +100,19 @@ export const Overview = () => {
       } finally {
         if (!controller.signal.aborted) {
           setIsLoading(false)
+          timeoutId = window.setTimeout(() => void loadPortfolio(), POLL_INTERVAL_MS)
         }
       }
     }
 
     void loadPortfolio()
-    return () => controller.abort()
+
+    return () => {
+      activeController?.abort()
+      if (timeoutId !== undefined) {
+        window.clearTimeout(timeoutId)
+      }
+    }
   }, [])
 
   const formatSek = (value: number) => `${numberFormatter.format(value)} SEK`
@@ -113,7 +126,7 @@ export const Overview = () => {
     )
   }
 
-  if (error || !portfolio) {
+  if (!portfolio) {
     return (
       <div className="p-6" role="alert">
         <Title>Översikt</Title>
@@ -161,6 +174,12 @@ export const Overview = () => {
       <Title>Översikt</Title>
 
       <div className="mx-auto mt-6 flex max-w-4xl flex-col gap-4">
+        {error && (
+          <p className="text-sm text-red-700" role="status">
+            {error} Visar senast hämtade data.
+          </p>
+        )}
+
         <StatCard
           tone="accent"
           title="Totalt värde"
