@@ -193,11 +193,48 @@ class AlertServiceTest {
                 when(targetRepository.findByUserId(userId))
                                 .thenReturn(List.of(iskTarget, kfTarget));
 
+                when(marketService.getPrice("ERIC-B"))
+                                .thenReturn(Optional.of(new BigDecimal("74.20")));
+
                 // Act
                 List<LiveDriftAlertDTO> result = alertService.generateLiveDriftAlerts(userId);
 
                 // Assert
                 assertFalse(result.isEmpty());
                 assertEquals(2, result.size());
+        }
+
+        @Test
+        void shouldSkipHoldingWhenMarketPriceIsUnavailable() {
+                Long userId = 1L;
+
+                Holdings holding = new Holdings(
+                        "UNKNOWN",
+                        "Unknown stock",
+                        new BigDecimal("10"),
+                        new BigDecimal("50.00"),
+                        "SEK",
+                        null);
+
+                Account account = new Account(
+                        "ISK",
+                        "Mitt ISK",
+                        "SEK",
+                        null,
+                        List.of(holding));
+
+                when(accountRepository.findByUserId(userId))
+                        .thenReturn(List.of(account));
+
+                when(targetRepository.findByUserId(userId))
+                        .thenReturn(List.of());
+
+                when(marketService.getPrice("UNKNOWN"))
+                        .thenReturn(Optional.empty());
+
+                List<LiveDriftAlertDTO> result =
+                        alertService.generateLiveDriftAlerts(userId);
+
+                assertTrue(result.isEmpty());
         }
 }
