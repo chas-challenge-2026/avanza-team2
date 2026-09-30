@@ -64,7 +64,7 @@ public class PortfolioController {
                 List<AlertsResponseDTO> recentAlerts = portfolioService.getRecentAlertsForUser(userId);
 
                 // Business logic:
-                Map<String, Double> prices = portfolioService.getCurrentPrices();
+                Map<String, Double> prices = portfolioService.getCurrentPrices(holdings);
                 Map<String, Double> accountTypeTotals = portfolioService.initializeAccountTypeTotals();
                 Map<Long, String> accountTypeMap = portfolioService.buildAccountTypeMap(accounts);
 
