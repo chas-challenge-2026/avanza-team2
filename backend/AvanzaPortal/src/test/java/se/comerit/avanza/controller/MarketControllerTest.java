@@ -1,5 +1,8 @@
 package se.comerit.avanza.controller;
 
+import java.math.BigDecimal;
+import java.util.Optional;
+
 import org.junit.jupiter.api.BeforeEach;
 import se.comerit.avanza.dto.market.FxRateResponseDTO;
 import se.comerit.avanza.service.MarketService;
@@ -48,5 +51,28 @@ class MarketControllerTest {
 
         mockMvc.perform(get("/api/market/fx/xx/usd"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void getPriceReturnsOkForSupportedTicker() throws Exception {
+        when(marketService.getPrice("ERIC-B"))
+                .thenReturn(Optional.of(new BigDecimal("94.96")));
+
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new MarketController(marketService)).build();
+
+        mockMvc.perform(get("/api/market/price/ERIC-B"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").value(94.96));
+    }
+
+    @Test
+    void getPriceReturnsNotFoundWhenPriceIsUnavailable() throws Exception {
+        when(marketService.getPrice("UNKNOWN"))
+                .thenReturn(Optional.empty());
+
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new MarketController(marketService)).build();
+
+        mockMvc.perform(get("/api/market/price/UNKNOWN"))
+                .andExpect(status().isNotFound());
     }
 }
