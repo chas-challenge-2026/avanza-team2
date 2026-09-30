@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
@@ -393,6 +394,58 @@ class PortfolioServiceTest {
 
                 // Assert
                 assertEquals(1.75, result, 0.001);
+        }
+
+        @Test
+        void shouldReturnZeroWhenSharpeRatioInputsAreInvalid() {
+                assertEquals(0.0, portfolioService.calculateSharpeRatio(null, 0.02, 252L), 0.001);
+                assertEquals(0.0, portfolioService.calculateSharpeRatio(new double[] { 0.1 }, 0.02, 252L), 0.001);
+                assertEquals(0.0, portfolioService.calculateSharpeRatio(new double[] { 0.1, 0.2 }, 0.02, 0L),
+                                0.001);
+
+                verifyNoInteractions(riskLibrary);
+        }
+
+        @Test
+        void shouldCalcualteShareRatioAndReturnZero() {
+                // Act
+                double result = portfolioService.calculatePortfolioSharpeRatio(
+                                List.of(),
+                                0.02);
+
+                // Assert
+                assertEquals(0.0, result, 0.001);
+                verifyNoInteractions(riskLibrary);
+        }
+
+        @Test
+        void shouldSkipAccountTypeTotalWhenHoldingHasNoMappedAccountType() {
+                // Arrange
+                Account account = new Account();
+                account.setId(1L);
+                Holdings holding = new Holdings(
+                                "ERIC-B",
+                                "Ericsson",
+                                new BigDecimal("10"),
+                                new BigDecimal("50.00"),
+                                "SEK",
+                                account);
+
+                Map<String, Double> accountTypeTotals = portfolioService.initializeAccountTypeTotals();
+
+                // Act
+                double result = portfolioService.calculatePortfolioTotals(
+                                List.of(holding),
+                                Map.of("ERIC-B", 74.20, "DEFAULT", 100.0),
+                                Map.of(),
+                                accountTypeTotals);
+
+                // Assert
+                assertEquals(742.0, result, 0.001);
+                assertEquals(0.0, accountTypeTotals.get("ISK"), 0.001);
+                assertEquals(0.0, accountTypeTotals.get("KF"), 0.001);
+                assertEquals(0.0, accountTypeTotals.get("Depa"), 0.001);
+                assertEquals(0.0, accountTypeTotals.get("Pension"), 0.001);
         }
 
         @Test
