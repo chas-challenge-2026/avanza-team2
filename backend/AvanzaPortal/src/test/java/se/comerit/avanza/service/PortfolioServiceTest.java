@@ -300,6 +300,7 @@ class PortfolioServiceTest {
                 Map<Long, String> accountTypeMap = Map.of(10L, "ISK");
 
                 Map<String, Double> accountTypeTotals = portfolioService.initializeAccountTypeTotals();
+                Map<Long, Double> accountTotals = new HashMap<>();
 
                 Map<String, Double> prices = portfolioService.getCurrentPrices(List.of(holding));
 
@@ -308,7 +309,8 @@ class PortfolioServiceTest {
                                 List.of(holding),
                                 prices,
                                 accountTypeMap,
-                                accountTypeTotals);
+                                accountTypeTotals,
+                                accountTotals);
 
                 // Assert
                 assertEquals(742.0, result, 0.001);
@@ -326,7 +328,8 @@ class PortfolioServiceTest {
                                 List.of(),
                                 portfolioService.getCurrentPrices(List.of()),
                                 Map.of(),
-                                accountTypeTotals);
+                                accountTypeTotals,
+                                new HashMap<>());
 
                 // Assert
                 assertEquals(0.0, result, 0.001);
@@ -432,13 +435,15 @@ class PortfolioServiceTest {
                                 account);
 
                 Map<String, Double> accountTypeTotals = portfolioService.initializeAccountTypeTotals();
+                Map<Long, Double> accountTotals = new HashMap<>();
 
                 // Act
                 double result = portfolioService.calculatePortfolioTotals(
                                 List.of(holding),
                                 Map.of("ERIC-B", 74.20, "DEFAULT", 100.0),
                                 Map.of(),
-                                accountTypeTotals);
+                                accountTypeTotals,
+                                accountTotals);
 
                 // Assert
                 assertEquals(742.0, result, 0.001);
@@ -446,6 +451,51 @@ class PortfolioServiceTest {
                 assertEquals(0.0, accountTypeTotals.get("KF"), 0.001);
                 assertEquals(0.0, accountTypeTotals.get("Depa"), 0.001);
                 assertEquals(0.0, accountTypeTotals.get("Pension"), 0.001);
+                assertEquals(742.0, accountTotals.get(1L), 0.001);
+        }
+
+        @Test
+        void shouldCalculateSeparateValuesForAccountsOfSameTypeAndZeroForEmptyAccount() {
+                Account firstAccount = new Account();
+                firstAccount.setId(1L);
+                firstAccount.setAccount_type("ISK");
+                firstAccount.setAccount_name("First ISK");
+
+                Account secondAccount = new Account();
+                secondAccount.setId(2L);
+                secondAccount.setAccount_type("ISK");
+                secondAccount.setAccount_name("Second ISK");
+
+                Account emptyAccount = new Account();
+                emptyAccount.setId(3L);
+                emptyAccount.setAccount_type("ISK");
+                emptyAccount.setAccount_name("Empty ISK");
+
+                Holdings firstHolding = new Holdings(
+                                "ERIC-B", "Ericsson", new BigDecimal("10"), new BigDecimal("50.00"), "SEK",
+                                firstAccount);
+                Holdings secondHolding = new Holdings(
+                                "VOLV-B", "Volvo", new BigDecimal("2"), new BigDecimal("200.00"), "SEK",
+                                secondAccount);
+                Map<String, Double> prices = Map.of("ERIC-B", 74.20, "VOLV-B", 268.50, "DEFAULT", 100.0);
+                Map<String, Double> accountTypeTotals = portfolioService.initializeAccountTypeTotals();
+                Map<Long, Double> accountTotals = new HashMap<>();
+
+                double totalPortfolioValue = portfolioService.calculatePortfolioTotals(
+                                List.of(firstHolding, secondHolding),
+                                prices,
+                                Map.of(1L, "ISK", 2L, "ISK", 3L, "ISK"),
+                                accountTypeTotals,
+                                accountTotals);
+                List<AccountSummaryDTO> summaries = portfolioService.getAccountSummary(
+                                List.of(firstAccount, secondAccount, emptyAccount),
+                                accountTotals);
+
+                assertEquals(1279.0, totalPortfolioValue, 0.001);
+                assertEquals(1279.0, accountTypeTotals.get("ISK"), 0.001);
+                assertEquals(742.0, summaries.get(0).totalValueSek(), 0.001);
+                assertEquals(537.0, summaries.get(1).totalValueSek(), 0.001);
+                assertEquals(0.0, summaries.get(2).totalValueSek(), 0.001);
         }
 
         @Test
@@ -461,8 +511,7 @@ class PortfolioServiceTest {
                 // Act
                 List<AccountSummaryDTO> result = portfolioService.getAccountSummary(
                                 List.of(account),
-                                totals,
-                                1234.567);
+                                Map.of(1L, 1234.567));
 
                 // Assert
                 assertEquals(1, result.size());
