@@ -69,6 +69,16 @@ class PortfolioServiceTest {
         @InjectMocks
         private PortfolioService portfolioService;
 
+        private void stubFallbackPrices() {
+                when(marketService.getPriceFallback()).thenReturn(Map.of(
+                                "ERIC-B", 74.20,
+                                "VOLV-B", 268.50,
+                                "AAPL", 187.32,
+                                "SWED-A", 193.10,
+                                "SAND", 212.80,
+                                "DEFAULT", 100.0));
+        }
+
         @Test
         void shouldFindByEmailAndReturnUser() {
                 // Arrange
@@ -222,18 +232,19 @@ class PortfolioServiceTest {
         @Test
         void shouldCalculateHoldingValueInSek() {
                 // Arrange
-                Holdings holding = new Holdings(
+                stubFallbackPrices();
+                List<Holdings> holdings = List.of(new Holdings(
                                 "ERIC-B",
                                 "Ericsson",
                                 new BigDecimal("10"),
                                 new BigDecimal("50.00"),
                                 "SEK",
-                                null);
+                                null));
 
-                Map<String, Double> prices = portfolioService.getCurrentPrices();
+                Map<String, Double> prices = portfolioService.getCurrentPrices(holdings);
 
                 // Act
-                EnrichedHoldingDTO result = portfolioService.enrichSingleHolding(holding, prices);
+                EnrichedHoldingDTO result = portfolioService.enrichSingleHolding(holdings.get(0), prices);
 
                 // Assert
                 assertEquals(74.20, result.currentPrice(), 0.001);
@@ -246,6 +257,7 @@ class PortfolioServiceTest {
         @Test
         void shouldConvertUsdHoldingValueToSek() {
                 // Arrange
+                stubFallbackPrices();
                 when(marketService.getFx("USD", "SEK"))
                                 .thenReturn(new FxRateResponseDTO("2026-09-16", "USD", "SEK", 10.45));
 
@@ -257,7 +269,7 @@ class PortfolioServiceTest {
                                 "USD",
                                 null);
 
-                Map<String, Double> prices = portfolioService.getCurrentPrices();
+                Map<String, Double> prices = portfolioService.getCurrentPrices(List.of(holding));
 
                 // Act
                 EnrichedHoldingDTO result = portfolioService.enrichSingleHolding(holding, prices);
@@ -271,6 +283,7 @@ class PortfolioServiceTest {
         @Test
         void shouldCalculateTotalPortfolioValue() {
                 // Arrange
+                stubFallbackPrices();
                 Account account = new Account();
                 account.setId(10L);
                 account.setAccount_type("ISK");
@@ -287,7 +300,7 @@ class PortfolioServiceTest {
 
                 Map<String, Double> accountTypeTotals = portfolioService.initializeAccountTypeTotals();
 
-                Map<String, Double> prices = portfolioService.getCurrentPrices();
+                Map<String, Double> prices = portfolioService.getCurrentPrices(List.of(holding));
 
                 // Act
                 double result = portfolioService.calculatePortfolioTotals(
@@ -304,12 +317,13 @@ class PortfolioServiceTest {
         @Test
         void shouldReturnZeroForEmptyPortfolio() {
                 // Arrange
+                stubFallbackPrices();
                 Map<String, Double> accountTypeTotals = portfolioService.initializeAccountTypeTotals();
 
                 // Act
                 double result = portfolioService.calculatePortfolioTotals(
                                 List.of(),
-                                portfolioService.getCurrentPrices(),
+                                portfolioService.getCurrentPrices(List.of()),
                                 Map.of(),
                                 accountTypeTotals);
 

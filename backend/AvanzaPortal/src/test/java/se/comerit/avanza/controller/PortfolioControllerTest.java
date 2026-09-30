@@ -123,7 +123,7 @@ public class PortfolioControllerTest {
         when(portfolioService.getAllHoldingsForUser(eq(USER_ID), any(Pageable.class))).thenReturn(holdings);
         when(portfolioService.getTargetAllocationsForUser(USER_ID)).thenReturn(targets);
         when(portfolioService.getRecentAlertsForUser(USER_ID)).thenReturn(List.of(alertDTO));
-        when(portfolioService.getCurrentPrices()).thenReturn(prices);
+        when(portfolioService.getCurrentPrices(holdings)).thenReturn(prices);
         when(portfolioService.initializeAccountTypeTotals()).thenReturn(accountTypeTotals);
         when(portfolioService.buildAccountTypeMap(accounts)).thenReturn(accountTypeMap);
         when(portfolioService.enrichSingleHolding(holding, prices)).thenReturn(enrichedHoldingDTO);
