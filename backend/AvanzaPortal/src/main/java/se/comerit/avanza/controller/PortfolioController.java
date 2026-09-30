@@ -66,6 +66,7 @@ public class PortfolioController {
                 // Business logic:
                 Map<String, Double> prices = portfolioService.getCurrentPrices(holdings);
                 Map<String, Double> accountTypeTotals = portfolioService.initializeAccountTypeTotals();
+                Map<Long, Double> accountTotals = new java.util.HashMap<>();
                 Map<Long, String> accountTypeMap = portfolioService.buildAccountTypeMap(accounts);
 
                 // Enrich holdings with current prices for display purposes
@@ -76,7 +77,7 @@ public class PortfolioController {
                 // Calculate the total portfolio value based on enriched holdings and current
                 // prices
                 double totalPortfolioValue = portfolioService.calculatePortfolioTotals(holdings, prices, accountTypeMap,
-                                accountTypeTotals);
+                                accountTypeTotals, accountTotals);
 
                 // Detect allocation drift based on current account type totals and target
                 // allocations
@@ -85,7 +86,7 @@ public class PortfolioController {
 
                 // Build account summary for display
                 List<AccountSummaryDTO> accountSummary = portfolioService.getAccountSummary(
-                                accounts, accountTypeTotals, totalPortfolioValue);
+                                accounts, accountTotals);
 
                 /**
                  * creates an instance of PortfolioResponseDTO with all the necessary portfolio
