@@ -127,12 +127,11 @@ public class PortfolioControllerTest {
         when(portfolioService.initializeAccountTypeTotals()).thenReturn(accountTypeTotals);
         when(portfolioService.buildAccountTypeMap(accounts)).thenReturn(accountTypeMap);
         when(portfolioService.enrichSingleHolding(holding, prices)).thenReturn(enrichedHoldingDTO);
-        when(portfolioService.calculatePortfolioTotals(holdings, prices, accountTypeMap, accountTypeTotals,
-                Map.of()))
+        when(portfolioService.calculatePortfolioTotals(holdings, prices, accountTypeMap, accountTypeTotals))
                 .thenReturn(1000.0);
         when(portfolioService.detectDrift(accountTypeTotals, targets, 1000.0))
                 .thenReturn(List.of(allocationRowDTO));
-        when(portfolioService.getAccountSummary(accounts, Map.of()))
+        when(portfolioService.getAccountSummary(accounts, accountTypeTotals, 1000.0))
                 .thenReturn(List.of(accountSummaryDTO));
 
         return new PortfolioResponseDTO(

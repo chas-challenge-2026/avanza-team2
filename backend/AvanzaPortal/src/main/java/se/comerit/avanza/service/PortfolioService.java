@@ -262,14 +262,12 @@ public class PortfolioService {
      * @param prices            Current prices for the holdings.
      * @param accountTypeMap    Mapping from account ID to account type.
      * @param accountTypeTotals Map to accumulate totals per account type.
-     * @param accountTotals     Map to accumulate totals per account ID.
      * @return The total portfolio value across all holdings.
      */
     public double calculatePortfolioTotals(List<Holdings> holdings,
             Map<String, Double> prices,
             Map<Long, String> accountTypeMap,
-            Map<String, Double> accountTypeTotals,
-            Map<Long, Double> accountTotals) {
+            Map<String, Double> accountTypeTotals) {
         double totalPortfolioValue = 0.0;
 
         for (Holdings h : holdings) {
@@ -282,7 +280,6 @@ public class PortfolioService {
 
             // Add to account type bucket
             Long accountId = h.getAccount().getId();
-            accountTotals.put(accountId, accountTotals.getOrDefault(accountId, 0.0) + valueSek);
             String accType = accountTypeMap.get(accountId);
 
             if (accType == null) {
@@ -346,13 +343,15 @@ public class PortfolioService {
     /**
      * Generates a summary of each account with its total value in SEK.
      * 
-     * @param accounts      List of accounts to summarize.
-     * @param accountTotals Current totals keyed by account ID.
+     * @param accounts            List of accounts to summarize.
+     * @param accountTypeTotals   Current totals for each account type.
+     * @param totalPortfolioValue Total value of the portfolio.
      * @return A list of AccountSummaryDTO containing summary information for each
      *         account.
      */
     public List<AccountSummaryDTO> getAccountSummary(List<Account> accounts,
-            Map<Long, Double> accountTotals) {
+            Map<String, Double> accountTypeTotals,
+            double totalPortfolioValue) {
 
         return accounts.stream()
                 .map(acc -> new AccountSummaryDTO(
@@ -360,7 +359,7 @@ public class PortfolioService {
                         acc.getAccount_type(),
                         acc.getAccount_name(),
                         acc.getCurrency(),
-                        Math.round(accountTotals.getOrDefault(acc.getId(), 0.0) * 100.0) / 100.0))
+                        Math.round(accountTypeTotals.getOrDefault(acc.getAccount_type(), 0.0) * 100.0) / 100.0))
                 .collect(Collectors.toList());
     }
 
