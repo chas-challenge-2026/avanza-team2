@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { AuthContext } from './auth-context';
 
-const API_URL = 'http://localhost:8082';
+const API_URL = import.meta.env.VITE_API_URL ?? '';
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
