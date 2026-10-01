@@ -1,6 +1,11 @@
 package se.comerit.avanza.service;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
@@ -64,6 +69,41 @@ class MarketServiceTest {
     }
 
     @Test
+    void shouldFetchNewPriceAfterCachedPriceExpires() {
+        StockPriceClient stockPriceClient = mock(StockPriceClient.class);
+        BigDecimal cachedPrice = new BigDecimal("339.73");
+        BigDecimal refreshedPrice = new BigDecimal("341.25");
+        when(stockPriceClient.fetchPrice("AAPL", "XNAS"))
+                .thenReturn(Optional.of(cachedPrice), Optional.of(refreshedPrice));
+        MutableClock clock = new MutableClock(Instant.parse("2026-10-01T10:00:00Z"));
+
+        MarketService service = new MarketService(mock(FxLibrary.class), stockPriceClient, clock);
+
+        assertEquals(Optional.of(cachedPrice), service.getPrice("AAPL"));
+        clock.advance(Duration.ofMinutes(6));
+        assertEquals(Optional.of(refreshedPrice), service.getPrice("AAPL"));
+
+        verify(stockPriceClient, times(2)).fetchPrice("AAPL", "XNAS");
+    }
+
+    @Test
+    void shouldReturnEmptyWhenRefreshingExpiredPriceFails() {
+        StockPriceClient stockPriceClient = mock(StockPriceClient.class);
+        BigDecimal cachedPrice = new BigDecimal("339.73");
+        when(stockPriceClient.fetchPrice("AAPL", "XNAS"))
+                .thenReturn(Optional.of(cachedPrice), Optional.empty());
+        MutableClock clock = new MutableClock(Instant.parse("2026-10-01T10:00:00Z"));
+
+        MarketService service = new MarketService(mock(FxLibrary.class), stockPriceClient, clock);
+
+        assertEquals(Optional.of(cachedPrice), service.getPrice("AAPL"));
+        clock.advance(Duration.ofMinutes(6));
+        assertTrue(service.getPrice("AAPL").isEmpty());
+
+        verify(stockPriceClient, times(2)).fetchPrice("AAPL", "XNAS");
+    }
+
+    @Test
     void shouldReturnEmptyForUnknownTicker() {
         StockPriceClient stockPriceClient = mock(StockPriceClient.class);
         MarketService service = new MarketService(mock(FxLibrary.class), stockPriceClient);
@@ -96,5 +136,32 @@ class MarketServiceTest {
 
         assertTrue(result.isEmpty());
         verifyNoInteractions(stockPriceClient);
+    }
+
+    private static final class MutableClock extends Clock {
+        private Instant instant;
+
+        private MutableClock(Instant instant) {
+            this.instant = instant;
+        }
+
+        @Override
+        public ZoneId getZone() {
+            return ZoneOffset.UTC;
+        }
+
+        @Override
+        public Clock withZone(ZoneId zone) {
+            return new MutableClock(instant);
+        }
+
+        @Override
+        public Instant instant() {
+            return instant;
+        }
+
+        private void advance(Duration duration) {
+            instant = instant.plus(duration);
+        }
     }
 }
