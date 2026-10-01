@@ -1,6 +1,7 @@
 package se.comerit.avanza.service;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.HashMap;
@@ -20,6 +21,8 @@ import se.comerit.avanza.nativebridge.FxLibrary;
 @Service
 public class MarketService {
 
+    static final long PRICE_CACHE_TTL_MILLIS = 5 * 60 * 1000L;
+
     private static final Map<String, MarketSymbol> MARKET_SYMBOLS = Map.of(
             "ERIC-B", new MarketSymbol("ERIC-B.ST", "XSTO"),
             "VOLV-B", new MarketSymbol("VOLV-B.ST", "XSTO"),
@@ -30,11 +33,17 @@ public class MarketService {
     // The FX library used to fetch foreign exchange rates.
     private final FxLibrary fxLibrary;
     private final StockPriceClient stockPriceClient;
-    private final Map<String, BigDecimal> priceCache = new ConcurrentHashMap<>();
+    private final Clock clock;
+    private final Map<String, CachedPrice> priceCache = new ConcurrentHashMap<>();
 
     public MarketService(FxLibrary fxLibrary, StockPriceClient stockPriceClient) {
+        this(fxLibrary, stockPriceClient, Clock.systemUTC());
+    }
+
+    MarketService(FxLibrary fxLibrary, StockPriceClient stockPriceClient, Clock clock) {
         this.fxLibrary = fxLibrary;
         this.stockPriceClient = stockPriceClient;
+        this.clock = clock;
     }
 
     /**
@@ -86,18 +95,27 @@ public class MarketService {
             return Optional.empty();
         }
 
-        BigDecimal cachedPrice = priceCache.get(normalizedTicker);
+        CachedPrice cachedPrice = priceCache.get(normalizedTicker);
+
+        if (cachedPrice != null && clock.millis() < cachedPrice.expiresAtMillis()) {
+            return Optional.of(cachedPrice.price());
+        }
 
         if (cachedPrice != null) {
-            return Optional.of(cachedPrice);
+            priceCache.remove(normalizedTicker, cachedPrice);
         }
 
         Optional<BigDecimal> fetchedPrice = stockPriceClient.fetchPrice(
                 marketSymbol.symbol(),
                 marketSymbol.exchange());
 
-        fetchedPrice.ifPresent(price -> priceCache.put(normalizedTicker, price));
+        fetchedPrice.ifPresent(price -> priceCache.put(
+                normalizedTicker,
+                new CachedPrice(price, clock.millis() + PRICE_CACHE_TTL_MILLIS)));
         return fetchedPrice;
+    }
+
+    private record CachedPrice(BigDecimal price, long expiresAtMillis) {
     }
 
     private record MarketSymbol(String symbol, String exchange) {
