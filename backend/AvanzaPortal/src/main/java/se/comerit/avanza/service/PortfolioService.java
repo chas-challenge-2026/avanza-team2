@@ -1,5 +1,6 @@
 package se.comerit.avanza.service;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -104,16 +105,30 @@ public class PortfolioService {
         return convertAlertsToDTO(alerts);
     }
 
-    // Hardcoded prices (later: fetch from API)
-    public Map<String, Double> getCurrentPrices() {
-        Map<String, Double> currentPrices = new HashMap<>();
-        currentPrices.put("ERIC-B", 74.20);
-        currentPrices.put("VOLV-B", 268.50);
-        currentPrices.put("AAPL", 187.32);
-        currentPrices.put("SWED-A", 193.10);
-        currentPrices.put("SAND", 212.80);
-        currentPrices.put("DEFAULT", 100.0);
-        return currentPrices;
+    /**
+     * Retrieves the current market prices for a list of holdings.
+     * 
+     * @param holdings Holdings for which to retrieve current market prices.
+     * @return a map where the keys are the tickers of the holdings and the values
+     *         are the current market prices.
+     */
+    public Map<String, Double> getCurrentPrices(List<Holdings> holdings) {
+        Map<String, Double> fallbackPrices = marketService.getPriceFallback();
+        Map<String, Double> prices = new HashMap<>();
+        prices.put("DEFAULT", fallbackPrices.get("DEFAULT"));
+
+        for (Holdings holding : holdings) {
+            String ticker = holding.getTicker();
+
+            Optional<BigDecimal> livePrice = marketService.getPrice(ticker);
+            double price = livePrice
+                    .map(BigDecimal::doubleValue)
+                    .orElseGet(() -> fallbackPrices.getOrDefault(ticker, fallbackPrices.get("DEFAULT")));
+
+            prices.put(ticker, price);
+        }
+
+        return prices;
     }
 
     // USD to SEK conversion
