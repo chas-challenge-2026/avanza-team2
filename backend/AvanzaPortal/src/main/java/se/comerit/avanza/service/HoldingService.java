@@ -23,13 +23,13 @@ import se.comerit.avanza.repository.UserRepository;
 @Service
 public class HoldingService {
 
-
     private final UserRepository userRepository;
 
     private final AccountRepository accountRepository;
     private final HoldingsRepository holdingsRepository;
 
-    public HoldingService(UserRepository userRepository, AccountRepository accountRepository, HoldingsRepository holdingsRepository) {
+    public HoldingService(UserRepository userRepository, AccountRepository accountRepository,
+            HoldingsRepository holdingsRepository) {
         this.userRepository = userRepository;
         this.accountRepository = accountRepository;
         this.holdingsRepository = holdingsRepository;
@@ -37,27 +37,25 @@ public class HoldingService {
 
     public List<Map<String, Object>> getHoldingsForUser(Integer userId) {
         return holdingsRepository.findHoldingsForUser(userId.longValue())
-        .stream()
-        .map (holding -> {
-            Map<String, Object> row = new HashMap<>();
-            row.put("id", holding.getId());
-            
-            row.put("ticker", holding.getTicker());
-            row.put("instrument_name", holding.getInstrument_name());
-            row.put("quantity", holding.getQuantity());
-            row.put("avg_buy_price", holding.getAvg_buy_price());
-            row.put("currency", holding.getCurrency());
+                .stream()
+                .map(holding -> {
+                    Map<String, Object> row = new HashMap<>();
+                    row.put("id", holding.getId());
 
-            row.put("account_type", holding.getAccount().getAccount_type());
-            row.put("account_name", holding.getAccount().getAccount_name());
-        
-            
-            return row;
-        })
-        .toList();
+                    row.put("ticker", holding.getTicker());
+                    row.put("instrument_name", holding.getInstrument_name());
+                    row.put("quantity", holding.getQuantity());
+                    row.put("avg_buy_price", holding.getAvg_buy_price());
+                    row.put("currency", holding.getCurrency());
+
+                    row.put("account_type", holding.getAccount().getAccount_type());
+                    row.put("account_name", holding.getAccount().getAccount_name());
+
+                    return row;
+                })
+                .toList();
     }
-        
-    
+
     // This method retrieves the accounts for a given user ID.
     public List<HoldingAccountDTO> getAccountsForUser(Long userId) {
         return accountRepository.findByUserId(userId).stream()
@@ -94,13 +92,12 @@ public class HoldingService {
         return holdings;
     }
 
-
-
     private double roundToTwoDecimals(double value) {
         return Math.round(value * 100.0) / 100.0;
     }
 
-    public void addHolding(Integer accountId, String ticker, String instrumentName, String quantity, String avgBuyPrice, String currency) {
+    private void addHolding(Integer accountId, String ticker, String instrumentName, String quantity,
+            String avgBuyPrice, String currency) {
 
         BigDecimal parsedQuantity = new BigDecimal(quantity);
         BigDecimal parsedAvgBuyPrice = new BigDecimal(avgBuyPrice);
@@ -108,52 +105,54 @@ public class HoldingService {
         Account account = accountRepository.findById(accountId.longValue())
                 .orElseThrow(() -> new IllegalArgumentException("Account not found"));
 
-        Holdings holding = new Holdings(ticker.toUpperCase(), instrumentName, parsedQuantity, parsedAvgBuyPrice, currency, account);
+        Holdings holding = new Holdings(ticker.toUpperCase(), instrumentName, parsedQuantity, parsedAvgBuyPrice,
+                currency, account);
 
         holdingsRepository.save(holding);
 
-        
-        
     }
 
-    // This method retrieves the holdings and accounts for the authenticated user based on their email.
-    public HoldingResponseDTO getHoldingsForAuthenticatedUser (String email) {
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new BadCredentialsException("Autentication failed: User not found"));
-        
-        // Convert the user ID from Long to Integer for compatibility with the rest of the code.
-        // Math is only used temporarily to avoid potential overflow issues when converting from Long to Integer.
+    // This method retrieves the holdings and accounts for the authenticated user
+    // based on their email.
+    public HoldingResponseDTO getHoldingsForAuthenticatedUser(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new BadCredentialsException("Autentication failed: User not found"));
+
+        // Convert the user ID from Long to Integer for compatibility with the rest of
+        // the code.
+        // Math is only used temporarily to avoid potential overflow issues when
+        // converting from Long to Integer.
         Integer userId = Math.toIntExact(user.getId());
 
         return new HoldingResponseDTO(
-            user.getName(),
-            getEnrichedHoldingsForUser(userId).stream().map(this::toHoldingDTO).toList(),
-            getAccountsForUser(user.getId())
-        );
+                user.getName(),
+                getEnrichedHoldingsForUser(userId).stream().map(this::toHoldingDTO).toList(),
+                getAccountsForUser(user.getId()));
     }
 
     public void addHoldingForAuthenticatedUser(String email, CreateHoldingRequestDTO requestDTO) {
-            
-            User user = userRepository.findByEmail(email).orElseThrow(() -> new BadCredentialsException("Autentication failed: User not found"));
-            
-    
-            // Check if the account belongs to the authenticated user
-            boolean ownsAccount = accountRepository.existsByIdAndUser_Id(requestDTO.accountId().longValue(), user.getId());
-            if (!ownsAccount) {
-                throw new AccessDeniedException("You do not have permission to add a holding to this account.");
-            }
-    
-            addHolding(
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new BadCredentialsException("Autentication failed: User not found"));
+
+        // Check if the account belongs to the authenticated user
+        boolean ownsAccount = accountRepository.existsByIdAndUser_Id(requestDTO.accountId().longValue(), user.getId());
+        if (!ownsAccount) {
+            throw new AccessDeniedException("You do not have permission to add a holding to this account.");
+        }
+
+        addHolding(
                 requestDTO.accountId(),
                 requestDTO.ticker(),
                 requestDTO.instrumentName(),
                 requestDTO.quantity(),
                 requestDTO.avgBuyPrice(),
-                requestDTO.currency()
-            );
+                requestDTO.currency());
     }
 
     public void deleteHoldingForAuthenticatedUser(String email, Integer holdingId) {
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new BadCredentialsException("Autentication failed: User not found"));
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new BadCredentialsException("Autentication failed: User not found"));
 
         // A single ownership-scoped delete prevents deleting another user's holding.
         int deletedRows = holdingsRepository.deleteOwnedHolding(holdingId.longValue(), user.getId());
@@ -175,7 +174,5 @@ public class HoldingService {
     private Long toLong(Object value) {
         return value == null ? null : ((Number) value).longValue();
     }
-
-
 
 }
