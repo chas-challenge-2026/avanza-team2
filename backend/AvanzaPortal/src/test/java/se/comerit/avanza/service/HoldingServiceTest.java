@@ -40,12 +40,16 @@ class HoldingServiceTest {
 
     @Mock
     private HoldingsRepository holdingsRepository;
+    
+    @Mock 
+    private MarketService marketService;
 
     private HoldingService holdingService;
 
+
     @BeforeEach
     void setUp() {
-        holdingService = new HoldingService(userRepository, accountRepository, holdingsRepository);
+        holdingService = new HoldingService(userRepository, accountRepository, holdingsRepository, marketService);
     }
 
     @Test
