@@ -32,283 +32,353 @@ import se.comerit.avanza.repository.UserRepository;
 @ExtendWith(MockitoExtension.class)
 class HoldingServiceTest {
 
-        @Mock
-        private UserRepository userRepository;
+    @Mock
+    private UserRepository userRepository;
+    
+    @Mock
+    private AccountRepository accountRepository;
 
-        @Mock
-        private AccountRepository accountRepository;
+    @Mock
+    private HoldingsRepository holdingsRepository;
+    
+    @Mock 
+    private MarketService marketService;
 
-        @Mock
-        private HoldingsRepository holdingsRepository;
+    private HoldingService holdingService;
 
-        private HoldingService holdingService;
 
-        @BeforeEach
-        void setUp() {
-                holdingService = new HoldingService(userRepository, accountRepository, holdingsRepository);
-        }
+    @BeforeEach
+    void setUp() {
+        holdingService = new HoldingService(userRepository, accountRepository, holdingsRepository, marketService);
+    }
 
-        @Test
-        void shouldReturnHoldingsForUser() {
+    @Test
+    void shouldReturnHoldingsForUser() {
 
-                // Arrange
-                Account account = new Account();
-                account.setAccount_type("ISK");
-                account.setAccount_name("Annas ISK");
+        // Arrange
+        Account account = new Account();
+        account.setAccount_type("ISK");
+        account.setAccount_name("Annas ISK");
 
-                Holdings holding = new Holdings();
-                holding.setId(10L);
-                holding.setTicker("ERIC-B");
-                holding.setAccount(account);
+        Holdings holding = new Holdings();
+        holding.setId(10L);
+        holding.setTicker("ERIC-B");
+        holding.setAccount(account);
 
-                when(holdingsRepository.findHoldingsForUser(1L)).thenReturn(List.of(holding));
+        when(holdingsRepository.findHoldingsForUser(1L)).thenReturn(List.of(holding));
 
-                // Act
-                List<Map<String, Object>> actualHoldings = holdingService.getHoldingsForUser(1);
+        // Act
+        List<Map<String, Object>> actualHoldings = holdingService.getHoldingsForUser(1);
 
-                // Assert
-                assertEquals(1, actualHoldings.size());
-                assertEquals(10L, actualHoldings.get(0).get("id"));
-                assertEquals("ERIC-B", actualHoldings.get(0).get("ticker"));
-                assertEquals("ISK", actualHoldings.get(0).get("account_type"));
-                assertEquals("Annas ISK", actualHoldings.get(0).get("account_name"));
+        // Assert
+        assertEquals(1, actualHoldings.size());
+        assertEquals(10L, actualHoldings.get(0).get("id"));
+        assertEquals("ERIC-B", actualHoldings.get(0).get("ticker"));
+        assertEquals("ISK", actualHoldings.get(0).get("account_type"));
+        assertEquals("Annas ISK", actualHoldings.get(0).get("account_name"));
 
-                verify(holdingsRepository).findHoldingsForUser(1L);
-        }
+        verify(holdingsRepository).findHoldingsForUser(1L);
+    }
 
-        @Test
-        void shouldCalculateMarketValueAndPnl() {
-                // Arrange
-                Integer userId = 1;
+    @Test
+    void shouldCalculateMarketValueAndPnl() {
+        // Arrange
+        Integer userId = 1;
 
-                Account account = new Account();
-                Holdings holding = new Holdings();
-                holding.setTicker("ERIC-B");
-                holding.setQuantity(new BigDecimal("10"));
-                holding.setAvg_buy_price(new BigDecimal("50"));
-                holding.setAccount(account);
+        Account account = new Account();
+        Holdings holding = new Holdings();
+        holding.setTicker("ERIC-B");
+        holding.setQuantity(new BigDecimal("10"));
+        holding.setAvg_buy_price(new BigDecimal("50"));
+        holding.setAccount(account);
 
-                when(holdingsRepository.findHoldingsForUser(userId.longValue()))
-                                .thenReturn(List.of(holding));
+        when(holdingsRepository.findHoldingsForUser(userId.longValue()))
+                .thenReturn(List.of(holding));
+        when(marketService.getPriceFallback()).thenReturn(Map.of(
+                "ERIC-B", 74.20,
+                "DEFAULT", 100.0));
+        when(marketService.getPrice("ERIC-B"))
+                .thenReturn(Optional.of(new BigDecimal("80.00")));
 
-                // Act
-                List<Map<String, Object>> result = holdingService.getEnrichedHoldingsForUser(userId);
+        // Act
+        List<Map<String, Object>> result =
+                holdingService.getEnrichedHoldingsForUser(userId);
 
-                // Assert
-                Map<String, Object> enrichedHolding = result.get(0);
+        // Assert
+        Map<String, Object> enrichedHolding = result.get(0);
 
-                assertEquals(74.20, enrichedHolding.get("currentPrice"));
-                assertEquals(742.0, enrichedHolding.get("marketValue"));
-                assertEquals(242.0, enrichedHolding.get("pnl"));
-                verify(holdingsRepository).findHoldingsForUser(userId.longValue());
-        }
+        assertEquals(80.0, enrichedHolding.get("currentPrice"));
+        assertEquals(800.0, enrichedHolding.get("marketValue"));
+        assertEquals(300.0, enrichedHolding.get("pnl"));
+        verify(holdingsRepository).findHoldingsForUser(userId.longValue());
+        verify(marketService).getPrice("ERIC-B");
+    }
 
-        @Test
-        void shouldReturnEmptyListWhenUserHasNoHoldings() {
-                // Arrange
-                Integer userId = 1;
+    @Test
+    void shouldUseFallbackPriceWhenMarketPriceIsUnavailable() {
+        // Arrange
+        Integer userId = 1;
 
-                when(holdingsRepository.findHoldingsForUser(userId.longValue()))
-                                .thenReturn(List.of());
+        Holdings holding = new Holdings();
+        holding.setTicker("ERIC-B");
+        holding.setQuantity(new BigDecimal("10"));
+        holding.setAvg_buy_price(new BigDecimal("50"));
+        holding.setAccount(new Account());
 
-                // Act
-                List<Map<String, Object>> result = holdingService.getEnrichedHoldingsForUser(userId);
+        when(holdingsRepository.findHoldingsForUser(userId.longValue()))
+                .thenReturn(List.of(holding));
+        when(marketService.getPriceFallback()).thenReturn(Map.of(
+                "ERIC-B", 74.20,
+                "DEFAULT", 100.0));
+        when(marketService.getPrice("ERIC-B")).thenReturn(Optional.empty());
 
-                // Assert
-                assertTrue(result.isEmpty());
-                verify(holdingsRepository).findHoldingsForUser(userId.longValue());
-        }
+        // Act
+        List<Map<String, Object>> result =
+                holdingService.getEnrichedHoldingsForUser(userId);
 
-        @Test
-        void shouldRejectInvalidQuantity() {
-                String email = "anna@example.com";
-                User user = new User();
-                user.setId(7L);
-                when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
-                when(accountRepository.existsByIdAndUser_Id(2L, 7L)).thenReturn(true);
-                CreateHoldingRequestDTO request = new CreateHoldingRequestDTO(
-                                2, "AAPL", "Apple", "felaktigt-tal", "180.50", "USD");
+        // Assert
+        Map<String, Object> enrichedHolding = result.get(0);
+        assertEquals(74.20, enrichedHolding.get("currentPrice"));
+        assertEquals(742.0, enrichedHolding.get("marketValue"));
+        assertEquals(242.0, enrichedHolding.get("pnl"));
+        verify(marketService).getPrice("ERIC-B");
+    }
 
-                assertThrows(
-                                NumberFormatException.class,
-                                () -> holdingService.addHoldingForAuthenticatedUser(email, request));
+    @Test
+    void shouldReturnEmptyListWhenUserHasNoHoldings() {
+        // Arrange
+        Integer userId = 1;
 
-                verify(accountRepository).existsByIdAndUser_Id(2L, 7L);
-                verifyNoInteractions(holdingsRepository);
-        }
+        when(holdingsRepository.findHoldingsForUser(userId.longValue()))
+                .thenReturn(List.of());
 
-        @Test
-        void shouldDeleteHoldingById() {
-                // Act
-                User user = new User();
-                user.setId(7L);
-                when(userRepository.findByEmail("anna@example.com")).thenReturn(Optional.of(user));
-                when(holdingsRepository.deleteOwnedHolding(15L, 7L)).thenReturn(1);
-                holdingService.deleteHoldingForAuthenticatedUser("anna@example.com", 15);
+        // Act
+        List<Map<String, Object>> result =
+                holdingService.getEnrichedHoldingsForUser(userId);
 
-                // Assert
-                verify(holdingsRepository).deleteOwnedHolding(15L, 7L);
-                verifyNoInteractions(accountRepository);
-        }
+        // Assert
+        assertTrue(result.isEmpty());
+        verify(holdingsRepository).findHoldingsForUser(userId.longValue());
+    }
 
-        @Test
-        void shouldReturnHoldingsForAuthenticatedUser() {
-                // Arrange: the authenticated identity matches a database user.
-                String email = "anna@example.com";
-                User user = new User();
-                user.setId(7L);
-                user.setName("Anna");
-                user.setEmail(email);
+    @Test
+    void shouldUppercaseTickerWhenAddingHolding() {
 
-                Account account = new Account();
-                account.setId(3L);
-                account.setAccount_type("ISK");
-                account.setAccount_name("Annas ISK");
+        Account account = new Account();
+        account.setId(2L);
+        when(accountRepository.findById((2L))).thenReturn(Optional.of(account));
+        // Act
+        holdingService.addHolding(
+                2,
+                "aapl",
+                "Apple",
+                "5",
+                "180.50",
+                "USD"
+        );
 
-                Holdings holding = new Holdings();
-                holding.setId(10L);
-                holding.setTicker("ERIC-B");
-                holding.setQuantity(new BigDecimal("10"));
-                holding.setAvg_buy_price(new BigDecimal("50"));
-                holding.setAccount(account);
+        // Assert
+        ArgumentCaptor<Holdings> captor = ArgumentCaptor.forClass(Holdings.class);
+        verify(holdingsRepository).save(captor.capture());
 
-                when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
-                when(holdingsRepository.findHoldingsForUser(7L))
-                                .thenReturn(List.of(holding));
-                when(accountRepository.findByUserId(7L)).thenReturn(List.of(account));
+        Holdings savedHolding = captor.getValue();
 
-                // Act
-                HoldingResponseDTO result = holdingService.getHoldingsForAuthenticatedUser(email);
+        assertEquals("AAPL", savedHolding.getTicker());
+        assertEquals("Apple", savedHolding.getInstrument_name());
+        assertEquals(new BigDecimal("5"), savedHolding.getQuantity());
+        assertEquals(new BigDecimal("180.50"), savedHolding.getAvg_buy_price());
+        assertEquals("USD", savedHolding.getCurrency());
+        assertEquals(account, savedHolding.getAccount());
+    }
 
-                // Assert: both repositories use the authenticated user's database ID.
-                assertEquals("Anna", result.userName());
-                assertEquals(1, result.holdings().size());
-                assertEquals("ERIC-B", result.holdings().get(0).ticker());
-                assertEquals(742.0, result.holdings().get(0).marketValue());
-                assertEquals(3L, result.accounts().get(0).id());
-                assertEquals("ISK", result.accounts().get(0).accountType());
-                verify(userRepository).findByEmail(email);
-                verify(holdingsRepository).findHoldingsForUser(7L);
-                verify(accountRepository).findByUserId(7L);
-        }
+    @Test
+    void shouldRejectInvalidQuantity() {
+        // Act and Assert
+        assertThrows(
+                NumberFormatException.class,
+                () -> holdingService.addHolding(
+                        2,
+                        "AAPL",
+                        "Apple",
+                        "felaktigt-tal",
+                        "180.50",
+                        "USD"
+                )
+        );
 
-        @Test
-        void shouldRejectAuthenticatedUserWhoDoesNotExist() {
-                // Arrange
-                String email = "missing@example.com";
-                when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
+        verifyNoInteractions(accountRepository,holdingsRepository);
+    }
 
-                // Act and Assert: a missing user is rejected before holdings are fetched.
-                assertThrows(BadCredentialsException.class,
-                                () -> holdingService.getHoldingsForAuthenticatedUser(email));
-                verify(userRepository).findByEmail(email);
-                verifyNoInteractions(accountRepository, holdingsRepository);
-        }
+    @Test
+    void shouldDeleteHoldingById() {
+        // Act
+        User user = new User();
+        user.setId(7L);
+        when(userRepository.findByEmail("anna@example.com")).thenReturn(Optional.of(user));
+        when(holdingsRepository.deleteOwnedHolding(15L, 7L)).thenReturn(1);
+        holdingService.deleteHoldingForAuthenticatedUser("anna@example.com", 15);
 
-        @Test
-        void shouldAddHoldingToOwnedAccount() {
-                // Arrange: account 3 belongs to user 7.
-                String email = "anna@example.com";
-                User user = new User();
-                user.setId(7L);
-                user.setEmail(email);
-                CreateHoldingRequestDTO request = new CreateHoldingRequestDTO(
-                                3, "aapl", "Apple", "5", "180.50", "USD");
+        // Assert
+        verify(holdingsRepository).deleteOwnedHolding(15L, 7L);
+        verifyNoInteractions(accountRepository);
+    }
 
-                when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
-                when(accountRepository.existsByIdAndUser_Id(3L, 7L)).thenReturn(true);
+    @Test
+    void shouldReturnHoldingsForAuthenticatedUser() {
+        // Arrange: the authenticated identity matches a database user.
+        String email = "anna@example.com";
+        User user = new User();
+        user.setId(7L);
+        user.setName("Anna");
+        user.setEmail(email);
 
-                Account account = new Account();
-                account.setId(3L);
-                when(accountRepository.findById(3L)).thenReturn(Optional.of(account));
+        Account account = new Account();
+        account.setId(3L);
+        account.setAccount_type("ISK");
+        account.setAccount_name("Annas ISK");
 
-                // Act
-                holdingService.addHoldingForAuthenticatedUser(email, request);
+        Holdings holding = new Holdings();
+        holding.setId(10L);
+        holding.setTicker("ERIC-B");
+        holding.setQuantity(new BigDecimal("10"));
+        holding.setAvg_buy_price(new BigDecimal("50"));
+        holding.setAccount(account);
 
-                // Assert: ownership is checked and the holding is saved with normalized values.
-                ArgumentCaptor<Holdings> captor = ArgumentCaptor.forClass(Holdings.class);
-                verify(holdingsRepository).save(captor.capture());
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+        when(holdingsRepository.findHoldingsForUser(7L))
+                .thenReturn(List.of(holding));
+        when(accountRepository.findByUserId(7L)).thenReturn(List.of(account));
+        when(marketService.getPriceFallback()).thenReturn(Map.of(
+                "ERIC-B", 74.20,
+                "DEFAULT", 100.0));
+        when(marketService.getPrice("ERIC-B"))
+                .thenReturn(Optional.of(new BigDecimal("74.20")));
 
-                Holdings savedHolding = captor.getValue();
-                assertEquals("AAPL", savedHolding.getTicker());
-                assertEquals("Apple", savedHolding.getInstrument_name());
-                assertEquals(new BigDecimal("5"), savedHolding.getQuantity());
-                assertEquals(new BigDecimal("180.50"), savedHolding.getAvg_buy_price());
+        // Act
+        HoldingResponseDTO result = holdingService.getHoldingsForAuthenticatedUser(email);
 
-                assertEquals(account, savedHolding.getAccount());
-                verify(accountRepository).existsByIdAndUser_Id(3L, 7L);
-        }
+        // Assert: both repositories use the authenticated user's database ID.
+        assertEquals("Anna", result.userName());
+        assertEquals(1, result.holdings().size());
+        assertEquals("ERIC-B", result.holdings().get(0).ticker());
+        assertEquals(742.0, result.holdings().get(0).marketValue());
+        assertEquals(3L, result.accounts().get(0).id());
+        assertEquals("ISK", result.accounts().get(0).accountType());
+        verify(userRepository).findByEmail(email);
+        verify(holdingsRepository).findHoldingsForUser(7L);
+        verify(accountRepository).findByUserId(7L);
+    }
 
-        @Test
-        void shouldRejectAddingHoldingToUnownedAccount() {
-                // Arrange: the account does not belong to the authenticated user.
-                String email = "anna@example.com";
-                User user = new User();
-                user.setId(7L);
-                CreateHoldingRequestDTO request = new CreateHoldingRequestDTO(
-                                3, "AAPL", "Apple", "5", "180.50", "USD");
+    @Test
+    void shouldRejectAuthenticatedUserWhoDoesNotExist() {
+        // Arrange
+        String email = "missing@example.com";
+        when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
 
-                when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
-                when(accountRepository.existsByIdAndUser_Id(3L, 7L)).thenReturn(false);
+        // Act and Assert: a missing user is rejected before holdings are fetched.
+        assertThrows(BadCredentialsException.class,
+                () -> holdingService.getHoldingsForAuthenticatedUser(email));
+        verify(userRepository).findByEmail(email);
+        verifyNoInteractions(accountRepository, holdingsRepository);
+    }
 
-                // Act and Assert: unauthorized ownership must prevent any SQL operation.
-                assertThrows(AccessDeniedException.class,
-                                () -> holdingService.addHoldingForAuthenticatedUser(email, request));
-                verify(accountRepository).existsByIdAndUser_Id(3L, 7L);
-                verifyNoInteractions(holdingsRepository);
-        }
+    @Test
+    void shouldAddHoldingToOwnedAccount() {
+        // Arrange: account 3 belongs to user 7.
+        String email = "anna@example.com";
+        User user = new User();
+        user.setId(7L);
+        user.setEmail(email);
+        CreateHoldingRequestDTO request = new CreateHoldingRequestDTO(
+                3, "aapl", "Apple", "5", "180.50", "USD");
+        
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+        when(accountRepository.existsByIdAndUser_Id(3L, 7L)).thenReturn(true);
 
-        @Test
-        void shouldRejectAddingHoldingWhenUserDoesNotExist() {
-                // Arrange
-                String email = "missing@example.com";
-                CreateHoldingRequestDTO request = new CreateHoldingRequestDTO(
-                                3, "AAPL", "Apple", "5", "180.50", "USD");
-                when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
+        Account account = new Account();
+        account.setId(3L);
+        when(accountRepository.findById(3L)).thenReturn(Optional.of(account));
 
-                // Act and Assert: reject the user before checking accounts or saving holdings.
-                assertThrows(BadCredentialsException.class,
-                                () -> holdingService.addHoldingForAuthenticatedUser(email, request));
-                verify(userRepository).findByEmail(email);
-                verifyNoInteractions(accountRepository, holdingsRepository);
-        }
+        // Act
+        holdingService.addHoldingForAuthenticatedUser(email, request);
 
-        @Test
-        void shouldRejectInvalidBuyPriceWithoutSavingHolding() {
-                String email = "anna@example.com";
-                User user = new User();
-                user.setId(7L);
-                when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
-                when(accountRepository.existsByIdAndUser_Id(3L, 7L)).thenReturn(true);
-                CreateHoldingRequestDTO request = new CreateHoldingRequestDTO(
-                                3, "AAPL", "Apple", "5", "invalid-price", "USD");
+        // Assert: ownership is checked and the holding is saved with normalized values.
+        ArgumentCaptor<Holdings> captor = ArgumentCaptor.forClass(Holdings.class);
+        verify(holdingsRepository).save(captor.capture());
 
-                assertThrows(NumberFormatException.class,
-                                () -> holdingService.addHoldingForAuthenticatedUser(email, request));
-                verify(accountRepository).existsByIdAndUser_Id(3L, 7L);
-                verifyNoInteractions(holdingsRepository);
-        }
+        Holdings savedHolding = captor.getValue();
+        assertEquals("AAPL", savedHolding.getTicker());
+        assertEquals("Apple", savedHolding.getInstrument_name());
+        assertEquals(new BigDecimal("5"), savedHolding.getQuantity());
+        assertEquals(new BigDecimal("180.50"), savedHolding.getAvg_buy_price());
 
-        @Test
-        void shouldRejectDeletingUnownedOrMissingHolding() {
-                // Arrange: no holding matches both the ID and the authenticated owner.
-                User user = new User();
-                user.setId(7L);
-                when(userRepository.findByEmail("anna@example.com")).thenReturn(Optional.of(user));
-                when(holdingsRepository.deleteOwnedHolding(15L, 7L)).thenReturn(0);
+        assertEquals(account, savedHolding.getAccount());
+        verify(accountRepository).existsByIdAndUser_Id(3L, 7L);
+    }
 
-                // Act and Assert: reject deletion when no holding belongs to the user
-                assertThrows(AccessDeniedException.class,
-                                () -> holdingService.deleteHoldingForAuthenticatedUser("anna@example.com", 15));
-                verify(holdingsRepository).deleteOwnedHolding(15L, 7L);
-        }
+    @Test
+    void shouldRejectAddingHoldingToUnownedAccount() {
+        // Arrange: the account does not belong to the authenticated user.
+        String email = "anna@example.com";
+        User user = new User();
+        user.setId(7L);
+        CreateHoldingRequestDTO request = new CreateHoldingRequestDTO(
+                3, "AAPL", "Apple", "5", "180.50", "USD");
 
-        @Test
-        void shouldRejectDeletingWhenUserDoesNotExist() {
-                when(userRepository.findByEmail("missing@example.com")).thenReturn(Optional.empty());
-                assertThrows(BadCredentialsException.class,
-                                () -> holdingService.deleteHoldingForAuthenticatedUser("missing@example.com", 15));
-                verifyNoInteractions(accountRepository, holdingsRepository);
-        }
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+        when(accountRepository.existsByIdAndUser_Id(3L, 7L)).thenReturn(false);
+
+        // Act and Assert: unauthorized ownership must prevent any SQL operation.
+        assertThrows(AccessDeniedException.class,
+                () -> holdingService.addHoldingForAuthenticatedUser(email, request));
+        verify(accountRepository).existsByIdAndUser_Id(3L, 7L);
+        verifyNoInteractions(holdingsRepository);
+    }
+
+    @Test
+    void shouldRejectAddingHoldingWhenUserDoesNotExist() {
+        // Arrange
+        String email = "missing@example.com";
+        CreateHoldingRequestDTO request = new CreateHoldingRequestDTO(
+                3, "AAPL", "Apple", "5", "180.50", "USD");
+        when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
+
+        // Act and Assert: reject the user before checking accounts or saving holdings.
+        assertThrows(BadCredentialsException.class,
+                () -> holdingService.addHoldingForAuthenticatedUser(email, request));
+        verify(userRepository).findByEmail(email);
+        verifyNoInteractions(accountRepository, holdingsRepository);
+    }
+
+    @Test
+    void shouldRejectInvalidBuyPriceWithoutSavingHolding() {
+        // Act and Assert: invalid numeric input must not reach the database.
+        assertThrows(NumberFormatException.class,
+                () -> holdingService.addHolding(
+                        3, "AAPL", "Apple", "5", "invalid-price", "USD"));
+        verifyNoInteractions(accountRepository, holdingsRepository);
+    }
+
+    @Test
+    void shouldRejectDeletingUnownedOrMissingHolding() {
+        // Arrange: no holding matches both the ID and the authenticated owner.
+        User user = new User();
+        user.setId(7L);
+        when(userRepository.findByEmail("anna@example.com")).thenReturn(Optional.of(user));
+        when(holdingsRepository.deleteOwnedHolding(15L, 7L)).thenReturn(0);
+
+        // Act and Assert: reject deletion when no holding belongs to the user
+        assertThrows(AccessDeniedException.class,
+                () -> holdingService.deleteHoldingForAuthenticatedUser("anna@example.com", 15));
+        verify(holdingsRepository).deleteOwnedHolding(15L, 7L);
+    }
+
+    @Test
+    void shouldRejectDeletingWhenUserDoesNotExist() {
+        when(userRepository.findByEmail("missing@example.com")).thenReturn(Optional.empty());
+        assertThrows(BadCredentialsException.class,
+                () -> holdingService.deleteHoldingForAuthenticatedUser("missing@example.com", 15));
+        verifyNoInteractions(accountRepository,holdingsRepository);
+    }
 
 }
