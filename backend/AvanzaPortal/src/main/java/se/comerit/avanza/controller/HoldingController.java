@@ -2,7 +2,9 @@ package se.comerit.avanza.controller;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.core.Authentication;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -17,6 +19,7 @@ import se.comerit.avanza.service.HoldingService;
 
 @RestController
 @RequestMapping("/api")
+@Validated
 public class HoldingController {
 
     private final HoldingService holdingService;
@@ -24,19 +27,23 @@ public class HoldingController {
     public HoldingController(HoldingService holdingService) {
         this.holdingService = holdingService;
     }
-    
 
     // Endpoint to list holdings for the authenticated user
     @GetMapping("/holdings")
-    public ResponseEntity<HoldingResponseDTO> listHoldings(Authentication authentication) {
-        
+    public ResponseEntity<HoldingResponseDTO> listHoldings(
+            Authentication authentication,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
         // Spring security authentication check instead of session check
-        HoldingResponseDTO responseDTO = holdingService.getHoldingsForAuthenticatedUser(authentication.getName());
+        HoldingResponseDTO responseDTO = holdingService.getHoldingsForAuthenticatedUser(
+                authentication.getName(), PageRequest.of(page, size));
         return ResponseEntity.ok(responseDTO);
     }
 
     @PostMapping("/holdings/add")
-    public ResponseEntity<Void> addHolding(@Valid @RequestBody CreateHoldingRequestDTO requestDTO, Authentication authentication) {
+    public ResponseEntity<Void> addHolding(@Valid @RequestBody CreateHoldingRequestDTO requestDTO,
+            Authentication authentication) {
         // Spring security authentication check instead of session check
         holdingService.addHoldingForAuthenticatedUser(authentication.getName(), requestDTO);
 

@@ -5,6 +5,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
@@ -29,7 +31,8 @@ public class HoldingService {
     private final AccountRepository accountRepository;
     private final HoldingsRepository holdingsRepository;
 
-    public HoldingService(UserRepository userRepository, AccountRepository accountRepository, HoldingsRepository holdingsRepository, MarketService marketService) {
+    public HoldingService(UserRepository userRepository, AccountRepository accountRepository,
+            HoldingsRepository holdingsRepository, MarketService marketService) {
         this.userRepository = userRepository;
         this.accountRepository = accountRepository;
         this.holdingsRepository = holdingsRepository;
@@ -75,9 +78,8 @@ public class HoldingService {
         for (Map<String, Object> holding : holdings) {
             String ticker = (String) holding.get("ticker");
             double currentPrice = marketService.getPrice(ticker)
-            .map(BigDecimal::doubleValue)
-            .orElseGet(() -> fallbackPrices.getOrDefault(ticker, fallbackPrices.get("DEFAULT")
-            ));
+                    .map(BigDecimal::doubleValue)
+                    .orElseGet(() -> fallbackPrices.getOrDefault(ticker, fallbackPrices.get("DEFAULT")));
             double quantity = ((BigDecimal) holding.get("quantity")).doubleValue();
             double averageBuyPrice = ((BigDecimal) holding.get("avg_buy_price")).doubleValue();
             double marketValue = quantity * currentPrice;
@@ -113,20 +115,52 @@ public class HoldingService {
 
     // This method retrieves the holdings and accounts for the authenticated user
     // based on their email.
-    public HoldingResponseDTO getHoldingsForAuthenticatedUser(String email) {
+    public HoldingResponseDTO getHoldingsForAuthenticatedUser(String email, Pageable pageable) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new BadCredentialsException("Autentication failed: User not found"));
 
-        // Convert the user ID from Long to Integer for compatibility with the rest of
-        // the code.
-        // Math is only used temporarily to avoid potential overflow issues when
-        // converting from Long to Integer.
-        Integer userId = Math.toIntExact(user.getId());
+        Page<Holdings> holdingsPage = holdingsRepository.findAllByUserId(user.getId(), pageable);
+        List<Map<String, Object>> pageHoldings = holdingsPage.getContent().stream()
+                .map(holding -> {
+                    Map<String, Object> row = new HashMap<>();
+                    row.put("id", holding.getId());
+                    row.put("ticker", holding.getTicker());
+                    row.put("instrument_name", holding.getInstrument_name());
+                    row.put("quantity", holding.getQuantity());
+                    row.put("avg_buy_price", holding.getAvg_buy_price());
+                    row.put("currency", holding.getCurrency());
+                    row.put("account_type", holding.getAccount().getAccount_type());
+                    row.put("account_name", holding.getAccount().getAccount_name());
+                    return row;
+                })
+                .toList();
+
+        Map<String, Double> fallbackPrices = marketService.getPriceFallback();
+        for (Map<String, Object> holding : pageHoldings) {
+            String ticker = (String) holding.get("ticker");
+            double currentPrice = marketService.getPrice(ticker)
+                    .map(BigDecimal::doubleValue)
+                    .orElseGet(() -> fallbackPrices.getOrDefault(ticker, fallbackPrices.get("DEFAULT")));
+            double quantity = ((BigDecimal) holding.get("quantity")).doubleValue();
+            double averageBuyPrice = ((BigDecimal) holding.get("avg_buy_price")).doubleValue();
+            double marketValue = quantity * currentPrice;
+            double costBasis = quantity * averageBuyPrice;
+
+            holding.put("currentPrice", currentPrice);
+            holding.put("marketValue", roundToTwoDecimals(marketValue));
+            holding.put("pnl", roundToTwoDecimals(marketValue - costBasis));
+        }
+
+        List<HoldingItemDTO> holdings = pageHoldings.stream().map(this::toHoldingDTO).toList();
 
         return new HoldingResponseDTO(
                 user.getName(),
-                getEnrichedHoldingsForUser(userId).stream().map(this::toHoldingDTO).toList(),
-                getAccountsForUser(user.getId()));
+                holdings,
+                getAccountsForUser(user.getId()),
+                holdingsPage.getNumber(),
+                holdingsPage.getSize(),
+                holdingsPage.getTotalElements(),
+                holdingsPage.getTotalPages());
     }
 
     public void addHoldingForAuthenticatedUser(String email, CreateHoldingRequestDTO requestDTO) {
