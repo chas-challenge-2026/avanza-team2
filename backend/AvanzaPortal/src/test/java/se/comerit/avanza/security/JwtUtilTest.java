@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test;
 public class JwtUtilTest {
     private JwtUtil jwtUtil;
     private final String secret = "4f1a9c2e6b7d3f80512e9a6c4b3d7f102a8e5c9b6d3f1a7e4c8b2d6f9a3e5c71";
-    private final long expirationTime = 3600000; // 1 hour
+    private final long expirationTime = 30 * 60 * 1000L; // 30 minutes
 
     @BeforeEach
     void setUp() {
