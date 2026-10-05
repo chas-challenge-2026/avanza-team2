@@ -29,11 +29,6 @@ BacktestSimulation::BacktestSimulation(
 
 BacktestSimulation::~BacktestSimulation() 
 {
-  reset_calcs();
-}
-
-void BacktestSimulation::reset_calcs() 
-{
   if (nav_series_)
   {
     delete[] nav_series_;
@@ -49,8 +44,6 @@ void BacktestSimulation::reset_calcs()
     delete[] returns_;
     returns_ = nullptr;
   }
-
-  result_ = {0.0,0.0,0.0,0.0};
 }
 
 int BacktestSimulation::run() 
@@ -134,7 +127,7 @@ BacktestResult* run_backtest(
   int res = BtS.run();
   if (res != 0)
   {
-    fprintf(stderr, "BacktestSimulation::run\n");
+    fprintf(stderr, "BacktestSimulation::run %i\n", res);
     return NULL;
   }
 

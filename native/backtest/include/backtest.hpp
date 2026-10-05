@@ -27,8 +27,8 @@ public:
   // Runs simulation backtest and fills result_
   int run();
 
-  // Frees memory for calculated data, allowing multiple runs 
-  void reset_calcs();
+  // Reset results struct, allowing multiple runs
+  void reset_result() { result_ = {0.0,0.0,0.0,0.0}; }
 
   const BacktestResult* get_result() const { return &result_; }
 
