@@ -40,12 +40,16 @@ class HoldingServiceTest {
 
     @Mock
     private HoldingsRepository holdingsRepository;
+    
+    @Mock 
+    private MarketService marketService;
 
     private HoldingService holdingService;
 
+
     @BeforeEach
     void setUp() {
-        holdingService = new HoldingService(userRepository, accountRepository, holdingsRepository);
+        holdingService = new HoldingService(userRepository, accountRepository, holdingsRepository, marketService);
     }
 
     @Test
@@ -90,6 +94,11 @@ class HoldingServiceTest {
 
         when(holdingsRepository.findHoldingsForUser(userId.longValue()))
                 .thenReturn(List.of(holding));
+        when(marketService.getPriceFallback()).thenReturn(Map.of(
+                "ERIC-B", 74.20,
+                "DEFAULT", 100.0));
+        when(marketService.getPrice("ERIC-B"))
+                .thenReturn(Optional.of(new BigDecimal("80.00")));
 
         // Act
         List<Map<String, Object>> result =
@@ -98,10 +107,41 @@ class HoldingServiceTest {
         // Assert
         Map<String, Object> enrichedHolding = result.get(0);
 
+        assertEquals(80.0, enrichedHolding.get("currentPrice"));
+        assertEquals(800.0, enrichedHolding.get("marketValue"));
+        assertEquals(300.0, enrichedHolding.get("pnl"));
+        verify(holdingsRepository).findHoldingsForUser(userId.longValue());
+        verify(marketService).getPrice("ERIC-B");
+    }
+
+    @Test
+    void shouldUseFallbackPriceWhenMarketPriceIsUnavailable() {
+        // Arrange
+        Integer userId = 1;
+
+        Holdings holding = new Holdings();
+        holding.setTicker("ERIC-B");
+        holding.setQuantity(new BigDecimal("10"));
+        holding.setAvg_buy_price(new BigDecimal("50"));
+        holding.setAccount(new Account());
+
+        when(holdingsRepository.findHoldingsForUser(userId.longValue()))
+                .thenReturn(List.of(holding));
+        when(marketService.getPriceFallback()).thenReturn(Map.of(
+                "ERIC-B", 74.20,
+                "DEFAULT", 100.0));
+        when(marketService.getPrice("ERIC-B")).thenReturn(Optional.empty());
+
+        // Act
+        List<Map<String, Object>> result =
+                holdingService.getEnrichedHoldingsForUser(userId);
+
+        // Assert
+        Map<String, Object> enrichedHolding = result.get(0);
         assertEquals(74.20, enrichedHolding.get("currentPrice"));
         assertEquals(742.0, enrichedHolding.get("marketValue"));
         assertEquals(242.0, enrichedHolding.get("pnl"));
-        verify(holdingsRepository).findHoldingsForUser(userId.longValue());
+        verify(marketService).getPrice("ERIC-B");
     }
 
     @Test
@@ -208,6 +248,11 @@ class HoldingServiceTest {
         when(holdingsRepository.findHoldingsForUser(7L))
                 .thenReturn(List.of(holding));
         when(accountRepository.findByUserId(7L)).thenReturn(List.of(account));
+        when(marketService.getPriceFallback()).thenReturn(Map.of(
+                "ERIC-B", 74.20,
+                "DEFAULT", 100.0));
+        when(marketService.getPrice("ERIC-B"))
+                .thenReturn(Optional.of(new BigDecimal("74.20")));
 
         // Act
         HoldingResponseDTO result = holdingService.getHoldingsForAuthenticatedUser(email);

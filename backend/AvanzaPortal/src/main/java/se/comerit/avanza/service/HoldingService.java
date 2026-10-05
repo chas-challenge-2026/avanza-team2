@@ -25,14 +25,16 @@ public class HoldingService {
 
 
     private final UserRepository userRepository;
+    private final MarketService marketService;
 
     private final AccountRepository accountRepository;
     private final HoldingsRepository holdingsRepository;
 
-    public HoldingService(UserRepository userRepository, AccountRepository accountRepository, HoldingsRepository holdingsRepository) {
+    public HoldingService(UserRepository userRepository, AccountRepository accountRepository, HoldingsRepository holdingsRepository, MarketService marketService) {
         this.userRepository = userRepository;
         this.accountRepository = accountRepository;
         this.holdingsRepository = holdingsRepository;
+        this.marketService = marketService;
     }
 
     public List<Map<String, Object>> getHoldingsForUser(Integer userId) {
@@ -71,16 +73,14 @@ public class HoldingService {
     public List<Map<String, Object>> getEnrichedHoldingsForUser(Integer userId) {
         List<Map<String, Object>> holdings = getHoldingsForUser(userId);
 
-        Map<String, Double> prices = new HashMap<>();
-        prices.put("ERIC-B", 74.20);
-        prices.put("VOLV-B", 268.50);
-        prices.put("AAPL", 187.32);
-        prices.put("SWED-A", 193.10);
-        prices.put("SAND", 212.80);
+        Map<String, Double> fallbackPrices = marketService.getPriceFallback();
 
         for (Map<String, Object> holding : holdings) {
             String ticker = (String) holding.get("ticker");
-            double currentPrice = prices.getOrDefault(ticker, 0.0);
+            double currentPrice = marketService.getPrice(ticker)
+            .map(BigDecimal::doubleValue)
+            .orElseGet(() -> fallbackPrices.getOrDefault(ticker, fallbackPrices.get("DEFAULT")
+            ));
             double quantity = ((BigDecimal) holding.get("quantity")).doubleValue();
             double averageBuyPrice = ((BigDecimal) holding.get("avg_buy_price")).doubleValue();
             double marketValue = quantity * currentPrice;
