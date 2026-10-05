@@ -17,6 +17,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 
@@ -212,8 +215,9 @@ class HoldingServiceTest {
                 holding.setAccount(account);
 
                 when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
-                when(holdingsRepository.findHoldingsForUser(7L))
-                                .thenReturn(List.of(holding));
+                Pageable pageable = PageRequest.of(1, 10);
+                when(holdingsRepository.findAllByUserId(7L, pageable))
+                                .thenReturn(new PageImpl<>(List.of(holding), pageable, 11));
                 when(accountRepository.findByUserId(7L)).thenReturn(List.of(account));
                 when(marketService.getPriceFallback()).thenReturn(Map.of(
                                 "ERIC-B", 74.20,
@@ -222,7 +226,7 @@ class HoldingServiceTest {
                                 .thenReturn(Optional.of(new BigDecimal("74.20")));
 
                 // Act
-                HoldingResponseDTO result = holdingService.getHoldingsForAuthenticatedUser(email);
+                HoldingResponseDTO result = holdingService.getHoldingsForAuthenticatedUser(email, pageable);
 
                 // Assert: both repositories use the authenticated user's database ID.
                 assertEquals("Anna", result.userName());
@@ -231,8 +235,12 @@ class HoldingServiceTest {
                 assertEquals(742.0, result.holdings().get(0).marketValue());
                 assertEquals(3L, result.accounts().get(0).id());
                 assertEquals("ISK", result.accounts().get(0).accountType());
+                assertEquals(1, result.page());
+                assertEquals(10, result.size());
+                assertEquals(11, result.totalElements());
+                assertEquals(2, result.totalPages());
                 verify(userRepository).findByEmail(email);
-                verify(holdingsRepository).findHoldingsForUser(7L);
+                verify(holdingsRepository).findAllByUserId(7L, pageable);
                 verify(accountRepository).findByUserId(7L);
         }
 
@@ -244,7 +252,7 @@ class HoldingServiceTest {
 
                 // Act and Assert: a missing user is rejected before holdings are fetched.
                 assertThrows(BadCredentialsException.class,
-                                () -> holdingService.getHoldingsForAuthenticatedUser(email));
+                                () -> holdingService.getHoldingsForAuthenticatedUser(email, Pageable.unpaged()));
                 verify(userRepository).findByEmail(email);
                 verifyNoInteractions(accountRepository, holdingsRepository);
         }

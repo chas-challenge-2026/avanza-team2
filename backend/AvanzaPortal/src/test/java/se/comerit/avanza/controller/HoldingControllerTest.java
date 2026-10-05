@@ -5,6 +5,7 @@ import java.util.List;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import se.comerit.avanza.dto.holdings.*;
 import se.comerit.avanza.service.HoldingService;
@@ -25,12 +26,13 @@ class HoldingControllerTest {
 
     @Test
     void shouldListHoldingsUsingAuthenticatedIdentity() {
-        HoldingResponseDTO response = new HoldingResponseDTO("Anna", List.of(), List.of());
-        when(service.getHoldingsForAuthenticatedUser("anna@example.com")).thenReturn(response);
-        var result = controller.listHoldings(authentication);
+        HoldingResponseDTO response = new HoldingResponseDTO("Anna", List.of(), List.of(), 0, 10, 0, 0);
+        when(service.getHoldingsForAuthenticatedUser("anna@example.com", PageRequest.of(0, 10)))
+                .thenReturn(response);
+        var result = controller.listHoldings(authentication, 0, 10);
         assertEquals(200, result.getStatusCode().value());
         assertSame(response, result.getBody());
-        verify(service).getHoldingsForAuthenticatedUser("anna@example.com");
+        verify(service).getHoldingsForAuthenticatedUser("anna@example.com", PageRequest.of(0, 10));
     }
 
     @Test
@@ -52,7 +54,7 @@ class HoldingControllerTest {
         var holding = new HoldingItemDTO(15L, "AAPL", "Apple", new BigDecimal("5"),
                 new BigDecimal("180.50"), "USD", "ISK", "My account", 187.32, 936.60, 34.10);
         var response = new HoldingResponseDTO("Anna", List.of(holding),
-                List.of(new HoldingAccountDTO(3L, "ISK", "My account")));
+                List.of(new HoldingAccountDTO(3L, "ISK", "My account")), 0, 10, 1, 1);
         var json = new ObjectMapper().valueToTree(response);
         assertEquals("Apple", json.path("holdings").get(0).path("instrument_name").asText());
         assertEquals(180.50, json.path("holdings").get(0).path("avg_buy_price").asDouble());
