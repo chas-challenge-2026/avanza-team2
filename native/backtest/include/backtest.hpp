@@ -1,10 +1,10 @@
 #pragma once
 
 #include "backtest.h"
-#include "port_utils.h"
-#include <cstdint>
 
-static size_t TRADING_DAYS_PER_YEAR = 252;
+#ifndef TRADING_DAYS_PER_YEAR
+#define TRADING_DAYS_PER_YEAR 252
+#endif
 
 class BacktestSimulation
 {
@@ -33,13 +33,13 @@ public:
   const BacktestResult* get_result() const { return &result_; }
 
 private:
-  BacktestResult result_;
+  BacktestResult result_ = {0.0,0.0,0.0,0.0};
 
   // User inputted values
   const double* prices_             = nullptr;
-  const int     instruments_        = 0;
-  const int     days_               = 0;
-  const int     rebalance_interval_ = 0;
+  int           instruments_        = 0;
+  int           days_               = 0;
+  int           rebalance_interval_ = 0;
 
   // Backtest calculated arrays
   double* nav_series_ = nullptr;

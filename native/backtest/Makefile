@@ -26,7 +26,7 @@ TEST_SRC := $(shell find -L $(TEST_SRC_DIR) -type f -name '*.cpp')
 # C test helper library (compiled with the C compiler)
 CC := $(if $(filter Darwin,$(UNAME_S)),clang,cc)
 
-C_TEST_LIBS := common/tests
+C_TEST_LIBS 				 := common/tests
 C_TEST_LIB_SRC_DIRS  := $(foreach lib,$(C_TEST_LIBS),$(ROOT_DIR)/$(lib)/src)
 C_TEST_LIB_SRC       := $(shell find -L $(C_TEST_LIB_SRC_DIRS) -type f -name '*.c' 2>/dev/null)
 C_TEST_LIB_INCLUDES  := $(foreach lib,$(C_TEST_LIBS),-I$(ROOT_DIR)/$(lib)/include)
@@ -58,14 +58,14 @@ ASAN_FLAGS := -O1 -g3 -fno-omit-frame-pointer -fsanitize=address,undefined
 
 # For MacOS
 ifeq ($(UNAME_S),Darwin)
-	LDFLAGS := -flto -lm
+	LDFLAGS := -flto -lm -lcurl
 else
-	LDFLAGS := -flto -Wl,--gc-sections -lm
+	LDFLAGS := -flto -Wl,--gc-sections -lm -lcurl
 endif
 
 # Map local .cpp -> .o
-OBJ_LOCAL  := $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/$(SRC_DIR)/%.o,$(SRC))
-SO_OBJ     := $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/so/$(SRC_DIR)/%.o,$(SRC))
+OBJ_LOCAL  		 := $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/$(SRC_DIR)/%.o,$(SRC))
+SO_OBJ     		 := $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/so/$(SRC_DIR)/%.o,$(SRC))
 TEST_OBJ_LOCAL := $(patsubst $(TEST_SRC_DIR)/%.cpp,$(BUILD_DIR)/$(TEST_SRC_DIR)/%.o,$(TEST_SRC))
 
 # Map C test helper library .c -> .o
@@ -183,7 +183,6 @@ test-gdb: $(TEST_BIN)
 	@echo "Debugging test using gdb..."
 	@gdb ./$(TEST_BIN)
 
-# WARNING: valgrind has poor AVX-512 support, use AVX_LEVEL=avx2 or less
 test-valgrind: $(TEST_BIN)
 	@echo "Debugging test using valgrind..."
 	@valgrind -s --leak-check=full --show-leak-kinds=all --track-origins=yes ./$(TEST_BIN)

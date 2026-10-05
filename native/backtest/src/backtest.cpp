@@ -1,7 +1,7 @@
 #include "backtest.hpp"
 #include "volatility.h"
 #include "data_utils.h"
-#include "port_utils.h"
+#include "rates_handler.h"
 
 #include <iostream>
 #include <cstring>
@@ -17,10 +17,14 @@ BacktestSimulation::BacktestSimulation(
     rebalance_interval_(rebalance_interval_days)
 {
   nav_series_ = new double[days_];
-  returns_    = new double[days_]; // whole portfolio equity curve
-  units_      = new double[instruments_];
-
-  // Catch no mem err?
+  if (!nav_series_)
+    throw std::bad_alloc();
+  returns_ = new double[days_];
+  if (!returns_)
+    throw std::bad_alloc();
+  units_ = new double[instruments_];
+  if (!units_)
+    throw std::bad_alloc();
 }
 
 BacktestSimulation::~BacktestSimulation() 
@@ -45,10 +49,15 @@ void BacktestSimulation::reset_calcs()
     delete[] returns_;
     returns_ = nullptr;
   }
+
+  result_ = {0.0,0.0,0.0,0.0};
 }
 
 int BacktestSimulation::run() 
 {
+  if (!nav_series_ || !units_ || !returns_)
+    return 1;
+
   double weight = 1.0 / instruments_;
   for (int i = 0; i < instruments_; i++) 
     units_[i] = weight / prices_[i];
@@ -78,13 +87,17 @@ int BacktestSimulation::run()
 
   result_.max_drawdown = risk_calc_max_drawdown(nav_series_, (size_t)days_);
 
+  // Try get risk-free rate, silently fail to 0.0
+  double rf_rate;
+  if (rates_handler_get_latest_swestr(&rf_rate) != 0)
+    rf_rate = 0.0;
+
   /* returns[0] is data_convert_values_to_returns()'s unused placeholder
    * for the first NAV (no prior day to compare against) - skip it, same
    * as the old loop starting its return calc at t=1. */
   data_convert_values_to_returns(nav_series_, returns_, (size_t)days_);
   result_.sharpe_ratio = risk_calc_sharpe_ratio_double(
-    returns_ + 1, (size_t)(days_ - 1), 0.0, TRADING_DAYS_PER_YEAR);
-
+    returns_ + 1, (size_t)(days_ - 1), rf_rate, TRADING_DAYS_PER_YEAR);
 
   return 0;
 }
@@ -101,7 +114,7 @@ BacktestResult* run_backtest(
 {
   // Validate inputs
   if (!prices || !strategy || instruments <= 0 || days <= 1) {
-    fprintf(stderr, "Invalid inputs");
+    fprintf(stderr, "Invalid inputs\n");
     return NULL;
   }
 
@@ -112,7 +125,7 @@ BacktestResult* run_backtest(
   } else if (strcmp(strategy, "REBALANCE_MONTHLY") == 0) {
     rebalance_interval_days = 21;
   } else {
-    fprintf(stderr, "Invalid strategy");
+    fprintf(stderr, "Invalid strategy\n");
     return NULL;
   }
 
@@ -121,14 +134,14 @@ BacktestResult* run_backtest(
   int res = BtS.run();
   if (res != 0)
   {
-    fprintf(stderr, "BacktestSimulation::simulate");
+    fprintf(stderr, "BacktestSimulation::run\n");
     return NULL;
   }
 
   // Allocate Results struct and copy results
-  BacktestResult* BtR = (BacktestResult*)calloc(0, sizeof(BacktestResult));
+  BacktestResult* BtR = (BacktestResult*)malloc(sizeof(BacktestResult));
   if (!BtR) {
-    fprintf(stderr, "calloc");
+    fprintf(stderr, "malloc\n");
     return NULL;
   }
   memcpy(BtR, BtS.get_result(), sizeof(BacktestResult));
