@@ -97,6 +97,21 @@ mvn spring-boot:run
 Standardkonfigurationen finns i `src/main/resources/application.properties`.
 Docker Compose skriver över databasinställningarna genom miljövariabler.
 
+## Aktiekurser
+
+Backenden hämtar end-of-day-kurser från Marketstack. API-nyckeln tillförs som
+miljövariabel och ska aldrig sparas i Git:
+
+```env
+MARKETSTACK_API_KEY=your_marketstack_api_key
+```
+
+`MarketService` översätter applikationens tickers till Marketstacks
+symbolformat och cachar hämtade priser för att minska antalet externa anrop.
+Svenska aktier använder Nasdaq Stockholm (`XSTO`), exempelvis `ERIC-B.ST` och
+`VOLV-B.ST`. Om en ticker saknas eller leverantören inte returnerar ett giltigt
+pris får anroparen ett tomt resultat i stället för ett ogiltigt pris.
+
 ## API-endpoints
 
 | Metod | Endpoint | Beskrivning |

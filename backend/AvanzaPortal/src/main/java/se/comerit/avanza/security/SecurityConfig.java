@@ -80,7 +80,9 @@ public class SecurityConfig {
 
                 // Allow requests from the local React/Vite frontend.
                 configuration.setAllowedOrigins(
-                                List.of("http://localhost:5173"));
+                                List.of("http://localhost:5173",
+                                                "https://avanza-team2.team.chas-challenge.comerit.se",
+                                                "https://avanza-team2-dev.team.chas-challenge.comerit.se"));
 
                 // Allow the HTTP methods used by the frontend.
                 configuration.setAllowedMethods(
