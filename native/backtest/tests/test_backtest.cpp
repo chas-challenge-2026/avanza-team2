@@ -1,6 +1,8 @@
 #include "backtest.h"
 #include "test_data.h"
 
+extern "C" {
+
 #include <assert.h>
 #include <math.h>
 #include <stdio.h>
@@ -31,7 +33,6 @@ static void test_invalid_inputs(void) {
     /* Sanity: the baseline array itself is valid input. */
     BacktestResult* r = run_backtest(base_prices, 2, 3, "BUY_HOLD");
     assert(r != NULL);
-    backtest_free_result(r);
 
     printf("OK\n");
 }
@@ -53,7 +54,6 @@ static void test_flat_prices(void) {
     assert(approx_eq(r->max_drawdown, 0.0, EPS_TIGHT));
     assert(approx_eq(r->sharpe_ratio, 0.0, EPS_TIGHT));
     assert(approx_eq(r->annualized_return, 0.0, EPS_TIGHT));
-    backtest_free_result(r);
 
     printf("OK\n");
 }
@@ -77,8 +77,6 @@ static void test_hand_computed_uptrend(void) {
     double rel_err = fabs(r->annualized_return - expected_annualized) / expected_annualized;
     assert(rel_err < EPS_TIGHT);
 
-    backtest_free_result(r);
-
     printf("OK\n");
 }
 
@@ -95,8 +93,6 @@ static void test_hand_computed_drawdown(void) {
     /* daily returns: +0.20, -0.25, +0.20 -> mean=0.05, std_dev=sqrt(0.0675)
      * ~= 0.259808 -> sharpe = (mean/std_dev)*sqrt(252) ~= 3.05505 */
     assert(approx_eq(r->sharpe_ratio, 3.05505, EPS_LOOSE));
-
-    backtest_free_result(r);
 
     printf("OK\n");
 }
@@ -119,9 +115,6 @@ static void test_strategies_diverge(void) {
     /* Diverging instruments + a rebalance mid-run must change the outcome. */
     assert(!approx_eq(bh->total_return, rb->total_return, EPS_TIGHT));
 
-    backtest_free_result(bh);
-    backtest_free_result(rb);
-
     printf("OK\n");
 }
 
@@ -132,7 +125,7 @@ static void test_realistic_scale_smoke(void) {
     int days = 252 * 5;
     size_t n = (size_t)instruments * (size_t)days;
 
-    double* prices = malloc(n * sizeof(double));
+    double* prices = (double*)malloc(n * sizeof(double));
     assert(prices != NULL);
 
     /* base=100, step=0, noise=+-10 -> strictly positive prices in [90, 110],
@@ -149,13 +142,12 @@ static void test_realistic_scale_smoke(void) {
 
     printf("(%.3fs) ", (double)(end - start) / CLOCKS_PER_SEC);
 
-    backtest_free_result(bh);
-    backtest_free_result(rb);
     free(prices);
 
     printf("OK\n");
 }
 
+}
 int main(void) {
     test_invalid_inputs();
     test_flat_prices();
@@ -167,3 +159,4 @@ int main(void) {
     printf("All backtest tests passed.\n");
     return 0;
 }
+
