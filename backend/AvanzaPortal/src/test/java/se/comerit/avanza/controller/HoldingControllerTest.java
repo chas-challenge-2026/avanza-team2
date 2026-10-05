@@ -27,7 +27,7 @@ class HoldingControllerTest {
     void shouldListHoldingsUsingAuthenticatedIdentity() {
         HoldingResponseDTO response = new HoldingResponseDTO("Anna", List.of(), List.of());
         when(service.getHoldingsForAuthenticatedUser("anna@example.com")).thenReturn(response);
-        var result = controller.listHoldings(authentication);
+        var result = controller.listHoldings(authentication, 0, 10);
         assertEquals(200, result.getStatusCode().value());
         assertSame(response, result.getBody());
         verify(service).getHoldingsForAuthenticatedUser("anna@example.com");
