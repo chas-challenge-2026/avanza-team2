@@ -48,6 +48,25 @@ interface PortfolioResponse {
   usdToSek: number
 }
 
+interface AlertsResponse {
+  storedAlerts: {
+    content: {
+      id: number
+      user: number
+      message: string
+      dismissed: boolean
+      createdAt: string
+    }[]
+  }
+  liveAlerts: {
+    alertType: string
+    message: string
+    dismissed: boolean
+    createdAt: string
+  }[]
+  driftThreshold: number
+}
+
 const numberFormatter = new Intl.NumberFormat('sv-SE', {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
@@ -63,12 +82,20 @@ const formatAccountType = (accountType: string) =>
   accountType === 'Depa' ? 'Depå' : accountType
 
 const formatDate = (value: string) => {
+  if (value === 'Nu') {
+    return 'Nu'
+  }
+
   const date = new Date(value.replace(' ', 'T'))
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('sv-SE')
+
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleDateString('sv-SE')
 }
 
 export const Overview = () => {
   const [portfolio, setPortfolio] = useState<PortfolioResponse | null>(null)
+  const [alerts, setAlerts] = useState<AlertsResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -93,14 +120,35 @@ export const Overview = () => {
         const data = (await response.json()) as PortfolioResponse
         setPortfolio(data)
         setError(null)
+
+        try {
+          const alertsResponse = await fetch(`${API_URL}/api/alerts`, {
+            credentials: 'include',
+            signal: controller.signal,
+          })
+
+          if (alertsResponse.ok) {
+            const alertsData = (await alertsResponse.json()) as AlertsResponse
+            setAlerts(alertsData)
+          }
+        } catch {
+          if (!controller.signal.aborted) {
+            console.warn('Kunde inte hämta alerts.')
+          }
+        }
       } catch {
         if (!controller.signal.aborted) {
-          setError('Kunde inte hämta portföljen. Kontrollera anslutningen och försök igen.')
+          setError(
+            'Kunde inte hämta portföljen. Kontrollera anslutningen och försök igen.',
+          )
         }
       } finally {
         if (!controller.signal.aborted) {
           setIsLoading(false)
-          timeoutId = window.setTimeout(() => void loadPortfolio(), POLL_INTERVAL_MS)
+          timeoutId = window.setTimeout(
+            () => void loadPortfolio(),
+            POLL_INTERVAL_MS,
+          )
         }
       }
     }
@@ -109,6 +157,7 @@ export const Overview = () => {
 
     return () => {
       activeController?.abort()
+
       if (timeoutId !== undefined) {
         window.clearTimeout(timeoutId)
       }
@@ -121,7 +170,9 @@ export const Overview = () => {
     return (
       <div className="p-6" role="status">
         <Title>Översikt</Title>
-        <p className="mx-auto mt-6 max-w-4xl text-sm text-neutral-600">Hämtar portfölj...</p>
+        <p className="mx-auto mt-6 max-w-4xl text-sm text-neutral-600">
+          Hämtar portfölj...
+        </p>
       </div>
     )
   }
@@ -141,6 +192,7 @@ export const Overview = () => {
     (total, holding) => total + holding.valueSek - holding.unrealizedReturn,
     0,
   )
+
   const driftedAccountTypes = portfolio.allocationRows
     .filter((row) => row.overThreshold)
     .map((row) => formatAccountType(row.accountType))
@@ -159,15 +211,29 @@ export const Overview = () => {
       color: allocationColors[row.accountType] ?? '#64748b',
     }))
 
-  const activity = portfolio.recentAlerts
-    .filter((alert) => !alert.dismissed)
-    .map((alert) => ({
-      label: alert.message,
-      date: formatDate(alert.createdAt),
-      icon: 'fa-bell',
-      color: '#d97706',
-      category: 'Övrigt' as const,
-    }))
+  const liveActivities =
+    alerts?.liveAlerts
+      .filter((alert) => !alert.dismissed)
+      .map((alert) => ({
+        label: alert.message,
+        date: formatDate(alert.createdAt),
+        icon: 'fa-bell',
+        color: '#d97706',
+        category: 'Övrigt' as const,
+      })) ?? []
+
+  const storedActivities =
+    alerts?.storedAlerts.content
+      .filter((alert) => !alert.dismissed)
+      .map((alert) => ({
+        label: alert.message,
+        date: formatDate(alert.createdAt),
+        icon: 'fa-bell',
+        color: '#d97706',
+        category: 'Övrigt' as const,
+      })) ?? []
+
+  const activity = [...liveActivities, ...storedActivities].slice(0, 3)
 
   return (
     <div className="p-6">
