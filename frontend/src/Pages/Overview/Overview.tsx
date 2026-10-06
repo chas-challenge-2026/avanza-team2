@@ -22,11 +22,11 @@ interface PortfolioResponse {
     ticker: string
     instrumentName: string
     quantity: number
-    currentPrice: number
-    valueSek: number
-    unrealizedReturn: number
-    unrealizedReturnPct: number
-    sharpe: number
+    currentPrice: number | null
+    valueSek: number | null
+    unrealizedReturn: number | null
+    unrealizedReturnPct: number | null
+    sharpe: number | null
     displayCurrency: string
   }[]
   allocationRows: {
@@ -189,7 +189,13 @@ export const Overview = () => {
   }
 
   const investedValue = portfolio.enrichedHoldings.reduce(
-    (total, holding) => total + holding.valueSek - holding.unrealizedReturn,
+    (total, holding) => {
+      if (holding.valueSek === null || holding.unrealizedReturn === null) {
+        return total
+      }
+
+      return total + holding.valueSek - holding.unrealizedReturn
+    },
     0,
   )
 
