@@ -1,8 +1,9 @@
 package se.comerit.avanza.client;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.Optional;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -24,13 +25,19 @@ public class HistoricalDataClient implements StockPriceHistoryClient {
         this.apiKey = apiKey;
     }
 
-    public Optional<BigDecimal> fetchHistoricalPrice(String symbol, String exchange, LocalDate date) {
+    public List<HistoricalPrice> fetchHistoricalPrices(
+            String symbol,
+            String exchange,
+            LocalDate fromDate,
+            LocalDate toDate) {
 
         if (symbol == null || symbol.isBlank()
                 || exchange == null || exchange.isBlank()
-                || date == null
+                || fromDate == null
+                || toDate == null
+                || fromDate.isAfter(toDate)
                 || apiKey == null || apiKey.isBlank()) {
-            return Optional.empty();
+            return List.of();
         }
 
         try {
@@ -39,25 +46,36 @@ public class HistoricalDataClient implements StockPriceHistoryClient {
                             .path("/v2/eod")
                             .queryParam("access_key", apiKey)
                             .queryParam("symbols", symbol)
-                            .queryParam("date_from", date)
-                            .queryParam("date_to", date)
+                            .queryParam("date_from", fromDate)
+                            .queryParam("date_to", toDate)
+                            .queryParam("limit", 1000)
                             .build())
                     .retrieve()
                     .body(MarketstackPriceResponseDTO.class);
 
             if (response == null || response.data() == null || response.data().isEmpty()) {
-                return Optional.empty();
+                return List.of();
             }
 
-            BigDecimal price = response.data().get(0).close();
+            List<HistoricalPrice> prices = new ArrayList<>();
+            for (MarketstackPriceResponseDTO.PriceData priceData : response.data()) {
+                if (priceData.date() == null
+                        || priceData.close() == null
+                        || priceData.close().signum() <= 0) {
+                    continue;
+                }
 
-            if (price == null || price.signum() <= 0) {
-                return Optional.empty();
+                try {
+                    LocalDate date = LocalDate.parse(priceData.date().substring(0, 10));
+                    prices.add(new HistoricalPrice(symbol, date, priceData.close()));
+                } catch (DateTimeParseException | IndexOutOfBoundsException exception) {
+                    continue;
+                }
             }
 
-            return Optional.of(price);
+            return prices;
         } catch (RestClientException exception) {
-            return Optional.empty();
+            return List.of();
         }
     }
 }

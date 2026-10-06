@@ -2,16 +2,21 @@ package se.comerit.avanza.client;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.Optional;
+import java.util.List;
 
 public interface StockPriceHistoryClient {
+
+    record HistoricalPrice(String symbol, LocalDate date, BigDecimal close) {
+    }
+
     /**
-     * Fetches the historical price for a provider-specific market symbol.
+     * Fetches historical daily prices for a provider-specific market symbol.
      *
      * @param symbol   the symbol expected by the provider
      * @param exchange the exchange where the instrument is listed
-     * @param date     the date for which the historical price is requested
-     * @return the price, or empty when it cannot be retrieved
+     * @param fromDate the start date for the historical price range
+     * @param toDate   the end date for the historical price range
+     * @return historical prices, or an empty list when unavailable
      */
-    Optional<BigDecimal> fetchHistoricalPrice(String symbol, String exchange, LocalDate date);
+    List<HistoricalPrice> fetchHistoricalPrices(String symbol, String exchange, LocalDate fromDate, LocalDate toDate);
 }
