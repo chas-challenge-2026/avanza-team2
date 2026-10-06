@@ -71,15 +71,21 @@ public class HoldingService {
     }
 
     public List<Map<String, Object>> getEnrichedHoldingsForUser(Integer userId) {
-        List<Map<String, Object>> holdings = getHoldingsForUser(userId);
-
-        Map<String, Double> fallbackPrices = marketService.getPriceFallback();
+    List<Map<String, Object>> holdings = getHoldingsForUser(userId);
 
         for (Map<String, Object> holding : holdings) {
             String ticker = (String) holding.get("ticker");
-            double currentPrice = marketService.getPrice(ticker)
-                    .map(BigDecimal::doubleValue)
-                    .orElseGet(() -> fallbackPrices.getOrDefault(ticker, fallbackPrices.get("DEFAULT")));
+
+            var price = marketService.getPrice(ticker);
+
+            if (price.isEmpty()) {
+                holding.put("currentPrice", null);
+                holding.put("marketValue", null);
+                holding.put("pnl", null);
+                continue;
+            }
+
+            double currentPrice = price.get().doubleValue();
             double quantity = ((BigDecimal) holding.get("quantity")).doubleValue();
             double averageBuyPrice = ((BigDecimal) holding.get("avg_buy_price")).doubleValue();
             double marketValue = quantity * currentPrice;
@@ -195,13 +201,22 @@ public class HoldingService {
     }
 
     private HoldingItemDTO toHoldingDTO(Map<String, Object> row) {
-        return new HoldingItemDTO(toLong(row.get("id")), (String) row.get("ticker"),
-                (String) row.get("instrument_name"), (BigDecimal) row.get("quantity"),
-                (BigDecimal) row.get("avg_buy_price"), (String) row.get("currency"),
-                (String) row.get("account_type"), (String) row.get("account_name"),
-                ((Number) row.get("currentPrice")).doubleValue(),
-                ((Number) row.get("marketValue")).doubleValue(),
-                ((Number) row.get("pnl")).doubleValue());
+        return new HoldingItemDTO(
+                toLong(row.get("id")),
+                (String) row.get("ticker"),
+                (String) row.get("instrument_name"),
+                (BigDecimal) row.get("quantity"),
+                (BigDecimal) row.get("avg_buy_price"),
+                (String) row.get("currency"),
+                (String) row.get("account_type"),
+                (String) row.get("account_name"),
+                toDouble(row.get("currentPrice")),
+                toDouble(row.get("marketValue")),
+                toDouble(row.get("pnl")));
+    }
+
+    private Double toDouble(Object value) {
+        return value == null ? null : ((Number) value).doubleValue();
     }
 
     private Long toLong(Object value) {
