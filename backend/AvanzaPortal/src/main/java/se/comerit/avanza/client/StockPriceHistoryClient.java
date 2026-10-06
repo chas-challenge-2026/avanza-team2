@@ -10,13 +10,12 @@ public interface StockPriceHistoryClient {
     }
 
     /**
-     * Fetches historical daily prices for a provider-specific market symbol.
+     * Fetches historical daily prices for provider-specific market symbols.
      *
-     * @param symbol   the symbol expected by the provider
-     * @param exchange the exchange where the instrument is listed
+     * @param symbols  the symbols expected by the provider
      * @param fromDate the start date for the historical price range
      * @param toDate   the end date for the historical price range
      * @return historical prices, or an empty list when unavailable
      */
-    List<HistoricalPrice> fetchHistoricalPrices(String symbol, String exchange, LocalDate fromDate, LocalDate toDate);
+    List<HistoricalPrice> fetchHistoricalPrices(List<String> symbols, LocalDate fromDate, LocalDate toDate);
 }
