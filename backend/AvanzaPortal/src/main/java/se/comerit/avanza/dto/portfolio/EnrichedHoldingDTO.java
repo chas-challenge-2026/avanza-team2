@@ -9,10 +9,10 @@ public record EnrichedHoldingDTO(
         String ticker,
         String instrumentName,
         double quantity,
-        double currentPrice,
-        double valueSek,
-        double unrealizedReturn,
-        double unrealizedReturnPct,
-        double sharpe,
+        Double currentPrice,
+        Double valueSek,
+        Double unrealizedReturn,
+        Double unrealizedReturnPct,
+        Double sharpe,
         String displayCurrency) {
 }
