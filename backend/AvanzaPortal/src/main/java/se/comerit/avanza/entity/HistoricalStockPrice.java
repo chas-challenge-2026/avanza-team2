@@ -15,7 +15,7 @@ import java.time.LocalDate;
  * HistoricalStockPrice
  */
 @Entity
-@Table(name = "historical_stock_price")
+@Table(name = "historical_stock_prices")
 public class HistoricalStockPrice {
 
     // Columns
