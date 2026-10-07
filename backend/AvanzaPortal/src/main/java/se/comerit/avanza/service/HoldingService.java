@@ -71,7 +71,7 @@ public class HoldingService {
     }
 
     public List<Map<String, Object>> getEnrichedHoldingsForUser(Integer userId) {
-    List<Map<String, Object>> holdings = getHoldingsForUser(userId);
+        List<Map<String, Object>> holdings = getHoldingsForUser(userId);
 
         for (Map<String, Object> holding : holdings) {
             String ticker = (String) holding.get("ticker");
@@ -141,12 +141,11 @@ public class HoldingService {
                 })
                 .toList();
 
-        Map<String, Double> fallbackPrices = marketService.getPriceFallback();
         for (Map<String, Object> holding : pageHoldings) {
             String ticker = (String) holding.get("ticker");
             double currentPrice = marketService.getPrice(ticker)
                     .map(BigDecimal::doubleValue)
-                    .orElseGet(() -> fallbackPrices.getOrDefault(ticker, fallbackPrices.get("DEFAULT")));
+                    .orElseThrow(() -> new RuntimeException("Failed to retrieve current price for ticker: " + ticker));
             double quantity = ((BigDecimal) holding.get("quantity")).doubleValue();
             double averageBuyPrice = ((BigDecimal) holding.get("avg_buy_price")).doubleValue();
             double marketValue = quantity * currentPrice;
