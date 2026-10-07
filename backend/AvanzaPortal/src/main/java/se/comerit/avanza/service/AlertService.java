@@ -125,7 +125,7 @@ public class AlertService {
         /**
          * Fetch accounts and compute totals (v1 query 2)
          */
-        List<Account> accounts = accountRepository.findByUserId(userId);
+        List<Account> accounts = accountRepository.findAllWithHoldingsByUserId(userId);
 
         /**
          * Fetch target allocations for the user (v1 query 3)

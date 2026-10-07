@@ -21,8 +21,10 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
     boolean existsByIdAndUser_Id(Long accountId, Long UserId);
 
     @Query("""
-            SELECT DISTINCT account FROM Account account LEFT JOIN FETCH account.holdings holdings
+            SELECT DISTINCT account
+            FROM Account account
+            LEFT JOIN FETCH account.holdings
             WHERE account.user.id = :userId
             """)
-    List<Account> findAllwithHoldingsByUserId(@Param ("userId")Long userId);
+    List<Account> findAllWithHoldingsByUserId(@Param("userId") Long userId);
 }
