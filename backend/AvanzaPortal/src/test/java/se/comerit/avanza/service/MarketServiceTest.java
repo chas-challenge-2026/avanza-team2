@@ -4,25 +4,40 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.StreamSupport;
 
 import org.junit.jupiter.api.Test;
-import se.comerit.avanza.nativebridge.FxLibrary;
+import se.comerit.avanza.client.StockPriceHistoryClient;
 import se.comerit.avanza.client.StockPriceClient;
 import se.comerit.avanza.dto.market.FxRateResponseDTO;
+import se.comerit.avanza.entity.HistoricalStockPrice;
+import se.comerit.avanza.nativebridge.FxLibrary;
+import se.comerit.avanza.repository.HistoricalRepository;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MarketServiceTest {
+
+    private static final List<String> HISTORICAL_TICKERS = List.of(
+            "ERIC-B", "VOLV-B", "AAPL", "SWED-A", "SAND");
 
     @Test
     void getFxReturnsRateForKnownPair() {
@@ -30,7 +45,7 @@ class MarketServiceTest {
         StockPriceClient stockPriceClient = mock(StockPriceClient.class);
         when(fxLibrary.fx_rate(eq("USD"), eq("SEK"), anyLong())).thenReturn(1.1539);
 
-        MarketService service = new MarketService(fxLibrary, stockPriceClient);
+        MarketService service = createService(fxLibrary, stockPriceClient);
         FxRateResponseDTO result = service.getFx("usd", "sek");
 
         assertEquals("USD", result.base());
@@ -45,7 +60,7 @@ class MarketServiceTest {
         when(stockPriceClient.fetchPrice("ERIC-B.ST", "XSTO"))
                 .thenReturn(Optional.of(expectedPrice));
 
-        MarketService service = new MarketService(mock(FxLibrary.class), stockPriceClient);
+        MarketService service = createService(mock(FxLibrary.class), stockPriceClient);
         Optional<BigDecimal> result = service.getPrice("ERIC-B");
 
         assertEquals(Optional.of(expectedPrice), result);
@@ -59,7 +74,7 @@ class MarketServiceTest {
         when(stockPriceClient.fetchPrice("AAPL", "XNAS"))
                 .thenReturn(Optional.of(expectedPrice));
 
-        MarketService service = new MarketService(mock(FxLibrary.class), stockPriceClient);
+        MarketService service = createService(mock(FxLibrary.class), stockPriceClient);
         Optional<BigDecimal> firstResult = service.getPrice("AAPL");
         Optional<BigDecimal> secondResult = service.getPrice("AAPL");
 
@@ -77,7 +92,7 @@ class MarketServiceTest {
                 .thenReturn(Optional.of(cachedPrice), Optional.of(refreshedPrice));
         MutableClock clock = new MutableClock(Instant.parse("2026-10-01T10:00:00Z"));
 
-        MarketService service = new MarketService(mock(FxLibrary.class), stockPriceClient, clock);
+        MarketService service = createService(mock(FxLibrary.class), stockPriceClient, clock);
 
         assertEquals(Optional.of(cachedPrice), service.getPrice("AAPL"));
         clock.advance(Duration.ofMinutes(6));
@@ -94,7 +109,7 @@ class MarketServiceTest {
                 .thenReturn(Optional.of(cachedPrice), Optional.empty());
         MutableClock clock = new MutableClock(Instant.parse("2026-10-01T10:00:00Z"));
 
-        MarketService service = new MarketService(mock(FxLibrary.class), stockPriceClient, clock);
+        MarketService service = createService(mock(FxLibrary.class), stockPriceClient, clock);
 
         assertEquals(Optional.of(cachedPrice), service.getPrice("AAPL"));
         clock.advance(Duration.ofMinutes(6));
@@ -106,7 +121,7 @@ class MarketServiceTest {
     @Test
     void shouldReturnEmptyForUnknownTicker() {
         StockPriceClient stockPriceClient = mock(StockPriceClient.class);
-        MarketService service = new MarketService(mock(FxLibrary.class), stockPriceClient);
+        MarketService service = createService(mock(FxLibrary.class), stockPriceClient);
 
         Optional<BigDecimal> result = service.getPrice("UNKNOWN");
 
@@ -120,7 +135,7 @@ class MarketServiceTest {
         when(stockPriceClient.fetchPrice("SAND.ST", "XSTO"))
                 .thenReturn(Optional.empty());
 
-        MarketService service = new MarketService(mock(FxLibrary.class), stockPriceClient);
+        MarketService service = createService(mock(FxLibrary.class), stockPriceClient);
         Optional<BigDecimal> result = service.getPrice("SAND");
 
         assertTrue(result.isEmpty());
@@ -130,12 +145,137 @@ class MarketServiceTest {
     @Test
     void shouldReturnEmptyForBlankTicker() {
         StockPriceClient stockPriceClient = mock(StockPriceClient.class);
-        MarketService service = new MarketService(mock(FxLibrary.class), stockPriceClient);
+        MarketService service = createService(mock(FxLibrary.class), stockPriceClient);
 
         Optional<BigDecimal> result = service.getPrice(" ");
 
         assertTrue(result.isEmpty());
         verifyNoInteractions(stockPriceClient);
+    }
+
+    @Test
+    void shouldImportInitialLookbackForSupportedTickers() {
+        LocalDate toDate = LocalDate.of(2026, 10, 6);
+        LocalDate fromDate = toDate.minusDays(359);
+        StockPriceHistoryClient historyClient = mock(StockPriceHistoryClient.class);
+        HistoricalRepository historicalRepository = mock(HistoricalRepository.class);
+        List<StockPriceHistoryClient.HistoricalPrice> fetchedPrices = List.of(
+                new StockPriceHistoryClient.HistoricalPrice(
+                        "ERIC-B", fromDate, new BigDecimal("74.200000")),
+                new StockPriceHistoryClient.HistoricalPrice(
+                        "AAPL", toDate, new BigDecimal("256.180000")));
+        when(historyClient.fetchHistoricalPrices(HISTORICAL_TICKERS, fromDate, toDate))
+                .thenReturn(fetchedPrices);
+
+        MarketService service = createService(
+                mock(FxLibrary.class), mock(StockPriceClient.class), historicalRepository,
+                historyClient, Clock.fixed(Instant.parse("2026-10-07T10:00:00Z"), ZoneOffset.UTC), 360);
+
+        assertEquals(2, service.importHistoricalData());
+        verify(historyClient).fetchHistoricalPrices(HISTORICAL_TICKERS, fromDate, toDate);
+        verify(historicalRepository).saveAll(argThat(rows -> {
+            List<HistoricalStockPrice> savedRows = new ArrayList<>();
+            rows.forEach(savedRows::add);
+            return savedRows.size() == 2
+                    && savedRows.stream().anyMatch(price -> price.getTicker().equals("ERIC-B")
+                            && price.getPriceDate().equals(fromDate)
+                            && price.getClosePrice().equals(new BigDecimal("74.200000")))
+                    && savedRows.stream().anyMatch(price -> price.getTicker().equals("AAPL")
+                            && price.getPriceDate().equals(toDate));
+        }));
+    }
+
+    @Test
+    void shouldImportIncrementallyFromEarliestTickerGap() {
+        LocalDate toDate = LocalDate.of(2026, 10, 6);
+        LocalDate fromDate = LocalDate.of(2026, 10, 1);
+        HistoricalRepository historicalRepository = mock(HistoricalRepository.class);
+        StockPriceHistoryClient historyClient = mock(StockPriceHistoryClient.class);
+        for (String ticker : HISTORICAL_TICKERS) {
+            LocalDate latestDate = ticker.equals("ERIC-B")
+                    ? LocalDate.of(2026, 9, 30)
+                    : LocalDate.of(2026, 10, 5);
+            when(historicalRepository.findFirstByTickerOrderByPriceDateDesc(ticker))
+                    .thenReturn(Optional.of(new HistoricalStockPrice(
+                            ticker, latestDate, new BigDecimal("100.00"))));
+        }
+        when(historyClient.fetchHistoricalPrices(HISTORICAL_TICKERS, fromDate, toDate))
+                .thenReturn(List.of(
+                        new StockPriceHistoryClient.HistoricalPrice(
+                                "ERIC-B", LocalDate.of(2026, 9, 30), new BigDecimal("70.00")),
+                        new StockPriceHistoryClient.HistoricalPrice(
+                                "ERIC-B", fromDate, new BigDecimal("71.00")),
+                        new StockPriceHistoryClient.HistoricalPrice(
+                                "VOLV-B", LocalDate.of(2026, 10, 5), new BigDecimal("270.00")),
+                        new StockPriceHistoryClient.HistoricalPrice(
+                                "VOLV-B", toDate, new BigDecimal("271.00")),
+                        new StockPriceHistoryClient.HistoricalPrice(
+                                "UNKNOWN", LocalDate.of(2026, 10, 2), new BigDecimal("1.00"))));
+
+        MarketService service = createService(
+                mock(FxLibrary.class), mock(StockPriceClient.class), historicalRepository,
+                historyClient, Clock.fixed(Instant.parse("2026-10-07T10:00:00Z"), ZoneOffset.UTC), 360);
+
+        assertEquals(2, service.importHistoricalData());
+        verify(historyClient).fetchHistoricalPrices(HISTORICAL_TICKERS, fromDate, toDate);
+        verify(historicalRepository).saveAll(argThat(rows -> {
+            Set<String> savedKeys = new HashSet<>();
+            rows.forEach(price -> savedKeys.add(price.getTicker() + ":" + price.getPriceDate()));
+            return savedKeys.equals(Set.of("ERIC-B:2026-10-01", "VOLV-B:2026-10-06"));
+        }));
+    }
+
+    @Test
+    void shouldSkipImportWhenAllTickersAreUpToDate() {
+        LocalDate latestDate = LocalDate.of(2026, 10, 6);
+        HistoricalRepository historicalRepository = mock(HistoricalRepository.class);
+        StockPriceHistoryClient historyClient = mock(StockPriceHistoryClient.class);
+        for (String ticker : HISTORICAL_TICKERS) {
+            when(historicalRepository.findFirstByTickerOrderByPriceDateDesc(ticker))
+                    .thenReturn(Optional.of(new HistoricalStockPrice(
+                            ticker, latestDate, new BigDecimal("100.00"))));
+        }
+
+        MarketService service = createService(
+                mock(FxLibrary.class), mock(StockPriceClient.class), historicalRepository,
+                historyClient, Clock.fixed(Instant.parse("2026-10-07T10:00:00Z"), ZoneOffset.UTC), 360);
+
+        assertEquals(0, service.importHistoricalData());
+        verifyNoInteractions(historyClient);
+        verify(historicalRepository, never()).saveAll(any());
+    }
+
+    private MarketService createService(FxLibrary fxLibrary, StockPriceClient stockPriceClient) {
+        return createService(fxLibrary, stockPriceClient, Clock.systemUTC());
+    }
+
+    private MarketService createService(
+            FxLibrary fxLibrary,
+            StockPriceClient stockPriceClient,
+            Clock clock) {
+        return new MarketService(
+                fxLibrary,
+                stockPriceClient,
+                mock(HistoricalRepository.class),
+                mock(StockPriceHistoryClient.class),
+                clock,
+                360);
+    }
+
+    private MarketService createService(
+            FxLibrary fxLibrary,
+            StockPriceClient stockPriceClient,
+            HistoricalRepository historicalRepository,
+            StockPriceHistoryClient historicalDataClient,
+            Clock clock,
+            int lookbackDays) {
+        return new MarketService(
+                fxLibrary,
+                stockPriceClient,
+                historicalRepository,
+                historicalDataClient,
+                clock,
+                lookbackDays);
     }
 
     private static final class MutableClock extends Clock {
