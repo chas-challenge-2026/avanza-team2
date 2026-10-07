@@ -74,7 +74,8 @@ class MarketServiceTest {
         BigDecimal cachedPrice = new BigDecimal("339.73");
         BigDecimal refreshedPrice = new BigDecimal("341.25");
         when(stockPriceClient.fetchPrice("AAPL", "XNAS"))
-                .thenReturn(Optional.of(cachedPrice), Optional.of(refreshedPrice));
+                .thenReturn(Optional.of(cachedPrice))
+                .thenReturn(Optional.of(refreshedPrice));
         MutableClock clock = new MutableClock(Instant.parse("2026-10-01T10:00:00Z"));
 
         MarketService service = new MarketService(mock(FxLibrary.class), stockPriceClient, clock);
@@ -91,7 +92,8 @@ class MarketServiceTest {
         StockPriceClient stockPriceClient = mock(StockPriceClient.class);
         BigDecimal cachedPrice = new BigDecimal("339.73");
         when(stockPriceClient.fetchPrice("AAPL", "XNAS"))
-                .thenReturn(Optional.of(cachedPrice), Optional.empty());
+                .thenReturn(Optional.of(cachedPrice))
+                .thenReturn(Optional.empty());
         MutableClock clock = new MutableClock(Instant.parse("2026-10-01T10:00:00Z"));
 
         MarketService service = new MarketService(mock(FxLibrary.class), stockPriceClient, clock);
