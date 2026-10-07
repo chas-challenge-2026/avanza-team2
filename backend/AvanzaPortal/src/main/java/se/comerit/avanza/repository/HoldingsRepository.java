@@ -32,8 +32,20 @@ public interface HoldingsRepository extends JpaRepository<Holdings, Long> {
             """)
     List<Holdings> findHoldingsForUser(@Param("userId") Long userId);
 
-    @Query("SELECT h FROM Holdings h WHERE h.account.user.id = ?1 ORDER BY h.id ASC")
-    Page<Holdings> findAllByUserId(Long userId, Pageable pageable);
+    @Query(
+        value = """
+                SELECT h
+                FROM Holdings h
+                JOIN FETCH h.account a
+                WHERE a.user.id = :userId
+                ORDER BY h.id ASC
+                """,
+        countQuery = """
+                SELECT COUNT(h)
+                FROM Holdings h
+                WHERE h.account.user.id = :userId
+                """)
+    Page<Holdings> findAllByUserId(@Param("userId") Long userId, Pageable pageable);
 
     Page<Holdings> findAllByAccountIdIn(List<Long> accountIds, Pageable pageable);
 }
