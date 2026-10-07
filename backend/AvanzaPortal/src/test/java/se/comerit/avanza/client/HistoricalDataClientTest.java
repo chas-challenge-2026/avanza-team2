@@ -74,15 +74,15 @@ class HistoricalDataClientTest {
 
     HistoricalDataClient client = new HistoricalDataClient(builder, BASE_URL, "test-key", 360);
 
-    List<StockPriceHistoryClient.HistoricalPrice> result = client.fetchHistoricalPrices(
+    List<HistoricalPriceClient.HistoricalPrice> result = client.fetchHistoricalPrices(
         SYMBOLS,
         REQUESTED_DATE,
         REQUESTED_DATE.plusDays(1));
 
     assertEquals(List.of(
-        new StockPriceHistoryClient.HistoricalPrice("ERIC-B.ST", REQUESTED_DATE, new BigDecimal("92.34")),
-        new StockPriceHistoryClient.HistoricalPrice("VOLV-B.ST", REQUESTED_DATE, new BigDecimal("280.50")),
-        new StockPriceHistoryClient.HistoricalPrice("ERIC-B.ST", REQUESTED_DATE.plusDays(1),
+        new HistoricalPriceClient.HistoricalPrice("ERIC-B.ST", REQUESTED_DATE, new BigDecimal("92.34")),
+        new HistoricalPriceClient.HistoricalPrice("VOLV-B.ST", REQUESTED_DATE, new BigDecimal("280.50")),
+        new HistoricalPriceClient.HistoricalPrice("ERIC-B.ST", REQUESTED_DATE.plusDays(1),
             new BigDecimal("93.12"))),
         result);
     server.verify();

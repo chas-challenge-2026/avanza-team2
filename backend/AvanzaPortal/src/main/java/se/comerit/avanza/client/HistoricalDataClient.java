@@ -20,7 +20,7 @@ import se.comerit.avanza.dto.market.MarketstackPriceResponseDTO;
  * Provides methods to fetch recent and historical stock prices.
  */
 @Component
-public class HistoricalDataClient implements StockPriceHistoryClient {
+public class HistoricalDataClient implements HistoricalPriceClient {
 
     private final RestClient restClient;
     private final String apiKey;

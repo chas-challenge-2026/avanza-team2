@@ -16,7 +16,7 @@ import org.springframework.stereotype.Service;
 
 import jakarta.transaction.Transactional;
 import se.comerit.avanza.client.StockPriceClient;
-import se.comerit.avanza.client.StockPriceHistoryClient;
+import se.comerit.avanza.client.HistoricalPriceClient;
 import se.comerit.avanza.dto.market.FxRateResponseDTO;
 import se.comerit.avanza.entity.HistoricalStockPrice;
 import se.comerit.avanza.nativebridge.FxLibrary;
@@ -46,7 +46,7 @@ public class MarketService {
     private final Clock clock;
     private final int historicalLookbackDays;
     private final HistoricalRepository historicalRepository;
-    private final StockPriceHistoryClient historicalDataClient;
+    private final HistoricalPriceClient historicalDataClient;
     private final Map<String, CachedPrice> priceCache = new ConcurrentHashMap<>();
 
     @Autowired
@@ -54,7 +54,7 @@ public class MarketService {
             FxLibrary fxLibrary,
             StockPriceClient stockPriceClient,
             HistoricalRepository historicalRepository,
-            StockPriceHistoryClient historicalDataClient,
+            HistoricalPriceClient historicalDataClient,
             @Value("${marketstack.history.lookback-days:360}") int lookbackDays) {
         this(fxLibrary, stockPriceClient, historicalRepository, historicalDataClient,
                 Clock.systemUTC(), lookbackDays);
@@ -64,7 +64,7 @@ public class MarketService {
             FxLibrary fxLibrary,
             StockPriceClient stockPriceClient,
             HistoricalRepository historicalRepository,
-            StockPriceHistoryClient historicalDataClient,
+            HistoricalPriceClient historicalDataClient,
             Clock clock,
             int lookbackDays) {
         this.fxLibrary = fxLibrary;

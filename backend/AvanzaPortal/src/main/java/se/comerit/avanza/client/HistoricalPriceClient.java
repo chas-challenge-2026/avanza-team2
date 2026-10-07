@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
-public interface StockPriceHistoryClient {
+public interface HistoricalPriceClient {
 
     record HistoricalPrice(String symbol, LocalDate date, BigDecimal close) {
     }

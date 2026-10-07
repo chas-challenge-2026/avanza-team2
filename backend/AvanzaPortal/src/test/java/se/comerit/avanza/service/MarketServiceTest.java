@@ -15,7 +15,7 @@ import java.util.Set;
 import java.util.stream.StreamSupport;
 
 import org.junit.jupiter.api.Test;
-import se.comerit.avanza.client.StockPriceHistoryClient;
+import se.comerit.avanza.client.HistoricalPriceClient;
 import se.comerit.avanza.client.StockPriceClient;
 import se.comerit.avanza.dto.market.FxRateResponseDTO;
 import se.comerit.avanza.entity.HistoricalStockPrice;
@@ -157,12 +157,12 @@ class MarketServiceTest {
     void shouldImportInitialLookbackForSupportedTickers() {
         LocalDate toDate = LocalDate.of(2026, 10, 6);
         LocalDate fromDate = toDate.minusDays(359);
-        StockPriceHistoryClient historyClient = mock(StockPriceHistoryClient.class);
+        HistoricalPriceClient historyClient = mock(HistoricalPriceClient.class);
         HistoricalRepository historicalRepository = mock(HistoricalRepository.class);
-        List<StockPriceHistoryClient.HistoricalPrice> fetchedPrices = List.of(
-                new StockPriceHistoryClient.HistoricalPrice(
+        List<HistoricalPriceClient.HistoricalPrice> fetchedPrices = List.of(
+                new HistoricalPriceClient.HistoricalPrice(
                         "ERIC-B", fromDate, new BigDecimal("74.200000")),
-                new StockPriceHistoryClient.HistoricalPrice(
+                new HistoricalPriceClient.HistoricalPrice(
                         "AAPL", toDate, new BigDecimal("256.180000")));
         when(historyClient.fetchHistoricalPrices(HISTORICAL_TICKERS, fromDate, toDate))
                 .thenReturn(fetchedPrices);
@@ -190,7 +190,7 @@ class MarketServiceTest {
         LocalDate toDate = LocalDate.of(2026, 10, 6);
         LocalDate fromDate = LocalDate.of(2026, 10, 1);
         HistoricalRepository historicalRepository = mock(HistoricalRepository.class);
-        StockPriceHistoryClient historyClient = mock(StockPriceHistoryClient.class);
+        HistoricalPriceClient historyClient = mock(HistoricalPriceClient.class);
         for (String ticker : HISTORICAL_TICKERS) {
             LocalDate latestDate = ticker.equals("ERIC-B")
                     ? LocalDate.of(2026, 9, 30)
@@ -201,15 +201,15 @@ class MarketServiceTest {
         }
         when(historyClient.fetchHistoricalPrices(HISTORICAL_TICKERS, fromDate, toDate))
                 .thenReturn(List.of(
-                        new StockPriceHistoryClient.HistoricalPrice(
+                        new HistoricalPriceClient.HistoricalPrice(
                                 "ERIC-B", LocalDate.of(2026, 9, 30), new BigDecimal("70.00")),
-                        new StockPriceHistoryClient.HistoricalPrice(
+                        new HistoricalPriceClient.HistoricalPrice(
                                 "ERIC-B", fromDate, new BigDecimal("71.00")),
-                        new StockPriceHistoryClient.HistoricalPrice(
+                        new HistoricalPriceClient.HistoricalPrice(
                                 "VOLV-B", LocalDate.of(2026, 10, 5), new BigDecimal("270.00")),
-                        new StockPriceHistoryClient.HistoricalPrice(
+                        new HistoricalPriceClient.HistoricalPrice(
                                 "VOLV-B", toDate, new BigDecimal("271.00")),
-                        new StockPriceHistoryClient.HistoricalPrice(
+                        new HistoricalPriceClient.HistoricalPrice(
                                 "UNKNOWN", LocalDate.of(2026, 10, 2), new BigDecimal("1.00"))));
 
         MarketService service = createService(
@@ -229,7 +229,7 @@ class MarketServiceTest {
     void shouldSkipImportWhenAllTickersAreUpToDate() {
         LocalDate latestDate = LocalDate.of(2026, 10, 6);
         HistoricalRepository historicalRepository = mock(HistoricalRepository.class);
-        StockPriceHistoryClient historyClient = mock(StockPriceHistoryClient.class);
+        HistoricalPriceClient historyClient = mock(HistoricalPriceClient.class);
         for (String ticker : HISTORICAL_TICKERS) {
             when(historicalRepository.findFirstByTickerOrderByPriceDateDesc(ticker))
                     .thenReturn(Optional.of(new HistoricalStockPrice(
@@ -257,7 +257,7 @@ class MarketServiceTest {
                 fxLibrary,
                 stockPriceClient,
                 mock(HistoricalRepository.class),
-                mock(StockPriceHistoryClient.class),
+                mock(HistoricalPriceClient.class),
                 clock,
                 360);
     }
@@ -266,7 +266,7 @@ class MarketServiceTest {
             FxLibrary fxLibrary,
             StockPriceClient stockPriceClient,
             HistoricalRepository historicalRepository,
-            StockPriceHistoryClient historicalDataClient,
+            HistoricalPriceClient historicalDataClient,
             Clock clock,
             int lookbackDays) {
         return new MarketService(
