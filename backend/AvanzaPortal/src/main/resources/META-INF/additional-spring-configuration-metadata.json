@@ -1,0 +1,22 @@
+{"properties": [
+  {
+    "name": "jwt.secret",
+    "type": "java.lang.String",
+    "description": "Secret used to sign JWT tokens."
+  },
+  {
+    "name": "jwt.expiration-ms",
+    "type": "java.lang.Long",
+    "description": "JWT lifetime in milliseconds; defaults to 1800000 (30 minutes)."
+  },
+  {
+    "name": "marketstack.base-url",
+    "type": "java.lang.String",
+    "description": "A description for 'marketstack.base-url'"
+  },
+  {
+    "name": "marketstack.api-key",
+    "type": "java.lang.String",
+    "description": "A description for 'marketstack.api-key'"
+  }
+]}

@@ -33,7 +33,7 @@ class AuthServiceTest {
 
     private final JwtUtil jwtUtil = new JwtUtil(
             "4f1a9c2e6b7d3f80512e9a6c4b3d7f102a8e5c9b6d3f1a7e4c8b2d6f9a3e5c71",
-            3600000);
+            30 * 60 * 1000L);
 
     private AuthService authService;
 

@@ -150,18 +150,6 @@ public class MarketService {
     private record MarketSymbol(String symbol, String exchange) {
     }
 
-    // Hardcoded prices was in v1 and now servs as fallback
-    public Map<String, Double> getPriceFallback() {
-        Map<String, Double> currentPrices = new HashMap<>();
-        currentPrices.put("ERIC-B", 74.20);
-        currentPrices.put("VOLV-B", 268.50);
-        currentPrices.put("AAPL", 187.32);
-        currentPrices.put("SWED-A", 193.10);
-        currentPrices.put("SAND", 212.80);
-        currentPrices.put("DEFAULT", 100.0);
-        return currentPrices;
-    }
-
     /**
      * Imports recent history for the supported tickers, continuing from each
      * ticker's latest stored price when available.
