@@ -14,6 +14,11 @@ import org.springframework.web.client.RestClientException;
 
 import se.comerit.avanza.dto.market.MarketstackPriceResponseDTO;
 
+/**
+ * Client for fetching historical stock price data from the Marketstack API.
+ * Implements the StockPriceHistoryClient interface.
+ * Provides methods to fetch recent and historical stock prices.
+ */
 @Component
 public class HistoricalDataClient implements StockPriceHistoryClient {
 
@@ -30,6 +35,14 @@ public class HistoricalDataClient implements StockPriceHistoryClient {
         this.lookbackDays = lookbackDays;
     }
 
+    /**
+     * With this configuration we are able to fetch recent history.
+     * Meaning that we are setting up local date range from current time
+     * to a date determined by the lookback period specified in the configuration.
+     * 
+     * @param symbols the list of stock symbols to fetch historical prices for
+     * @return the list of recent historical prices for the given symbols
+     */
     public List<HistoricalPrice> fetchRecentHistoricalPrices(List<String> symbols) {
         if (lookbackDays <= 0) {
             return List.of();
@@ -40,12 +53,24 @@ public class HistoricalDataClient implements StockPriceHistoryClient {
         return fetchHistoricalPrices(symbols, fromDate, toDate);
     }
 
+    /**
+     * Fetches historical prices for the given list of symbols within the specified
+     * date range from
+     * Marketstack API.
+     *
+     * @param symbols  the list of stock symbols to fetch historical prices for
+     * @param fromDate the start date of the historical data range
+     * @param toDate   the end date of the historical data range
+     * @return the list of historical prices for the given symbols within the
+     *         specified date range
+     */
     @Override
     public List<HistoricalPrice> fetchHistoricalPrices(
             List<String> symbols,
             LocalDate fromDate,
             LocalDate toDate) {
 
+        // Validate input parameters and API key before making the request.
         if (symbols == null || symbols.isEmpty()
                 || fromDate == null
                 || toDate == null
@@ -54,6 +79,7 @@ public class HistoricalDataClient implements StockPriceHistoryClient {
             return List.of();
         }
 
+        // Filter out invalid symbols and prepare the list of requested symbols.
         List<String> requestedSymbols = symbols.stream()
                 .filter(symbol -> symbol != null && !symbol.isBlank())
                 .map(String::trim)
@@ -63,8 +89,12 @@ public class HistoricalDataClient implements StockPriceHistoryClient {
             return List.of();
         }
 
+        // Initialize the list to store historical prices and set the initial offset for
+        // pagination.
         List<HistoricalPrice> prices = new ArrayList<>();
         int offset = 0;
+
+        // Begin fetching historical prices from the Marketstack API using pagination.
         try {
             int total;
             do {
@@ -82,10 +112,14 @@ public class HistoricalDataClient implements StockPriceHistoryClient {
                         .retrieve()
                         .body(MarketstackPriceResponseDTO.class);
 
+                // If the response is null or contains no data, break the loop as there are no
+                // more prices to fetch.
                 if (response == null || response.data() == null || response.data().isEmpty()) {
                     break;
                 }
 
+                // Process each price data entry and validate its fields before adding to the
+                // list.
                 for (MarketstackPriceResponseDTO.PriceData priceData : response.data()) {
                     if (priceData.symbol() == null || priceData.symbol().isBlank()
                             || priceData.date() == null
@@ -94,6 +128,8 @@ public class HistoricalDataClient implements StockPriceHistoryClient {
                         continue;
                     }
 
+                    // Attempt to parse the date and add the historical price to the list. If
+                    // parsing fails, skip this entry.
                     try {
                         LocalDate date = LocalDate.parse(priceData.date().substring(0, 10));
                         prices.add(new HistoricalPrice(priceData.symbol(), date, priceData.close()));
@@ -102,14 +138,17 @@ public class HistoricalDataClient implements StockPriceHistoryClient {
                     }
                 }
 
+                // Check if the pagination information is available; if not, break the loop.
                 if (response.pagination() == null) {
                     break;
                 }
 
+                // Update the offset and total count for the next iteration of pagination.
                 offset += response.data().size();
                 total = response.pagination().total();
             } while (offset < total);
 
+            // Sort the collected historical prices by date and symbol before returning.
             prices.sort(Comparator.comparing(HistoricalPrice::date).thenComparing(HistoricalPrice::symbol));
             return prices;
         } catch (RestClientException exception) {
