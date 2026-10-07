@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import se.comerit.avanza.client.StockPriceClient;
@@ -36,6 +37,7 @@ public class MarketService {
     private final Clock clock;
     private final Map<String, CachedPrice> priceCache = new ConcurrentHashMap<>();
 
+    @Autowired
     public MarketService(FxLibrary fxLibrary, StockPriceClient stockPriceClient) {
         this(fxLibrary, stockPriceClient, Clock.systemUTC());
     }
