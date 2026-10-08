@@ -4,15 +4,23 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import jakarta.transaction.Transactional;
 import se.comerit.avanza.client.StockPriceClient;
+import se.comerit.avanza.client.HistoricalPriceClient;
 import se.comerit.avanza.dto.market.FxRateResponseDTO;
+import se.comerit.avanza.entity.HistoricalStockPrice;
 import se.comerit.avanza.nativebridge.FxLibrary;
+import se.comerit.avanza.repository.HistoricalRepository;
 
 /**
  * Provides market data such as foreign exchange rates and stock prices.
@@ -29,20 +37,42 @@ public class MarketService {
             "SWED-A", new MarketSymbol("SWED-A.ST", "XSTO"),
             "SAND", new MarketSymbol("SAND.ST", "XSTO"));
 
+    private static final List<String> HISTORICAL_TICKERS = List.of(
+            "ERIC-B", "VOLV-B", "AAPL", "SWED-A", "SAND");
+
     // The FX library used to fetch foreign exchange rates.
     private final FxLibrary fxLibrary;
     private final StockPriceClient stockPriceClient;
     private final Clock clock;
+    private final int historicalLookbackDays;
+    private final HistoricalRepository historicalRepository;
+    private final HistoricalPriceClient historicalDataClient;
     private final Map<String, CachedPrice> priceCache = new ConcurrentHashMap<>();
 
-    public MarketService(FxLibrary fxLibrary, StockPriceClient stockPriceClient) {
-        this(fxLibrary, stockPriceClient, Clock.systemUTC());
+    @Autowired
+    public MarketService(
+            FxLibrary fxLibrary,
+            StockPriceClient stockPriceClient,
+            HistoricalRepository historicalRepository,
+            HistoricalPriceClient historicalDataClient,
+            @Value("${marketstack.history.lookback-days:360}") int lookbackDays) {
+        this(fxLibrary, stockPriceClient, historicalRepository, historicalDataClient,
+                Clock.systemUTC(), lookbackDays);
     }
 
-    MarketService(FxLibrary fxLibrary, StockPriceClient stockPriceClient, Clock clock) {
+    MarketService(
+            FxLibrary fxLibrary,
+            StockPriceClient stockPriceClient,
+            HistoricalRepository historicalRepository,
+            HistoricalPriceClient historicalDataClient,
+            Clock clock,
+            int lookbackDays) {
         this.fxLibrary = fxLibrary;
         this.stockPriceClient = stockPriceClient;
         this.clock = clock;
+        this.historicalLookbackDays = lookbackDays;
+        this.historicalRepository = historicalRepository;
+        this.historicalDataClient = historicalDataClient;
     }
 
     /**
@@ -118,5 +148,55 @@ public class MarketService {
     }
 
     private record MarketSymbol(String symbol, String exchange) {
+    }
+
+    /**
+     * Imports recent history for the supported tickers, continuing from each
+     * ticker's latest stored price when available.
+     *
+     * @return the number of historical stock prices imported
+     */
+    @Transactional
+    public int importHistoricalData() {
+        if (historicalLookbackDays <= 0) {
+            return 0;
+        }
+
+        LocalDate toDate = LocalDate.now(clock).minusDays(1);
+        LocalDate initialFromDate = toDate.minusDays(historicalLookbackDays - 1L);
+        Map<String, LocalDate> nextDateByTicker = new HashMap<>();
+
+        for (String ticker : HISTORICAL_TICKERS) {
+            LocalDate nextDate = historicalRepository
+                    .findFirstByTickerOrderByPriceDateDesc(ticker)
+                    .map(price -> price.getPriceDate().plusDays(1))
+                    .orElse(initialFromDate);
+
+            nextDateByTicker.put(ticker, nextDate);
+        }
+
+        LocalDate fromDate = nextDateByTicker.values().stream()
+                .min(LocalDate::compareTo)
+                .orElseThrow();
+
+        if (fromDate.isAfter(toDate)) {
+            return 0;
+        }
+
+        List<HistoricalStockPrice> pricesToSave = historicalDataClient
+                .fetchHistoricalPrices(HISTORICAL_TICKERS, fromDate, toDate)
+                .stream()
+                .filter(price -> {
+                    LocalDate nextDate = nextDateByTicker.get(price.symbol());
+                    return nextDate != null
+                            && !price.date().isBefore(nextDate)
+                            && !price.date().isAfter(toDate);
+                })
+                .map(price -> new HistoricalStockPrice(
+                        price.symbol(), price.date(), price.close()))
+                .toList();
+
+        historicalRepository.saveAll(pricesToSave);
+        return pricesToSave.size();
     }
 }
