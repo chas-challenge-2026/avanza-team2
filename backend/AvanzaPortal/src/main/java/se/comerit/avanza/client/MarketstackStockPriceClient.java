@@ -1,7 +1,11 @@
 package se.comerit.avanza.client;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -35,11 +39,28 @@ public class MarketstackStockPriceClient implements StockPriceClient {
      */
     @Override
     public Optional<BigDecimal> fetchPrice(String symbol, String exchange) {
-
         if (symbol == null || symbol.isBlank()
                 || exchange == null || exchange.isBlank()
                 || apiKey == null || apiKey.isBlank()) {
             return Optional.empty();
+        }
+
+        return Optional.ofNullable(fetchPrices(List.of(symbol)).get(symbol));
+    }
+
+    @Override
+    public Map<String, BigDecimal> fetchPrices(List<String> symbols) {
+        if (symbols == null || symbols.isEmpty() || apiKey == null || apiKey.isBlank()) {
+            return Map.of();
+        }
+
+        List<String> requestedSymbols = symbols.stream()
+                .filter(symbol -> symbol != null && !symbol.isBlank())
+                .map(String::trim)
+                .distinct()
+                .toList();
+        if (requestedSymbols.isEmpty()) {
+            return Map.of();
         }
 
         try {
@@ -47,24 +68,32 @@ public class MarketstackStockPriceClient implements StockPriceClient {
                     .uri(uriBuilder -> uriBuilder
                             .path("/v2/eod/latest")
                             .queryParam("access_key", apiKey)
-                            .queryParam("symbols", symbol)
+                            .queryParam("symbols", String.join(",", requestedSymbols))
                             .build())
                     .retrieve()
                     .body(MarketstackPriceResponseDTO.class);
 
             if (response == null || response.data() == null || response.data().isEmpty()) {
-                return Optional.empty();
+                return Map.of();
             }
 
-            BigDecimal price = response.data().get(0).close();
+            Set<String> requestedSymbolSet = Set.copyOf(requestedSymbols);
+            Map<String, BigDecimal> prices = new HashMap<>();
+            for (MarketstackPriceResponseDTO.PriceData priceData : response.data()) {
+                if (priceData.symbol() == null || priceData.close() == null
+                        || priceData.close().signum() <= 0) {
+                    continue;
+                }
 
-            if (price == null || price.signum() <= 0) {
-                return Optional.empty();
+                String returnedSymbol = priceData.symbol().trim();
+                if (requestedSymbolSet.contains(returnedSymbol)) {
+                    prices.put(returnedSymbol, priceData.close());
+                }
             }
 
-            return Optional.of(price);
+            return Map.copyOf(prices);
         } catch (RestClientException exception) {
-            return Optional.empty();
+            return Map.of();
         }
     }
 }
