@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import se.comerit.avanza.dto.targetallocation.TargetAllocationRequestDTO;
 import se.comerit.avanza.dto.targetallocation.TargetAllocationResponseDTO;
+import se.comerit.avanza.dto.targetallocation.UpdateTargetAllocationsRequestDTO;
 import se.comerit.avanza.entity.TargetAllocations;
 import se.comerit.avanza.entity.User;
 import se.comerit.avanza.repository.TargetRepository;
@@ -40,6 +41,35 @@ public class TargetAllocationService {
                 .stream()
                 .map(this::toResponseDTO)
                 .toList();
+    }
+
+    // Update target allocations for the authenticated user
+    @Transactional
+    public List<TargetAllocationResponseDTO> updateTargetAllocationsForAuthenticatedUser( String email, UpdateTargetAllocationsRequestDTO request) {
+
+        // Validate the request
+        validateAllocations(request.allocations());
+        User user = findAuthenticatedUser(email);
+
+        // Delete existing allocations for the user
+        List<TargetAllocations> existingAllocations = targetRepository.findByUser_Id(user.getId());
+        targetRepository.deleteAll(existingAllocations);
+
+        // Create new allocations based on the request
+        List<TargetAllocations> updatedAllocations = request.allocations()
+            .stream()
+            .map(allocation -> new TargetAllocations(
+                    normalizeAccountType(allocation.accountType()),
+                    allocation.targetPercentage().doubleValue(),
+                    user))
+            .toList();
+        
+        // Save the new allocations and return the response DTOs
+        return targetRepository.saveAll(updatedAllocations)
+                .stream()
+                .map(this::toResponseDTO)
+                .toList();
+
     }
 
     // Help method
