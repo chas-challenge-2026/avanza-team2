@@ -1,9 +1,13 @@
 package se.comerit.avanza.service;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import se.comerit.avanza.dto.targetallocation.TargetAllocationResponseDTO;
+import se.comerit.avanza.entity.User;
 import se.comerit.avanza.repository.TargetRepository;
 import se.comerit.avanza.repository.UserRepository;
 
@@ -18,6 +22,17 @@ public class TargetAllocationService {
     public TargetAllocationService(TargetRepository targetRepository, UserRepository userRepository) {
         this.targetRepository = targetRepository;
         this.userRepository = userRepository;
+    }
+
+    @Transactional(readOnly = true)
+    public List<TargetAllocationResponseDTO> getTargetAllocationsForAuthenticatedUser (String email)
+    {
+        User user = findAuthenticatedUser(email);
+
+        return targetRepository.findByUser_Id(user.getId())
+                .stream()
+                .map(this::toResponseDTO)
+                .toList();
     }
     
 }
