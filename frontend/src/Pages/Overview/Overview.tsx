@@ -7,7 +7,7 @@ import { DonutChart } from '../../Components/DonutChart/DonutChart.tsx'
 import { RecentActivity } from '../../Components/RecentActivity/RecentActivity.tsx'
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
-const POLL_INTERVAL_MS = 15 * 60 * 1000
+const POLL_INTERVAL_MS = 24 * 60 * 60 * 1000
 
 interface PortfolioResponse {
   accountSummary: {
