@@ -2,10 +2,12 @@ package se.comerit.avanza.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
@@ -68,6 +70,7 @@ class PortfolioServiceTest {
 
         @InjectMocks
         private PortfolioService portfolioService;
+
 
         @Test
         void shouldFindByEmailAndReturnUser() {
@@ -222,18 +225,23 @@ class PortfolioServiceTest {
         @Test
         void shouldCalculateHoldingValueInSek() {
                 // Arrange
-                Holdings holding = new Holdings(
+                List<Holdings> holdings = List.of(new Holdings(
                                 "ERIC-B",
                                 "Ericsson",
                                 new BigDecimal("10"),
                                 new BigDecimal("50.00"),
                                 "SEK",
-                                null);
+                                null));
 
-                Map<String, Double> prices = portfolioService.getCurrentPrices();
+                when(marketService.getPrice("ERIC-B"))
+                                .thenReturn(Optional.of(new BigDecimal("74.20")));
+
+                Map<String, Double> prices = portfolioService.getCurrentPrices(holdings);
 
                 // Act
-                EnrichedHoldingDTO result = portfolioService.enrichSingleHolding(holding, prices);
+                EnrichedHoldingDTO result = portfolioService.enrichSingleHolding(
+                                holdings.get(0),
+                                prices);
 
                 // Assert
                 assertEquals(74.20, result.currentPrice(), 0.001);
@@ -246,8 +254,15 @@ class PortfolioServiceTest {
         @Test
         void shouldConvertUsdHoldingValueToSek() {
                 // Arrange
+                when(marketService.getPrice("AAPL"))
+                                .thenReturn(Optional.of(new BigDecimal("187.32")));
+
                 when(marketService.getFx("USD", "SEK"))
-                                .thenReturn(new FxRateResponseDTO("2026-09-16", "USD", "SEK", 10.45));
+                                .thenReturn(new FxRateResponseDTO(
+                                                "2026-09-16",
+                                                "USD",
+                                                "SEK",
+                                                10.45));
 
                 Holdings holding = new Holdings(
                                 "AAPL",
@@ -257,10 +272,12 @@ class PortfolioServiceTest {
                                 "USD",
                                 null);
 
-                Map<String, Double> prices = portfolioService.getCurrentPrices();
+                Map<String, Double> prices =
+                                portfolioService.getCurrentPrices(List.of(holding));
 
                 // Act
-                EnrichedHoldingDTO result = portfolioService.enrichSingleHolding(holding, prices);
+                EnrichedHoldingDTO result =
+                                portfolioService.enrichSingleHolding(holding, prices);
 
                 // Assert
                 assertEquals(187.32, result.currentPrice(), 0.001);
@@ -283,11 +300,16 @@ class PortfolioServiceTest {
                                 "SEK",
                                 account);
 
+                when(marketService.getPrice("ERIC-B"))
+                                .thenReturn(Optional.of(new BigDecimal("74.20")));
+
                 Map<Long, String> accountTypeMap = Map.of(10L, "ISK");
 
-                Map<String, Double> accountTypeTotals = portfolioService.initializeAccountTypeTotals();
+                Map<String, Double> accountTypeTotals =
+                                portfolioService.initializeAccountTypeTotals();
 
-                Map<String, Double> prices = portfolioService.getCurrentPrices();
+                Map<String, Double> prices =
+                                portfolioService.getCurrentPrices(List.of(holding));
 
                 // Act
                 double result = portfolioService.calculatePortfolioTotals(
@@ -302,14 +324,79 @@ class PortfolioServiceTest {
         }
 
         @Test
+        void shouldIgnoreHoldingWhenMarketPriceIsUnavailable() {
+                // Arrange
+                Account account = new Account();
+                account.setId(10L);
+                account.setAccount_type("ISK");
+
+                Holdings holding = new Holdings(
+                                "UNKNOWN",
+                                "Unknown Company",
+                                new BigDecimal("10"),
+                                new BigDecimal("50.00"),
+                                "SEK",
+                                account);
+
+                when(marketService.getPrice("UNKNOWN"))
+                                .thenReturn(Optional.empty());
+
+                Map<String, Double> prices =
+                                portfolioService.getCurrentPrices(List.of(holding));
+
+                Map<Long, String> accountTypeMap =
+                                Map.of(10L, "ISK");
+
+                Map<String, Double> accountTypeTotals =
+                                portfolioService.initializeAccountTypeTotals();
+
+                // Act
+                double result = portfolioService.calculatePortfolioTotals(
+                                List.of(holding),
+                                prices,
+                                accountTypeMap,
+                                accountTypeTotals);
+
+                // Assert
+                assertEquals(0.0, result, 0.001);
+                assertEquals(0.0, accountTypeTotals.get("ISK"), 0.001);
+        }
+
+        @Test
+        void shouldReturnNullValuesWhenHoldingPriceIsUnavailable() {
+                // Arrange
+                Holdings holding = new Holdings(
+                                "UNKNOWN",
+                                "Unknown Company",
+                                new BigDecimal("10"),
+                                new BigDecimal("50.00"),
+                                "SEK",
+                                null);
+
+                Map<String, Double> prices = new HashMap<>();
+                prices.put("UNKNOWN", null);
+
+                // Act
+                EnrichedHoldingDTO result =
+                                portfolioService.enrichSingleHolding(holding, prices);
+
+                // Assert
+                assertNull(result.currentPrice());
+                assertNull(result.valueSek());
+                assertNull(result.unrealizedReturn());
+                assertNull(result.unrealizedReturnPct());
+        }
+
+        @Test
         void shouldReturnZeroForEmptyPortfolio() {
                 // Arrange
-                Map<String, Double> accountTypeTotals = portfolioService.initializeAccountTypeTotals();
+                Map<String, Double> accountTypeTotals =
+                                portfolioService.initializeAccountTypeTotals();
 
                 // Act
                 double result = portfolioService.calculatePortfolioTotals(
                                 List.of(),
-                                portfolioService.getCurrentPrices(),
+                                portfolioService.getCurrentPrices(List.of()),
                                 Map.of(),
                                 accountTypeTotals);
 
@@ -332,7 +419,10 @@ class PortfolioServiceTest {
                                 new TargetAllocations("KF", 50.0, null));
 
                 // Act
-                List<AllocationRowDTO> result = portfolioService.detectDrift(totals, targets, 1000.0);
+                List<AllocationRowDTO> result = portfolioService.detectDrift(
+                                totals,
+                                targets,
+                                1000.0);
 
                 AllocationRowDTO iskRow = result.stream()
                                 .filter(row -> "ISK".equals(row.accountType()))
@@ -349,7 +439,8 @@ class PortfolioServiceTest {
         @Test
         void shouldHandleDriftWhenPortfolioIsEmpty() {
                 // Arrange
-                Map<String, Double> totals = portfolioService.initializeAccountTypeTotals();
+                Map<String, Double> totals =
+                                portfolioService.initializeAccountTypeTotals();
 
                 // Act
                 List<AllocationRowDTO> result = portfolioService.detectDrift(
@@ -369,7 +460,11 @@ class PortfolioServiceTest {
         @Test
         void shouldCalculatePortfolioSharpeFromHistoricalValues() {
                 // Arrange
-                when(riskLibrary.risk_calc_sharpe_ratio_double(any(double[].class), anyLong(), eq(0.02), eq(252L)))
+                when(riskLibrary.risk_calc_sharpe_ratio_double(
+                                any(double[].class),
+                                anyLong(),
+                                eq(0.02),
+                                eq(252L)))
                                 .thenReturn(1.75);
 
                 // Act
@@ -379,6 +474,79 @@ class PortfolioServiceTest {
 
                 // Assert
                 assertEquals(1.75, result, 0.001);
+        }
+
+        @Test
+        void shouldReturnZeroWhenSharpeRatioInputsAreInvalid() {
+                assertEquals(
+                                0.0,
+                                portfolioService.calculateSharpeRatio(
+                                                null,
+                                                0.02,
+                                                252L),
+                                0.001);
+
+                assertEquals(
+                                0.0,
+                                portfolioService.calculateSharpeRatio(
+                                                new double[] { 0.1 },
+                                                0.02,
+                                                252L),
+                                0.001);
+
+                assertEquals(
+                                0.0,
+                                portfolioService.calculateSharpeRatio(
+                                                new double[] { 0.1, 0.2 },
+                                                0.02,
+                                                0L),
+                                0.001);
+
+                verifyNoInteractions(riskLibrary);
+        }
+
+        @Test
+        void shouldCalcualteShareRatioAndReturnZero() {
+                // Act
+                double result = portfolioService.calculatePortfolioSharpeRatio(
+                                List.of(),
+                                0.02);
+
+                // Assert
+                assertEquals(0.0, result, 0.001);
+                verifyNoInteractions(riskLibrary);
+        }
+
+        @Test
+        void shouldSkipAccountTypeTotalWhenHoldingHasNoMappedAccountType() {
+                // Arrange
+                Account account = new Account();
+                account.setId(1L);
+
+                Holdings holding = new Holdings(
+                                "ERIC-B",
+                                "Ericsson",
+                                new BigDecimal("10"),
+                                new BigDecimal("50.00"),
+                                "SEK",
+                                account);
+
+                Map<String, Double> accountTypeTotals =
+                                portfolioService.initializeAccountTypeTotals();
+
+                // Act
+                double result = portfolioService.calculatePortfolioTotals(
+                                List.of(holding),
+                                Map.of("ERIC-B", 74.20),
+                                Map.of(),
+                                accountTypeTotals);
+
+                // Assert
+                assertEquals(742.0, result, 0.001);
+                assertEquals(0.0, accountTypeTotals.get("ISK"), 0.001);
+                assertEquals(0.0, accountTypeTotals.get("KF"), 0.001);
+                assertEquals(0.0, accountTypeTotals.get("Depa"), 0.001);
+                assertEquals(0.0, accountTypeTotals.get("Pension"), 0.001);
         }
 
         @Test

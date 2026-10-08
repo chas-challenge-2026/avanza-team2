@@ -31,6 +31,9 @@ DB_PASSWORD=some_local_password
 
 #JWT secret - 32 karaktär minst
 JWT_SECRET=change_me_to_a_random_32_char_min_string
+
+# Marketstack API key for end-of-day stock prices
+MARKETSTACK_API_KEY=your_marketstack_api_key
 ```
 
 4. Öppna **Terminal 1** och följande kommando för att starta docker:

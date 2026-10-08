@@ -2,42 +2,61 @@
 
 ## Selected provider
 
-Twelve Data is selected as the shared stock price provider.
+Marketstack is the shared stock price provider for current end-of-day prices and
+historical end-of-day data. The latest-price endpoint returns a closing price;
+it is not an intraday real-time quote.
 
-The API key must be supplied through the `TWELVE_DATA_API_KEY`
+The API key must be supplied through the `MARKETSTACK_API_KEY`
 environment variable and must never be committed to Git.
 
-## Verified symbols
+## Symbol mapping
 
-The following symbols have been identified through Twelve Data:
+The backend maps application tickers to Marketstack symbols in `MarketService`.
+The exchange and currency values are application metadata.
 
-| Application ticker | Twelve Data symbol | Exchange | Currency |
-|---|---|---|---|
-| AAPL | AAPL | NASDAQ | USD |
-| ERIC-B | ERIC.B | OMX | SEK |
+| Application ticker | Marketstack symbol | Exchange | Currency |
+| ------------------ | ------------------ | -------- | -------- |
+| AAPL               | AAPL               | XNAS     | USD      |
+| ERIC-B             | ERIC-B.ST          | XSTO     | SEK      |
+| VOLV-B             | VOLV-B.ST          | XSTO     | SEK      |
+| SWED-A             | SWED-A.ST          | XSTO     | SEK      |
+| SAND               | SAND.ST            | XSTO     | SEK      |
 
-The remaining Nasdaq Stockholm symbols must be verified before implementation.
+## Usage limits and history
 
-## Usage limits
+The Marketstack Free plan has a limit of 100 requests per month and provides up
+to one year of historical data. Confirm current limits in the Marketstack
+account before relying on them, since plans can change.
 
-The free plan allows 8 API credits per minute and 800 credits per day.
-The backend should cache successful responses to reduce API usage.
+Historical imports default to a rolling 360-calendar-day window ending on the
+previous UTC day. The backend requests multiple symbols together and paginates
+responses with a page size of up to 1,000 rows. Each page is a separate API
+request.
 
-## Fallback behavior
+Successful current-price responses are cached in memory for five minutes. This
+cache is not persistent across restarts.
 
-- Use the latest price returned by Twelve Data.
-- Cache successful responses.
-- Use the latest cached price if the provider is temporarily unavailable.
-- Handle HTTP 429 as a rate-limit error.
-- If no current or cached price exists, mark the price as unavailable.
-- Never substitute a fabricated price such as `100.0`.
+## Fallback behavior and known gaps
+
+The intended behavior is to use the latest cached price when Marketstack is
+temporarily unavailable. Currently, an expired cache entry is removed before
+refreshing, so a failed refresh returns no provider price instead of the stale
+cached value.
+
+Some portfolio paths still use hardcoded fallback prices, including a default
+price of `100.0`. These are placeholders, not Marketstack data, and should be
+removed so unavailable prices are represented as unavailable.
 
 ## Provider errors
 
-The backend must handle:
+The backend should handle and distinguish:
 
 - Unknown symbols.
 - Missing price data.
 - Provider timeouts.
-- Rate-limit responses.
+- HTTP 429 rate-limit responses.
 - Other unsuccessful provider responses.
+
+Currently, the Marketstack client converts unsuccessful HTTP responses and
+other `RestClientException`s to an empty price result; it does not expose a
+distinct rate-limit error to callers.

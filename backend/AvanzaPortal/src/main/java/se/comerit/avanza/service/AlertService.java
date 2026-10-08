@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.math.BigDecimal;
+import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -123,7 +125,7 @@ public class AlertService {
         /**
          * Fetch accounts and compute totals (v1 query 2)
          */
-        List<Account> accounts = accountRepository.findByUserId(userId);
+        List<Account> accounts = accountRepository.findAllWithHoldingsByUserId(userId);
 
         /**
          * Fetch target allocations for the user (v1 query 3)
@@ -160,13 +162,20 @@ public class AlertService {
                         ? holding.getQuantity().doubleValue()
                         : 0.0;
 
-                double currentPrices = getCurrentPrices().getOrDefault(ticker, 100.0);
+                Optional<BigDecimal> price = marketService.getPrice(ticker);
+
+                // Skip holdings where no market price is available.
+                if (price.isEmpty()) {
+                    continue;
+                }
+
+                double currentPrice = price.get().doubleValue();
                 double valueSek;
 
                 if ("USD".equals(currency)) {
-                    valueSek = quantity * currentPrices * getUsdToSekRate();
+                    valueSek = quantity * currentPrice * getUsdToSekRate();
                 } else {
-                    valueSek = quantity * currentPrices;
+                    valueSek = quantity * currentPrice;
                 }
 
                 typeTotals.put(
@@ -248,17 +257,5 @@ public class AlertService {
      */
     public double getUsdToSekRate() {
         return marketService.getFx("USD", "SEK").rate();
-    }
-
-    // Hardcoded prices (later: fetch from API)
-    public Map<String, Double> getCurrentPrices() {
-        Map<String, Double> currentPrices = new HashMap<>();
-        currentPrices.put("ERIC-B", 74.20);
-        currentPrices.put("VOLV-B", 268.50);
-        currentPrices.put("AAPL", 187.32);
-        currentPrices.put("SWED-A", 193.10);
-        currentPrices.put("SAND", 212.80);
-        currentPrices.put("DEFAULT", 100.0);
-        return currentPrices;
     }
 }

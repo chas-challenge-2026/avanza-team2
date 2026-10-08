@@ -150,7 +150,7 @@ class AlertServiceTest {
                 // Arrange
                 Long userId = 1L;
 
-                when(accountRepository.findByUserId(userId))
+                when(accountRepository.findAllWithHoldingsByUserId(userId))
                                 .thenReturn(List.of());
 
                 when(targetRepository.findByUserId(userId))
@@ -161,6 +161,7 @@ class AlertServiceTest {
 
                 // Assert
                 assertTrue(result.isEmpty());
+                verify(accountRepository).findAllWithHoldingsByUserId(userId);
         }
 
         @Test
@@ -187,11 +188,14 @@ class AlertServiceTest {
 
                 TargetAllocations kfTarget = new TargetAllocations("KF", 50.0, null);
 
-                when(accountRepository.findByUserId(userId))
+                when(accountRepository.findAllWithHoldingsByUserId(userId))
                                 .thenReturn(List.of(account));
 
                 when(targetRepository.findByUserId(userId))
                                 .thenReturn(List.of(iskTarget, kfTarget));
+
+                when(marketService.getPrice("ERIC-B"))
+                                .thenReturn(Optional.of(new BigDecimal("74.20")));
 
                 // Act
                 List<LiveDriftAlertDTO> result = alertService.generateLiveDriftAlerts(userId);
@@ -199,5 +203,39 @@ class AlertServiceTest {
                 // Assert
                 assertFalse(result.isEmpty());
                 assertEquals(2, result.size());
+        }
+
+        @Test
+        void shouldSkipHoldingWhenMarketPriceIsUnavailable() {
+                Long userId = 1L;
+
+                Holdings holding = new Holdings(
+                        "UNKNOWN",
+                        "Unknown stock",
+                        new BigDecimal("10"),
+                        new BigDecimal("50.00"),
+                        "SEK",
+                        null);
+
+                Account account = new Account(
+                        "ISK",
+                        "Mitt ISK",
+                        "SEK",
+                        null,
+                        List.of(holding));
+
+                when(accountRepository.findAllWithHoldingsByUserId(userId))
+                        .thenReturn(List.of(account));
+
+                when(targetRepository.findByUserId(userId))
+                        .thenReturn(List.of());
+
+                when(marketService.getPrice("UNKNOWN"))
+                        .thenReturn(Optional.empty());
+
+                List<LiveDriftAlertDTO> result =
+                        alertService.generateLiveDriftAlerts(userId);
+
+                assertTrue(result.isEmpty());
         }
 }
