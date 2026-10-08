@@ -16,7 +16,7 @@ UID ?= 1000
 GID ?= 1000
 
 # Modules to build. Update this list if you add subdirectories.
-MODULES := jna_poc risk fx backtest
+MODULES := risk fx backtest
 
 # Include paths for root-level headers
 export CFLAGS  += -I./include
