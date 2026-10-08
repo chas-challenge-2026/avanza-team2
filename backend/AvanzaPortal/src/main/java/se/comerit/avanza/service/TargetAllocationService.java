@@ -72,7 +72,7 @@ public class TargetAllocationService {
 
     }
 
-    // Help method
+    // Helper method
     private TargetAllocationResponseDTO toResponseDTO(TargetAllocations allocation) {
     return new TargetAllocationResponseDTO(
             allocation.getId(),
@@ -81,14 +81,15 @@ public class TargetAllocationService {
     }
 
 
-    // Help method
+    // Helper method
     private User findAuthenticatedUser(String email) {
     return userRepository.findByEmail(email)
             .orElseThrow(() ->
                     new BadCredentialsException(
                             "Authentication failed: User not found"));
     }
-
+    
+    // Helper method
     private String normalizeAccountType(String accountType) {
         return switch (accountType.trim().toUpperCase(Locale.ROOT)) {
             case "ISK" -> "ISK";
@@ -101,7 +102,7 @@ public class TargetAllocationService {
     }
 
 
-    // Help method
+    // Helper method
     private void validateAllocations(
         List<TargetAllocationRequestDTO> allocations) {
 
@@ -127,6 +128,4 @@ public class TargetAllocationService {
     }
     }
 
-
-    
 }
