@@ -18,6 +18,7 @@ import se.comerit.avanza.entity.Alerts;
 import se.comerit.avanza.entity.Holdings;
 import se.comerit.avanza.entity.TargetAllocations;
 import se.comerit.avanza.entity.User;
+import se.comerit.avanza.exception.ResourceNotFoundException;
 import se.comerit.avanza.repository.AccountRepository;
 import se.comerit.avanza.repository.AlertsRepository;
 import se.comerit.avanza.repository.TargetRepository;
@@ -93,7 +94,7 @@ public class AlertService {
      */
     public void dismissAlert(Long alertId, String email) {
         Alerts alert = alertsRepository.findById(alertId)
-                .orElseThrow(() -> new IllegalArgumentException("Alert not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Alert not found"));
 
         if (!alert.getUser().getEmail().equals(email)) {
             throw new AccessDeniedException("User not authorized to dismiss this alert");
@@ -247,7 +248,7 @@ public class AlertService {
      */
     private Long getUserIdByEmail(String email) {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         return user.getId();
     }
