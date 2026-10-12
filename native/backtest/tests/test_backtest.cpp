@@ -166,6 +166,11 @@ static void test_hand_computed_deep_loss(void) {
 
     assert(approx_eq(r->total_return, -0.9975, EPS_TIGHT));       
     
+    /* Daily returns: [0, (50-100)/100=-0.5, (0.25-50)/50=-0.995]
+     * -> mean=-0.7475, sample std=sqrt(0.1225125)
+     * rf is fixed at 0.0 in test builds -> sharpe ~= -33.90168 */
+    assert(approx_eq(r->sharpe_ratio, -33.90168, EPS_LOOSE));
+
     /* Clamped branch: annualized must be finite and exactly -1.0 */
     assert(r->annualized_return == -1.0);
     assert(!isnan(r->annualized_return));
@@ -186,6 +191,12 @@ static void test_hand_computed_total_loss(void) {
 
     /* NAV series: [1, 0.5, 0] -> max drawdown = (1-0)/1 = 1.0 */
     assert(approx_eq(r->max_drawdown, 1.0, EPS_TIGHT));
+
+    /* Daily returns: [0, -0.5, -1.0] (t=2 return is zeroed by the
+     * division-by-zero guard in data_convert_values_to_returns()).
+     * -> mean=-0.75, sample std=sqrt(0.125)
+     * rf is fixed at 0.0 in test builds -> sharpe ~= -33.67492 */
+    assert(approx_eq(r->sharpe_ratio, -33.67492, EPS_LOOSE));
     backtest_free_result(r);
 
     printf("OK\n");
@@ -214,9 +225,8 @@ static void test_hand_computed_negative_loss(void) {
 
     /* Daily returns: [0, (0.5-1)/1=-0.5, (-0.0025-0.5)/0.5=-1.005]
      * -> mean=-0.7525, sample std=sqrt(0.1275)
-     * -> sharpe = ((mean - rf/252)*252)/(sqrt(0.1275)*sqrt(252))
-     * Test builds use a fixed rf (BACKTEST_TEST): ~= -33.45 */
-    assert(approx_eq(r->sharpe_ratio, -33.45, EPS_LOOSE));
+     * rf is fixed at 0.0 in test builds -> sharpe ~= -33.45264 */
+    assert(approx_eq(r->sharpe_ratio, -33.45264, EPS_LOOSE));
 
     backtest_free_result(r);
 
