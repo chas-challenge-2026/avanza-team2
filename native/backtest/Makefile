@@ -13,6 +13,7 @@ BUILD_DIR := build
 
 # Binary name
 BIN := $(BUILD_DIR)/backtest_tests
+SO := $(BUILD_DIR)/libbacktest.so
 
 # ----- Local source files -----
 # src/ = library code (no main()), tests/ = the test runner's main().
@@ -39,10 +40,14 @@ RISK_INCLUDES := -I$(ROOT_DIR)/risk/include -I$(ROOT_DIR)/common/utils/include \
 # native/Makefile) so this archive exists - `make -C backtest` alone assumes
 # it was already built.
 RISK_LIB := $(ROOT_DIR)/risk/build/librisk.a
+RISK_SO := $(ROOT_DIR)/risk/build/librisk.so
 
 # Compilation flags
 CFLAGS := -std=c11 -MMD -MP -Wall -Wextra -Wfatal-errors -g -lm \
 	-Iinclude $(LIB_INCLUDES) $(RISK_INCLUDES)
+SO_CFLAGS := $(CFLAGS) -fPIC
+SO_SRC := $(shell find -L src -type f -name '*.c')
+SO_OBJ := $(patsubst src/%.c,$(BUILD_DIR)/so/src/%.o,$(SO_SRC))
 
 ASAN_FLAGS := -O1 -g3 -fno-omit-frame-pointer -fsanitize=address,undefined
 
@@ -73,10 +78,20 @@ DEP := $(DEP_LOCAL) $(DEP_LIB)
 all: $(BIN)
 	@echo "Build complete."
 
+so: $(SO)
+	@echo "Build complete."
+
+solib: so
+
 $(BIN): $(OBJ) $(RISK_LIB)
 	@echo "Linking..."
 	@mkdir -p $(dir $@)
 	@$(CC) $(OBJ) $(RISK_LIB) -o $@ $(LDFLAGS)
+
+$(SO): $(SO_OBJ) $(RISK_SO)
+	@echo "Linking shared library as $(SO)..."
+	@mkdir -p $(dir $@)
+	@$(CC) -shared $(SO_OBJ) -L$(dir $(RISK_SO)) -Wl,-rpath,'$$ORIGIN' -lrisk $(LDFLAGS) -o $@
 
 asan: clean
 	@echo "Building ASan binary..."
@@ -95,6 +110,11 @@ $(BUILD_DIR)/%.o: %.c
 	@echo "Compiling $<..."
 	@mkdir -p $(dir $@)
 	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/so/src/%.o: src/%.c
+	@echo "Compiling shared object $<..."
+	@mkdir -p $(dir $@)
+	@$(CC) $(SO_CFLAGS) -c $< -o $@
 
 # Rule for library source files
 $(BUILD_DIR)/%.o: $(ROOT_DIR)/%.c
@@ -127,4 +147,4 @@ print:
 
 -include $(DEP)
 
-.PHONY: all run clean print gdb valgrind asan profile
+.PHONY: all so solib run clean print gdb valgrind asan profile
