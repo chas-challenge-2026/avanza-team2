@@ -28,6 +28,7 @@ import se.comerit.avanza.dto.alerts.LiveDriftAlertDTO;
 import se.comerit.avanza.entity.Account;
 import se.comerit.avanza.entity.Alerts;
 import se.comerit.avanza.entity.Holdings;
+import se.comerit.avanza.exception.ResourceNotFoundException;
 import se.comerit.avanza.entity.TargetAllocations;
 import se.comerit.avanza.entity.User;
 import se.comerit.avanza.repository.AccountRepository;
@@ -135,8 +136,8 @@ class AlertServiceTest {
                                 .thenReturn(Optional.empty());
 
                 // Act och Assert
-                IllegalArgumentException exception = assertThrows(
-                                IllegalArgumentException.class,
+                ResourceNotFoundException exception = assertThrows(
+                                ResourceNotFoundException.class,
                                 () -> alertService.dismissAlert(alertId, email));
 
                 assertEquals("Alert not found", exception.getMessage());

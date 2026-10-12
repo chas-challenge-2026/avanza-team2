@@ -13,6 +13,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.mockito.Mockito.when;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import se.comerit.avanza.exception.ApiExceptionHandler;
+import se.comerit.avanza.exception.UnsupportedCurrencyPairException;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -34,7 +36,9 @@ class MarketControllerTest {
         when(marketService.getFx("eur", "usd"))
                 .thenReturn(new FxRateResponseDTO("2026-09-16", "EUR", "USD", 1.1539));
 
-        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new MarketController(marketService)).build();
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new MarketController(marketService))
+                .setControllerAdvice(new ApiExceptionHandler())
+                .build();
 
         mockMvc.perform(get("/api/market/fx/eur/usd"))
                 .andDo(print())
@@ -45,12 +49,16 @@ class MarketControllerTest {
     @Test
     void getFxReturnsBadRequestForUnknownPair() throws Exception {
         when(marketService.getFx("xx", "usd"))
-                .thenThrow(new IllegalArgumentException("Unknown currency pair"));
+                .thenThrow(new UnsupportedCurrencyPairException("Unknown currency pair"));
 
-        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new MarketController(marketService)).build();
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new MarketController(marketService))
+                .setControllerAdvice(new ApiExceptionHandler())
+                .build();
 
         mockMvc.perform(get("/api/market/fx/xx/usd"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.title").value("Bad Request"))
+                .andExpect(jsonPath("$.detail").value("Unknown currency pair"));
     }
 
     @Test
@@ -58,7 +66,9 @@ class MarketControllerTest {
         when(marketService.getPrice("ERIC-B"))
                 .thenReturn(Optional.of(new BigDecimal("94.96")));
 
-        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new MarketController(marketService)).build();
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new MarketController(marketService))
+                .setControllerAdvice(new ApiExceptionHandler())
+                .build();
 
         mockMvc.perform(get("/api/market/price/ERIC-B"))
                 .andExpect(status().isOk())
@@ -70,9 +80,13 @@ class MarketControllerTest {
         when(marketService.getPrice("UNKNOWN"))
                 .thenReturn(Optional.empty());
 
-        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new MarketController(marketService)).build();
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new MarketController(marketService))
+                .setControllerAdvice(new ApiExceptionHandler())
+                .build();
 
         mockMvc.perform(get("/api/market/price/UNKNOWN"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.title").value("Not Found"))
+                .andExpect(jsonPath("$.detail").value("Price not found for ticker: UNKNOWN"));
     }
 }

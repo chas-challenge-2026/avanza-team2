@@ -25,7 +25,7 @@ import se.comerit.avanza.dto.targetallocation.TargetAllocationResponseDTO;
 import se.comerit.avanza.dto.targetallocation.UpdateTargetAllocationsRequestDTO;
 import se.comerit.avanza.entity.TargetAllocations;
 import se.comerit.avanza.entity.User;
-import se.comerit.avanza.exception.InvalidTargetAllocationException;
+import se.comerit.avanza.exception.InvalidRequestException;
 import se.comerit.avanza.repository.TargetRepository;
 import se.comerit.avanza.repository.UserRepository;
 
@@ -110,8 +110,8 @@ class TargetAllocationServiceTest {
                 allocation("ISK", "60.00"),
                 allocation("KF", "30.00"));
 
-        InvalidTargetAllocationException exception = assertThrows(
-                InvalidTargetAllocationException.class,
+        InvalidRequestException exception = assertThrows(
+                InvalidRequestException.class,
                 () -> targetAllocationService
                         .updateTargetAllocationsForAuthenticatedUser(USER_EMAIL, request));
 
@@ -125,8 +125,8 @@ class TargetAllocationServiceTest {
                 allocation("ISK", "50.00"),
                 allocation("isk", "50.00"));
 
-        InvalidTargetAllocationException exception = assertThrows(
-                InvalidTargetAllocationException.class,
+        InvalidRequestException exception = assertThrows(
+                InvalidRequestException.class,
                 () -> targetAllocationService
                         .updateTargetAllocationsForAuthenticatedUser(USER_EMAIL, request));
 
@@ -139,8 +139,8 @@ class TargetAllocationServiceTest {
         UpdateTargetAllocationsRequestDTO request = request(
                 allocation("Savings", "100.00"));
 
-        InvalidTargetAllocationException exception = assertThrows(
-                InvalidTargetAllocationException.class,
+        InvalidRequestException exception = assertThrows(
+                InvalidRequestException.class,
                 () -> targetAllocationService
                         .updateTargetAllocationsForAuthenticatedUser(USER_EMAIL, request));
 
