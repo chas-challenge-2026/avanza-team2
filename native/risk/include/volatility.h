@@ -7,6 +7,7 @@ extern "C" {
 
 #include "simd_config.h"
 
+#include <stddef.h>
 #include <stdint.h>
 #include <math.h>
 
