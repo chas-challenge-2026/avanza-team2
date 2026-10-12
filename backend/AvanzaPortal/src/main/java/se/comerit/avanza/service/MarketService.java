@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -57,7 +56,9 @@ public class MarketService {
     private final HistoricalPriceClient historicalDataClient;
     private final BacktestLibrary backtestLibrary;
     private final BacktestInputBuilder backtestInputBuilder;
-    private final Map<String, CachedPrice> priceCache = new ConcurrentHashMap<>();
+    private volatile Map<String, BigDecimal> priceCache = Map.of();
+    private boolean priceRefreshAttempted;
+    private long nextPriceRefreshAtMillis;
 
     @Autowired
     public MarketService(
