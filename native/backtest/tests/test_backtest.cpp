@@ -94,9 +94,7 @@ static void test_hand_computed_drawdown(void) {
     assert(approx_eq(r->max_drawdown, 0.25, EPS_TIGHT));
     /* daily returns: +0.20, -0.25, +0.20 -> mean=0.05, std_dev=sqrt(0.0675)
      * ~= 0.259808 -> sharpe = (mean/std_dev)*sqrt(252) ~= 3.05505 */
-    // assert(approx_eq(r->sharpe_ratio, 3.05505, EPS_LOOSE));
-    // Since we're getting dynamic rate, just make sure it isn't exactly zero
-    assert(r->sharpe_ratio != 0.0);
+    assert(approx_eq(r->sharpe_ratio, 3.05505, EPS_LOOSE));
 
     backtest_free_result(r);
 
@@ -216,10 +214,9 @@ static void test_hand_computed_negative_loss(void) {
 
     /* Daily returns: [0, (0.5-1)/1=-0.5, (-0.0025-0.5)/0.5=-1.005]
      * -> mean=-0.7525, sample std=sqrt(0.1275)
-     * -> sharpe = (-0.7525*252)/(sqrt(0.1275)*sqrt(252)) ~= -33.45 */
-    // assert(approx_eq(r->sharpe_ratio, -33.45, 0.01)); 
-    // Since we're getting dynamic rate, just make sure it isn't exactly zero
-    assert(r->sharpe_ratio != 0.0);
+     * -> sharpe = ((mean - rf/252)*252)/(sqrt(0.1275)*sqrt(252))
+     * Test builds use a fixed rf (BACKTEST_TEST): ~= -33.45 */
+    assert(approx_eq(r->sharpe_ratio, -33.45, EPS_LOOSE));
 
     backtest_free_result(r);
 

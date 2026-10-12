@@ -47,7 +47,11 @@ RISK_LIB := $(ROOT_DIR)/risk/build/librisk.a
 WARN := -Wall -Wextra -Wfatal-errors
 CXXFLAGS  := -std=c++17 -MMD -MP $(WARN) -g -fPIC \
 	-Iinclude $(RISK_INCLUDES)
-TEST_CXXFLAGS := $(CXXFLAGS) $(C_TEST_LIB_INCLUDES)
+
+# Test builds define BACKTEST_TEST so the engine uses a fixed risk-free rate
+# instead of fetching live (deterministic, no network). Test recipes below
+# override CXXFLAGS for the shared src/ objects.
+TEST_CXXFLAGS := $(CXXFLAGS) -DBACKTEST_TEST $(C_TEST_LIB_INCLUDES)
 
 # C test helper library flags (compiled with the C compiler, but must use
 # -fPIC so its objects can be linked into the same binary as the C++ PIC
@@ -71,15 +75,20 @@ TEST_OBJ_LOCAL := $(patsubst $(TEST_SRC_DIR)/%.cpp,$(BUILD_DIR)/$(TEST_SRC_DIR)/
 # Map C test helper library .c -> .o
 OBJ_C_TEST_LIB := $(foreach src,$(C_TEST_LIB_SRC),$(BUILD_DIR)/$(patsubst $(ROOT_DIR)/%,%,$(src:.c=.o)))
 
+# Test-variant objects for the shared src/ files, compiled with BACKTEST_TEST
+# defined (see TEST_CXXFLAGS). Kept in build/test/ so they never clash with
+# the plain objects used by $(BIN)/$(SO); -MMD handles header deps via DEP.
+TEST_OBJ_SRC := $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/test/$(SRC_DIR)/%.o,$(SRC))
+
 # Combine all objects
 OBJ      := $(OBJ_LOCAL)
-TEST_OBJ := $(OBJ_LOCAL) $(TEST_OBJ_LOCAL) $(OBJ_C_TEST_LIB)
+TEST_OBJ := $(TEST_OBJ_SRC) $(TEST_OBJ_LOCAL) $(OBJ_C_TEST_LIB)
 
 # Dependency files (.d) for local and library sources
-DEP := $(OBJ:.o=.d) $(SO_OBJ:.o=.d) $(TEST_OBJ_LOCAL:.o=.d) $(OBJ_C_TEST_LIB:.o=.d)
+DEP := $(OBJ:.o=.d) $(SO_OBJ:.o=.d) $(TEST_OBJ_LOCAL:.o=.d) \
+	$(OBJ_C_TEST_LIB:.o=.d) $(TEST_OBJ_SRC:.o=.d)
 
 # ==================== Recipes ====================
-
 all: $(BIN) $(SO)
 	@echo "Build complete."
 
@@ -115,6 +124,15 @@ $(BUILD_DIR)/$(SRC_DIR)/%.o: $(SRC_DIR)/%.cpp
 # Rule for test C++ source files
 $(BUILD_DIR)/$(TEST_SRC_DIR)/%.o: $(TEST_SRC_DIR)/%.cpp
 	@echo "Compiling test $<..."
+	@mkdir -p $(dir $@)
+	@$(CXX) $(TEST_CXXFLAGS) -c $< -o $@
+
+# Test-variant objects for the shared src/ files, compiled with BACKTEST_TEST
+# defined (see TEST_CXXFLAGS). Kept in build/test/ so they never clash with
+# the plain objects used by $(BIN)/$(SO), and are rebuilt when CXXFLAGS
+# changes.
+$(BUILD_DIR)/test/$(SRC_DIR)/%.o: $(SRC_DIR)/%.cpp
+	@echo "Compiling (test) $<..."
 	@mkdir -p $(dir $@)
 	@$(CXX) $(TEST_CXXFLAGS) -c $< -o $@
 

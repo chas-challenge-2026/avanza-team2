@@ -36,10 +36,10 @@ private:
   BacktestResult result_ = {0.0,0.0,0.0,0.0};
 
   // User inputted values
-  const double* prices_             = nullptr;
-  int           instruments_        = 0;
-  int           days_               = 0;
-  int           rebalance_interval_ = 0;
+  const double*       prices_             = nullptr;
+  const int           instruments_        = 0;
+  const int           days_               = 0;
+  const int           rebalance_interval_ = 0;
 
   // Backtest calculated arrays
   double* nav_series_ = nullptr;

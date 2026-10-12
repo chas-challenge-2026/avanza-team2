@@ -80,15 +80,23 @@ int BacktestSimulation::run()
 
   result_.max_drawdown = risk_calc_max_drawdown(nav_series_, (size_t)days_);
 
-  // Try get risk-free rate, silently fail to 0.0
-  double rf_rate;
-  if (rates_handler_get_latest_swestr(&rf_rate) != 0)
-    rf_rate = 0.0;
-
   /* returns[0] is data_convert_values_to_returns()'s unused placeholder
    * for the first NAV (no prior day to compare against) - skip it, same
    * as the old loop starting its return calc at t=1. */
   data_convert_values_to_returns(nav_series_, returns_, (size_t)days_);
+
+#ifdef BACKTEST_TEST
+  /* Test builds use a fixed risk-free rate so results are 
+   * deterministic and no network access is needed. 
+   * The flag is set by the test recipes in backtest/Makefile */
+  double rf_rate = 0.00;
+#else
+  // Try get risk-free rate, silently fail to 0.0
+  double rf_rate;
+  if (rates_handler_get_latest_swestr(&rf_rate) != 0)
+    rf_rate = 0.0;
+#endif
+
   result_.sharpe_ratio = risk_calc_sharpe_ratio_double(
     returns_ + 1, (size_t)(days_ - 1), rf_rate, TRADING_DAYS_PER_YEAR);
 
