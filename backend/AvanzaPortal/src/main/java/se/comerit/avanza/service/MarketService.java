@@ -35,7 +35,7 @@ import com.sun.jna.Pointer;
 @Service
 public class MarketService {
 
-    static final long PRICE_CACHE_TTL_MILLIS = 5 * 60 * 1000L;
+    static final long PRICE_CACHE_TTL_MILLIS = 24 * 60 * 60 * 1000L;
 
     private static final Map<String, MarketSymbol> MARKET_SYMBOLS = Map.of(
             "ERIC-B", new MarketSymbol("ERIC-B.ST", "XSTO"),
@@ -138,27 +138,38 @@ public class MarketService {
             return Optional.empty();
         }
 
-        CachedPrice cachedPrice = priceCache.get(normalizedTicker);
-
-        if (cachedPrice != null && clock.millis() < cachedPrice.expiresAtMillis()) {
-            return Optional.of(cachedPrice.price());
-        }
-
-        if (cachedPrice != null) {
-            priceCache.remove(normalizedTicker, cachedPrice);
-        }
-
-        Optional<BigDecimal> fetchedPrice = stockPriceClient.fetchPrice(
-                marketSymbol.symbol(),
-                marketSymbol.exchange());
-
-        fetchedPrice.ifPresent(price -> priceCache.put(
-                normalizedTicker,
-                new CachedPrice(price, clock.millis() + PRICE_CACHE_TTL_MILLIS)));
-        return fetchedPrice;
+        refreshPricesIfNeeded();
+        return Optional.ofNullable(priceCache.get(normalizedTicker));
     }
 
-    private record CachedPrice(BigDecimal price, long expiresAtMillis) {
+    private synchronized void refreshPricesIfNeeded() {
+        long now = clock.millis();
+        if (priceRefreshAttempted && now < nextPriceRefreshAtMillis) {
+            return;
+        }
+
+        try {
+            List<String> providerSymbols = HISTORICAL_TICKERS.stream()
+                    .map(MARKET_SYMBOLS::get)
+                    .map(MarketSymbol::symbol)
+                    .toList();
+            Map<String, BigDecimal> fetchedPrices = stockPriceClient.fetchPrices(providerSymbols);
+            Map<String, BigDecimal> normalizedPrices = new HashMap<>();
+
+            if (fetchedPrices != null) {
+                MARKET_SYMBOLS.forEach((ticker, marketSymbol) -> {
+                    BigDecimal price = fetchedPrices.get(marketSymbol.symbol());
+                    if (price != null && price.signum() > 0) {
+                        normalizedPrices.put(ticker, price);
+                    }
+                });
+            }
+
+            priceCache = Map.copyOf(normalizedPrices);
+        } finally {
+            priceRefreshAttempted = true;
+            nextPriceRefreshAtMillis = now + PRICE_CACHE_TTL_MILLIS;
+        }
     }
 
     private record MarketSymbol(String symbol, String exchange) {
