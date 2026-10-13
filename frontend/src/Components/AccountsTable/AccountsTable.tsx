@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { DropdownBtn } from '../DropdownBtn/DropdownBtn';
 
 interface Account {
@@ -19,11 +20,26 @@ const typeFilterOptions = [
   { label: 'Depå', value: 'Depå' },
 ];
 
-export const AccountsTable = ({ accounts, className }: AccountsTableProps) => {
+export const AccountsTable = ({
+  accounts,
+  className,
+}: AccountsTableProps) => {
   const [typeFilter, setTypeFilter] = useState('alla');
+  const navigate = useNavigate();
 
   const visibleAccounts =
-    typeFilter === 'alla' ? accounts : accounts.filter((account) => account.type === typeFilter);
+    typeFilter === 'alla'
+      ? accounts
+      : accounts.filter((account) => account.type === typeFilter);
+
+  const handleAccountClick = (account: Account) => {
+    const accountType = account.type.trim().toLowerCase();
+
+    const filterValue =
+      accountType === 'depå' ? 'depa' : accountType;
+
+    navigate(`/innehav?account=${encodeURIComponent(filterValue)}`);
+  };
 
   return (
     <div
@@ -31,8 +47,11 @@ export const AccountsTable = ({ accounts, className }: AccountsTableProps) => {
         className ? ` ${className}` : ''
       }`}
     >
-      <div className="flex items-center justify-between m-4">
-        <h3 className="text-lg font-bold text-neutral-900">Konton</h3>
+      <div className="m-4 flex items-center justify-between">
+        <h3 className="text-lg font-bold text-neutral-900">
+          Konton
+        </h3>
+
         <DropdownBtn
           options={typeFilterOptions}
           value={typeFilter}
@@ -43,24 +62,47 @@ export const AccountsTable = ({ accounts, className }: AccountsTableProps) => {
 
       <table className="mt-4 w-full border-collapse text-sm">
         <thead>
-          <tr className="border-b border-t border-neutral-100 text-left text-xs font-semibold text-neutral-900 px-4 py-4 bg-neutral-50">
+          <tr className="border-b border-t border-neutral-100 bg-neutral-50 px-4 py-4 text-left text-xs font-semibold text-neutral-900">
             <th className="px-4 py-4 font-semibold">Konto</th>
             <th className="px-4 py-4 font-semibold">Typ</th>
-            <th className="px-4 py-4 font-semibold">Värde (SEK)</th>
+            <th className="px-4 py-4 font-semibold">
+              Värde (SEK)
+            </th>
             <th className="w-6" />
           </tr>
         </thead>
+
         <tbody>
           {visibleAccounts.map((account) => (
-            <tr key={account.name} className="text-left border-b border-neutral-100 last:border-0 hover:bg-neutral-50">
-              <td className="px-4 py-4  font-medium text-neutral-900">{account.name}</td>
-              <td className="px-4 py-4 ">
+            <tr
+              key={account.name}
+              onClick={() => handleAccountClick(account)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  handleAccountClick(account);
+                }
+              }}
+              tabIndex={0}
+              role="link"
+              aria-label={`Visa innehav för ${account.name}`}
+              className="cursor-pointer border-b border-neutral-100 text-left transition-colors last:border-0 hover:bg-neutral-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+            >
+              <td className="px-4 py-4 font-medium text-neutral-900">
+                {account.name}
+              </td>
+
+              <td className="px-4 py-4">
                 <span className="rounded-md bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
                   {account.type}
                 </span>
               </td>
-              <td className="px-4 py-4   text-neutral-900">{account.value}</td>
-              <td className="px-4 py-4  text-right text-neutral-300">
+
+              <td className="px-4 py-4 text-neutral-900">
+                {account.value}
+              </td>
+
+              <td className="px-4 py-4 text-right text-neutral-300">
                 <i className="fa-solid fa-chevron-right text-xs" />
               </td>
             </tr>

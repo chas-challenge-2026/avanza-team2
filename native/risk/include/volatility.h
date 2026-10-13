@@ -1,5 +1,6 @@
 #ifndef __VOLATILITY_H__
 #define __VOLATILITY_H__
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
