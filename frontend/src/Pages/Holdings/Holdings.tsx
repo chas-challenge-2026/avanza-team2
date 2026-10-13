@@ -1,3 +1,4 @@
+import { useSearchParams } from 'react-router-dom';
 import { useState, useEffect, useMemo } from 'react';
 import SearchInput from '../../Components/SearchInput/SearchInput';
 import {
@@ -90,6 +91,17 @@ const formatCurrency = (value: number): string =>
     })} SEK`;
 
 const Holdings = () => {
+    const [searchParams] = useSearchParams();
+    
+    // Reads the selected account from the URL when navigating from the Overview page.
+    const accountFromUrl = searchParams.get('account')?.toLowerCase();
+    const initialAccount =
+    accountFromUrl === 'isk' ||
+    accountFromUrl === 'kf' ||
+    accountFromUrl === 'depa'
+        ? accountFromUrl
+        : 'all';
+
     // Stores the holdings retrieved from the backend.
     const [holdings, setHoldings] = useState<HoldingViewItem[]>([]);
 
@@ -99,7 +111,7 @@ const Holdings = () => {
 
     // Stores the current search query and selected filters.
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedAccount, setSelectedAccount] = useState('all');
+    const [selectedAccount, setSelectedAccount] = useState(initialAccount);
     const [selectedCurrency, setSelectedCurrency] = useState('sek');
 
     // Fetches the authenticated user's holdings when the component mounts.
