@@ -23,16 +23,16 @@ services, repositories, DTO:er och entities.
 
 Källkoden finns under `src/main/java/se/comerit/avanza`:
 
-| Paket | Ansvar |
-| --- | --- |
-| `controller` | Tar emot HTTP-anrop och returnerar HTTP-svar. |
-| `service` | Innehåller affärslogik och samordnar repositories. |
-| `repository` | Läser och sparar data med Spring Data JPA. |
-| `entity` | Representerar databastabeller och relationer. |
-| `dto` | Definierar typade request- och responseobjekt för API:t. |
-| `security` | Hanterar JWT, autentisering och åtkomstregler. |
-| `exception` | Gemensam hantering av fel och HTTP-statuskoder. |
-| `nativebridge` | Kopplar Java-backenden till native kod genom JNA. |
+| Paket          | Ansvar                                                   |
+| -------------- | -------------------------------------------------------- |
+| `controller`   | Tar emot HTTP-anrop och returnerar HTTP-svar.            |
+| `service`      | Innehåller affärslogik och samordnar repositories.       |
+| `repository`   | Läser och sparar data med Spring Data JPA.               |
+| `entity`       | Representerar databastabeller och relationer.            |
+| `dto`          | Definierar typade request- och responseobjekt för API:t. |
+| `security`     | Hanterar JWT, autentisering och åtkomstregler.           |
+| `exception`    | Gemensam hantering av fel och HTTP-statuskoder.          |
+| `nativebridge` | Kopplar Java-backenden till native kod genom JNA.        |
 
 Det huvudsakliga flödet är:
 
@@ -114,21 +114,21 @@ pris får anroparen ett tomt resultat i stället för ett ogiltigt pris.
 
 ## API-endpoints
 
-| Metod | Endpoint | Beskrivning |
-| --- | --- | --- |
-| `POST` | `/api/auth/login` | Verifierar användarens inloggningsuppgifter och skapar en JWT-cookie. |
-| `GET` | `/api/auth/me` | Kontrollerar att den aktuella förfrågan är autentiserad. |
-| `DELETE` | `/api/auth/logout` | Rensar JWT-cookien och loggar ut användaren. |
-| `GET` | `/api/portfolio` | Hämtar portföljöversikten för den inloggade användaren. |
-| `GET` | `/api/holdings` | Hämtar den inloggade användarens innehav. |
-| `POST` | `/api/holdings/add` | Lägger till ett innehav för den inloggade användaren. |
-| `POST` | `/api/holdings/delete` | Tar bort ett innehav för den inloggade användaren. |
-| `GET` | `/api/alerts?page=0&size=10` | Hämtar sidindelade driftvarningar och aktuella livevarningar. |
-| `PUT` | `/api/alerts/{id}/dismiss` | Markerar en driftvarning som hanterad. |
-| `GET` | `/api/market/fx/{from}/{to}` | Hämtar växelkursen mellan två valutor. |
-| `GET` | `/api/market/price/{ticker}` | Hämtar senaste tillgängliga priset för en aktieticker. |
-| `GET` | `/api/target-allocations` | Hämtar den inloggade användarens målallokeringar. |
-| `PUT` | `/api/target-allocations` | Uppdaterar den inloggade användarens målallokeringar. |
+| Metod    | Endpoint                     | Beskrivning                                                           |
+| -------- | ---------------------------- | --------------------------------------------------------------------- |
+| `POST`   | `/api/auth/login`            | Verifierar användarens inloggningsuppgifter och skapar en JWT-cookie. |
+| `GET`    | `/api/auth/me`               | Kontrollerar att den aktuella förfrågan är autentiserad.              |
+| `DELETE` | `/api/auth/logout`           | Rensar JWT-cookien och loggar ut användaren.                          |
+| `GET`    | `/api/portfolio`             | Hämtar portföljöversikten för den inloggade användaren.               |
+| `GET`    | `/api/holdings`              | Hämtar den inloggade användarens innehav.                             |
+| `POST`   | `/api/holdings/add`          | Lägger till ett innehav för den inloggade användaren.                 |
+| `POST`   | `/api/holdings/delete`       | Tar bort ett innehav för den inloggade användaren.                    |
+| `GET`    | `/api/alerts?page=0&size=10` | Hämtar sidindelade driftvarningar och aktuella livevarningar.         |
+| `PUT`    | `/api/alerts/{id}/dismiss`   | Markerar en driftvarning som hanterad.                                |
+| `GET`    | `/api/market/fx/{from}/{to}` | Hämtar växelkursen mellan två valutor.                                |
+| `GET`    | `/api/market/price/{ticker}` | Hämtar senaste tillgängliga priset för en aktieticker.                |
+| `GET`    | `/api/target-allocations`    | Hämtar den inloggade användarens målallokeringar.                     |
+| `PUT`    | `/api/target-allocations`    | Uppdaterar den inloggade användarens målallokeringar.                 |
 
 Alla API-endpoints förutom `POST /api/auth/login` och
 `DELETE /api/auth/logout` kräver autentisering. JWT:n skickas som en
@@ -217,19 +217,13 @@ mot en riktig eller containerbaserad PostgreSQL-databas.
 - Tester finns för services, controllers och JWT-komponenter.
 - JNA-stöd finns för kommande native riskberäkningar.
 
-## Kända begränsningar och fortsatt arbete
+## Kända begränsningar
 
-- Vissa controllers och services är fortfarande under migrering till den nya
-  stateless-strukturen.
-- `JdbcTemplate` finns kvar i delar av backenden och ska ersättas stegvis.
-- Aktiekurser och USD/SEK-kurs är fortfarande hårdkodade på vissa ställen.
-- Drifttröskeln är inte konsekvent i alla flöden.
-- Pagination används ännu inte genomgående.
-- Fler integrations- och säkerhetstester behövs.
-- Native riskmått ska kopplas in i det körande API-flödet.
-
-En detaljerad lista över tekniska risker och kvarvarande problem finns i
-[`docs/known-bugs.md`](../../docs/known-bugs.md).
+[`docs/known-bugs.md`](../../docs/known-bugs.md) listan har tagits bort eftersom den blandade äldre v1-problem med
+pågående v2-arbete och inte längre gav en tillförlitlig bild av backendens
+aktuella status. Nya begränsningar kan upptäckas när systemet vidareutvecklas;
+dokumentera dem som GitHub-issues och uppdatera den här guiden när de påverkar
+hur backend körs eller används.
 
 ## Bidra till backenden
 
