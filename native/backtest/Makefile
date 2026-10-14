@@ -42,6 +42,7 @@ RISK_INCLUDES := -I$(ROOT_DIR)/risk/include -I$(ROOT_DIR)/common/utils/include \
 # native/Makefile) so this archive exists - `make -C backtest` alone assumes
 # it was already built.
 RISK_LIB := $(ROOT_DIR)/risk/build/librisk.a
+RISK_SO := $(ROOT_DIR)/risk/build/librisk.so
 
 # Compilation flags
 WARN := -Wall -Wextra -Wfatal-errors
@@ -148,6 +149,11 @@ $(TEST_BIN): $(TEST_OBJ) $(RISK_LIB)
 	@echo "Linking test..."
 	@mkdir -p $(dir $@)
 	@$(CXX) $(TEST_OBJ) $(RISK_LIB) -o $@ $(LDFLAGS)
+
+$(SO): $(SO_OBJ) $(RISK_SO)
+	@echo "Linking shared library as $(SO)..."
+	@mkdir -p $(dir $@)
+	@$(CC) -shared $(SO_OBJ) -L$(dir $(RISK_SO)) -Wl,-rpath,'$$ORIGIN' -lrisk $(LDFLAGS) -o $@
 
 asan: clean
 	@echo "Building ASan binary..."

@@ -113,19 +113,17 @@ public class PortfolioService {
      *         are the current market prices.
      */
     public Map<String, Double> getCurrentPrices(List<Holdings> holdings) {
-        Map<String, Double> fallbackPrices = marketService.getPriceFallback();
         Map<String, Double> prices = new HashMap<>();
-        prices.put("DEFAULT", fallbackPrices.get("DEFAULT"));
 
         for (Holdings holding : holdings) {
             String ticker = holding.getTicker();
 
             Optional<BigDecimal> livePrice = marketService.getPrice(ticker);
-            double price = livePrice
-                    .map(BigDecimal::doubleValue)
-                    .orElseGet(() -> fallbackPrices.getOrDefault(ticker, fallbackPrices.get("DEFAULT")));
 
-            prices.put(ticker, price);
+            prices.put(
+                    ticker,
+                    livePrice.map(BigDecimal::doubleValue).orElse(null)
+            );
         }
 
         return prices;
@@ -214,12 +212,28 @@ public class PortfolioService {
         double quantity = holdings.getQuantity().doubleValue();
         double avgBuy = holdings.getAvgBuy().doubleValue();
 
-        // Get current price (or default if unknown ticker)
-        double price = currentPrices.getOrDefault(ticker, currentPrices.get("DEFAULT"));
+        // Get current price
+        Double price = currentPrices.get(ticker);
+
+        // Price unavailable - do not fabricate a value
+        if (price == null) {
+            return new EnrichedHoldingDTO(
+                    holdings.getId(),
+                    ticker,
+                    holdings.getInstrument_name(),
+                    quantity,
+                    null,
+                    null,
+                    null,
+                    null,
+                    0.0,
+                    "USD".equals(currency) ? "USD→SEK" : "SEK"
+            );
+        }
 
         // Calculate market value in SEK (convert USD if needed)
-
         double valueSek;
+
         if ("USD".equals(currency)) {
             valueSek = quantity * price * getUsdToSekRate();
         } else {
@@ -227,17 +241,18 @@ public class PortfolioService {
         }
 
         // Simple return calculation inline (no IRR, no time-weighting, just naive)
-        double costBasis = quantity * avgBuy * ("USD".equals(currency) ? getUsdToSekRate() : 1.0);
+        double costBasis = quantity * avgBuy
+                * ("USD".equals(currency) ? getUsdToSekRate() : 1.0);
+
         double unrealizedReturn = valueSek - costBasis;
-        double unrealizedReturnPct = costBasis > 0 ? (unrealizedReturn / costBasis) * 100 : 0;
+
+        double unrealizedReturnPct = costBasis > 0
+                ? (unrealizedReturn / costBasis) * 100
+                : 0;
 
         /**
-         * Sharpe ratio — completely wrong here, just to show the pattern
-         * risk-free rate hardcoded to 0.02 (2%), volatility hardcoded to 0.15 (15%)
-         * This is per-holding which makes no sense, but it's v1
-         * 
-         * Still just a placeholder and not meaningful for real analysis.
-         * TODO: replace with realtime returns
+         * Sharpe ratio — placeholder for now.
+         * Not meaningful for a single holding without historical returns.
          */
         double sharpe = 0.0;
 
@@ -252,7 +267,8 @@ public class PortfolioService {
                 Math.round(unrealizedReturn * 100.0) / 100.0,
                 Math.round(unrealizedReturnPct * 100.0) / 100.0,
                 Math.round(sharpe * 100.0) / 100.0,
-                "USD".equals(currency) ? "USD→SEK" : "SEK");
+                "USD".equals(currency) ? "USD→SEK" : "SEK"
+        );
     }
 
     /**
@@ -264,33 +280,44 @@ public class PortfolioService {
      * @param accountTypeTotals Map to accumulate totals per account type.
      * @return The total portfolio value across all holdings.
      */
-    public double calculatePortfolioTotals(List<Holdings> holdings,
-            Map<String, Double> prices,
-            Map<Long, String> accountTypeMap,
-            Map<String, Double> accountTypeTotals) {
-        double totalPortfolioValue = 0.0;
+    public double calculatePortfolioTotals(
+        List<Holdings> holdings,
+        Map<String, Double> prices,
+        Map<Long, String> accountTypeMap,
+        Map<String, Double> accountTypeTotals) {
 
-        for (Holdings h : holdings) {
-            // Enrich this single holding
-            EnrichedHoldingDTO enriched = enrichSingleHolding(h, prices);
-            double valueSek = enriched.valueSek();
+    double totalPortfolioValue = 0.0;
 
-            // Add to grand total
-            totalPortfolioValue += valueSek;
+    for (Holdings h : holdings) {
 
-            // Add to account type bucket
-            Long accountId = h.getAccount().getId();
-            String accType = accountTypeMap.get(accountId);
+        EnrichedHoldingDTO enriched = enrichSingleHolding(h, prices);
 
-            if (accType == null) {
-                continue;
-            }
+        Double valueSek = enriched.valueSek();
 
-            accountTypeTotals.put(accType, accountTypeTotals.getOrDefault(accType, 0.0) + valueSek);
+        // Ignore holdings where the current market price is unavailable.
+        if (valueSek == null) {
+            continue;
         }
 
-        return totalPortfolioValue;
+        // Add to grand total
+        totalPortfolioValue += valueSek;
+
+        // Add to account type bucket
+        Long accountId = h.getAccount().getId();
+        String accType = accountTypeMap.get(accountId);
+
+        if (accType == null) {
+            continue;
+        }
+
+        accountTypeTotals.put(
+                accType,
+                accountTypeTotals.getOrDefault(accType, 0.0) + valueSek
+        );
     }
+
+    return totalPortfolioValue;
+}
 
     /**
      * @return Current threshold configuration 5%.

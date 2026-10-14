@@ -150,7 +150,7 @@ class AlertServiceTest {
                 // Arrange
                 Long userId = 1L;
 
-                when(accountRepository.findByUserId(userId))
+                when(accountRepository.findAllWithHoldingsByUserId(userId))
                                 .thenReturn(List.of());
 
                 when(targetRepository.findByUserId(userId))
@@ -161,6 +161,7 @@ class AlertServiceTest {
 
                 // Assert
                 assertTrue(result.isEmpty());
+                verify(accountRepository).findAllWithHoldingsByUserId(userId);
         }
 
         @Test
@@ -187,7 +188,7 @@ class AlertServiceTest {
 
                 TargetAllocations kfTarget = new TargetAllocations("KF", 50.0, null);
 
-                when(accountRepository.findByUserId(userId))
+                when(accountRepository.findAllWithHoldingsByUserId(userId))
                                 .thenReturn(List.of(account));
 
                 when(targetRepository.findByUserId(userId))
@@ -223,7 +224,7 @@ class AlertServiceTest {
                         null,
                         List.of(holding));
 
-                when(accountRepository.findByUserId(userId))
+                when(accountRepository.findAllWithHoldingsByUserId(userId))
                         .thenReturn(List.of(account));
 
                 when(targetRepository.findByUserId(userId))

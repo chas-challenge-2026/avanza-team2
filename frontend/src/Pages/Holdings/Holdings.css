@@ -1,0 +1,116 @@
+.holdings-container {
+    padding: 24px 32px;
+    max-width: 1200px;
+    margin: 0 auto;
+    box-sizing: border-box;
+    font-family: sans-serif;
+}
+
+.holdings-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #0F172A;
+    margin-bottom: 20px;
+    margin-top: 0;
+}
+
+.holdings-filter-section {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+.holdings-filter-buttons {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* KPI-kort styling */
+.holdings-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.holdings-kpi-card {
+    background-color: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 16px;
+    padding: 20px;
+    box-sizing: border-box;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.holdings-kpi-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: #64748B;
+}
+
+.holdings-kpi-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #0F172A;
+    margin-top: 4px;
+    margin-bottom: 4px;
+}
+
+.holdings-kpi-trend {
+    font-size: 13px;
+    font-weight: 600;
+    margin-top: 8px;
+}
+
+.holdings-kpi-trend.positive {
+    color: #16A34A;
+}
+
+/* Sektioner (Innehav & Total innehav) */
+.holdings-section-box {
+    background-color: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 16px;
+    margin-bottom: 24px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.holdings-section-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #0F172A;
+    padding: 20px;
+    margin: 0;
+    border-bottom: 1px solid #F1F5F9;
+}
+
+/* Sammanfattning längst ner */
+.holdings-summary-content {
+    padding: 12px 20px;
+}
+
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid #F1F5F9;
+    font-size: 14px;
+}
+
+.summary-label {
+    color: #64748B;
+}
+
+.summary-value {
+    font-weight: 600;
+    color: #0F172A;
+}
+
+.summary-value.positive {
+    color: #16A34A;
+}

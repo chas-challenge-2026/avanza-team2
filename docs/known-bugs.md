@@ -91,9 +91,10 @@ och det syns inte i beräkningarna.
 ### Ingen pagination
 
 **Filer:** Alla controllers
-**Problem:** `SELECT * FROM holdings WHERE ...` utan `LIMIT`. Med 10 000+ innehav laddas all data
-till heapminnet varje request.
-**Fix:** Spring Data `Pageable` + `LIMIT`/`OFFSET` i SQL.
+~~**Problem:** `SELECT * FROM holdings WHERE ...` utan `LIMIT`. Med 10 000+ innehav laddas all data~~
+~~till heapminnet varje request.~~
+
+**Fix:** Paginering finns för `/api/holdings` och lagrade alerts i `/api/alerts`, med Spring Data `Pageable`.
 
 ### N+1-liknande mönster
 

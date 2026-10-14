@@ -9,6 +9,7 @@ WORKDIR /native
 COPY native/ .
 RUN make -C fx solib
 RUN make -C risk solib
+RUN make -C backtest solib
 
 FROM node:22-alpine AS frontend-build
 WORKDIR /frontend
@@ -33,5 +34,6 @@ WORKDIR /app
 COPY --from=build /app/target/avanza-portal-1.0-SNAPSHOT.jar app.jar
 COPY --from=native /native/fx/build/libfx.so /app/libfx.so
 COPY --from=native /native/risk/build/librisk.so /app/librisk.so
+COPY --from=native /native/backtest/build/libbacktest.so /app/libbacktest.so
 EXPOSE 8082
 ENTRYPOINT ["java", "-Djna.library.path=/app", "-jar", "app.jar"]

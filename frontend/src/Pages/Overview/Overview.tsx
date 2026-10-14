@@ -7,7 +7,7 @@ import { DonutChart } from '../../Components/DonutChart/DonutChart.tsx'
 import { RecentActivity } from '../../Components/RecentActivity/RecentActivity.tsx'
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
-const POLL_INTERVAL_MS = 30_000
+const POLL_INTERVAL_MS = 24 * 60 * 60 * 1000
 
 interface PortfolioResponse {
   accountSummary: {
@@ -22,11 +22,11 @@ interface PortfolioResponse {
     ticker: string
     instrumentName: string
     quantity: number
-    currentPrice: number
-    valueSek: number
-    unrealizedReturn: number
-    unrealizedReturnPct: number
-    sharpe: number
+    currentPrice: number | null
+    valueSek: number | null
+    unrealizedReturn: number | null
+    unrealizedReturnPct: number | null
+    sharpe: number | null
     displayCurrency: string
   }[]
   allocationRows: {
@@ -100,13 +100,10 @@ export const Overview = () => {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    const controller = new AbortController()
     let timeoutId: number | undefined
-    let activeController: AbortController | undefined
 
     const loadPortfolio = async () => {
-      const controller = new AbortController()
-      activeController = controller
-
       try {
         const response = await fetch(`${API_URL}/api/portfolio`, {
           credentials: 'include',
@@ -156,8 +153,7 @@ export const Overview = () => {
     void loadPortfolio()
 
     return () => {
-      activeController?.abort()
-
+      controller.abort()
       if (timeoutId !== undefined) {
         window.clearTimeout(timeoutId)
       }
@@ -189,7 +185,13 @@ export const Overview = () => {
   }
 
   const investedValue = portfolio.enrichedHoldings.reduce(
-    (total, holding) => total + holding.valueSek - holding.unrealizedReturn,
+    (total, holding) => {
+      if (holding.valueSek === null || holding.unrealizedReturn === null) {
+        return total
+      }
+
+      return total + holding.valueSek - holding.unrealizedReturn
+    },
     0,
   )
 

@@ -12,5 +12,5 @@ public record HoldingItemDTO(
         String currency,
         @JsonProperty("account_type") String accountType,
         @JsonProperty("account_name") String accountName,
-        double currentPrice, double marketValue, double pnl) {
+        Double currentPrice, Double marketValue, Double pnl) {
 }
