@@ -36,26 +36,26 @@ JWT_SECRET=change_me_to_a_random_32_char_min_string
 MARKETSTACK_API_KEY=your_marketstack_api_key
 ```
 
-4. Öppna **Terminal 1** och följande kommando för att starta docker:
+4. Öppna **Terminal** och använd följande kommando för att starta docker(frontend, backend, native samt databas är samlade i en docker fil):
 
 ```bash
 cd infra
 docker compose --env-file .env up --build
 ```
 
-5. Öppna **Terminal 2** och följande kommando för att starta frontend:
+vid behöv av omstart
 
 ```bash
-cd frontend
-npm install
-npm run dev
+cd infra
+docker compose down -v
+docker compose --env-file .env up --build
 ```
 
-6.  Öppna din lokala websida på denna porten och använd följande test användare:
+5.  Öppna din lokala websida på denna porten och använd följande test användare:
 
 **Port**
 
-- `http://localhost:5173`
+- `http://localhost:8082`
 
 **Testanvändare:**
 
@@ -69,7 +69,7 @@ npm run dev
 | Backend  | Spring Boot 3.2.12, Java 21, Maven          |
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS    |
 | Native   | C, C++                                      |
-| Databas  | PostgreSQL 12 (seedas via `infra/seed.sql`) |
+| Databas  | PostgreSQL 15 (seedas via `infra/seed.sql`) |
 | Deploy   | Docker Compose                              |
 
 ## Utveckling
