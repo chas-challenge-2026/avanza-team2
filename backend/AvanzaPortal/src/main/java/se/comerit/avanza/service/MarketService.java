@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,11 +17,17 @@ import org.springframework.stereotype.Service;
 import jakarta.transaction.Transactional;
 import se.comerit.avanza.client.StockPriceClient;
 import se.comerit.avanza.client.HistoricalPriceClient;
+import se.comerit.avanza.dto.market.BacktestRequestDTO;
+import se.comerit.avanza.dto.market.BacktestResponseDTO;
 import se.comerit.avanza.dto.market.FxRateResponseDTO;
 import se.comerit.avanza.entity.HistoricalStockPrice;
 import se.comerit.avanza.exception.UnsupportedCurrencyPairException;
+import se.comerit.avanza.nativebridge.BacktestInputBuilder;
+import se.comerit.avanza.nativebridge.BacktestLibrary;
+import se.comerit.avanza.nativebridge.BacktestResultStructure;
 import se.comerit.avanza.nativebridge.FxLibrary;
 import se.comerit.avanza.repository.HistoricalRepository;
+import com.sun.jna.Pointer;
 
 /**
  * Provides market data such as foreign exchange rates and stock prices.
@@ -39,6 +46,7 @@ public class MarketService {
 
     private static final List<String> HISTORICAL_TICKERS = List.of(
             "ERIC-B", "VOLV-B", "AAPL", "SWED-A", "SAND");
+    private static final Set<String> BACKTEST_STRATEGIES = Set.of("BUY_HOLD", "REBALANCE_MONTHLY");
 
     // The FX library used to fetch foreign exchange rates.
     private final FxLibrary fxLibrary;
@@ -47,6 +55,8 @@ public class MarketService {
     private final int historicalLookbackDays;
     private final HistoricalRepository historicalRepository;
     private final HistoricalPriceClient historicalDataClient;
+    private final BacktestLibrary backtestLibrary;
+    private final BacktestInputBuilder backtestInputBuilder;
     private volatile Map<String, BigDecimal> priceCache = Map.of();
     private boolean priceRefreshAttempted;
     private long nextPriceRefreshAtMillis;
@@ -57,8 +67,9 @@ public class MarketService {
             StockPriceClient stockPriceClient,
             HistoricalRepository historicalRepository,
             HistoricalPriceClient historicalDataClient,
+            BacktestLibrary backtestLibrary,
             @Value("${marketstack.history.lookback-days:360}") int lookbackDays) {
-        this(fxLibrary, stockPriceClient, historicalRepository, historicalDataClient,
+        this(fxLibrary, stockPriceClient, historicalRepository, historicalDataClient, backtestLibrary,
                 Clock.systemUTC(), lookbackDays);
     }
 
@@ -67,6 +78,7 @@ public class MarketService {
             StockPriceClient stockPriceClient,
             HistoricalRepository historicalRepository,
             HistoricalPriceClient historicalDataClient,
+            BacktestLibrary backtestLibrary,
             Clock clock,
             int lookbackDays) {
         this.fxLibrary = fxLibrary;
@@ -75,6 +87,8 @@ public class MarketService {
         this.historicalLookbackDays = lookbackDays;
         this.historicalRepository = historicalRepository;
         this.historicalDataClient = historicalDataClient;
+        this.backtestLibrary = backtestLibrary;
+        this.backtestInputBuilder = new BacktestInputBuilder(historicalRepository);
     }
 
     /**
@@ -211,5 +225,37 @@ public class MarketService {
 
         historicalRepository.saveAll(pricesToSave);
         return pricesToSave.size();
+    }
+
+    /**
+     * Loads historical prices, runs the native backtest, and copies the result
+     * into a JSON-safe response before releasing native memory.
+     */
+    public BacktestResponseDTO getBacktestAnalysis(BacktestRequestDTO request) {
+        if (request == null || request.strategy() == null
+                || !BACKTEST_STRATEGIES.contains(request.strategy())) {
+            throw new IllegalArgumentException("Unsupported backtest strategy");
+        }
+
+        BacktestInputBuilder.BacktestInput input = backtestInputBuilder.build(
+                request.tickers(), request.startDate(), request.endDate());
+        Pointer nativeResult = backtestLibrary.run_backtest(
+                input.prices(), input.instrumentCount(), input.dayCount(), request.strategy());
+        if (nativeResult == null) {
+            throw new IllegalStateException("Native backtest could not calculate a result");
+        }
+
+        try {
+            BacktestResultStructure result = new BacktestResultStructure(nativeResult);
+            return new BacktestResponseDTO(
+                    result.total_return,
+                    result.annualized_return,
+                    result.max_drawdown,
+                    result.sharpe_ratio,
+                    input.tickers(),
+                    input.dates());
+        } finally {
+            backtestLibrary.backtest_free_result(nativeResult);
+        }
     }
 }

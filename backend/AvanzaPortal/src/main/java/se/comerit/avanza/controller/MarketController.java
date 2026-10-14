@@ -1,13 +1,18 @@
 package se.comerit.avanza.controller;
 
 import java.math.BigDecimal;
-
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import se.comerit.avanza.dto.market.BacktestRequestDTO;
+import se.comerit.avanza.dto.market.BacktestResponseDTO;
 import se.comerit.avanza.dto.market.FxRateResponseDTO;
 import se.comerit.avanza.exception.ResourceNotFoundException;
 import se.comerit.avanza.service.MarketService;
@@ -50,5 +55,21 @@ public class MarketController {
         return marketService.getPrice(ticker)
                 .map(ResponseEntity::ok)
                 .orElseThrow(() -> new ResourceNotFoundException("Price not found for ticker: " + ticker));
+    }
+
+    /**
+     * Runs a backtest using historical prices stored by the backend.
+     *
+     * @param request tickers, date range, and strategy for the analysis
+     * @return the backtest response entity containing the analysis results
+     */
+    @PostMapping("/backtest")
+    public ResponseEntity<BacktestResponseDTO> getBacktestAnalysis(
+            @Valid @RequestBody BacktestRequestDTO request) {
+        try {
+            return ResponseEntity.ok(marketService.getBacktestAnalysis(request));
+        } catch (IllegalArgumentException | IllegalStateException exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
     }
 }

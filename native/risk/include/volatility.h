@@ -1,5 +1,6 @@
 #ifndef __VOLATILITY_H__
 #define __VOLATILITY_H__
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -7,6 +8,7 @@ extern "C" {
 
 #include "simd_config.h"
 
+#include <stddef.h>
 #include <stdint.h>
 #include <math.h>
 

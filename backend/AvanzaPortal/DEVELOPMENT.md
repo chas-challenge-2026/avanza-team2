@@ -1,58 +1,88 @@
 # Java-backend
 
-Backenden för Avanza Portföljhälsa är ett REST API byggt med Java 21 och
-Spring Boot. Den hanterar autentisering, användarnas konton och innehav,
-portföljberäkningar samt driftvarningar.
+Backenden för Avanza Portföljhälsa är ett REST API byggt med Java 21 och Spring Boot 3.2. Den hanterar bland annat autentisering, innehav, portföljberäkningar, målallokering, driftvarningar, marknadsdata och backtesting.
 
-Projektet moderniseras från en äldre version där SQL och affärslogik låg direkt
-i controllers. Den nya strukturen delar upp ansvaret mellan controllers,
-services, repositories, DTO:er och entities.
+Projektet har moderniserats från en äldre version där SQL och affärslogik låg direkt i controllers. Den nuvarande strukturen använder controllers, services, repositories, DTO:er och JPA-entiteter för att separera olika ansvarsområden.
 
 ## Teknikstack
 
 - Java 21
-- Spring Boot 3.2
-- Spring Web och Spring Security med JWT
-- Spring Data JPA, Hibernate och Flyway
-- PostgreSQL 12
+- Spring Boot 3.2.12
+- Spring Web
+- Spring Security med JWT
+- Spring Data JPA och Hibernate
+- Flyway
+- PostgreSQL 15
 - Maven
 - JUnit 5 och Mockito
+- Marketstack för aktiekurser och historisk marknadsdata
 - JNA för kommunikation med native C/C++-kod
 
 ## Struktur
 
-Källkoden finns under `src/main/java/se/comerit/avanza`:
+Källkoden finns i:
 
-| Paket          | Ansvar                                                   |
+```text
+backend/AvanzaPortal/src/main/java/se/comerit/avanza
+```
+
+<<<<<<< HEAD:backend/AvanzaPortal/DEVELOPMENT.md
+| Paket | Ansvar |
 | -------------- | -------------------------------------------------------- |
-| `controller`   | Tar emot HTTP-anrop och returnerar HTTP-svar.            |
-| `service`      | Innehåller affärslogik och samordnar repositories.       |
-| `repository`   | Läser och sparar data med Spring Data JPA.               |
-| `entity`       | Representerar databastabeller och relationer.            |
-| `dto`          | Definierar typade request- och responseobjekt för API:t. |
-| `security`     | Hanterar JWT, autentisering och åtkomstregler.           |
-| `exception`    | Gemensam hantering av fel och HTTP-statuskoder.          |
-| `nativebridge` | Kopplar Java-backenden till native kod genom JNA.        |
+| `controller` | Tar emot HTTP-anrop och returnerar HTTP-svar. |
+| `service` | Innehåller affärslogik och samordnar repositories. |
+| `repository` | Läser och sparar data med Spring Data JPA. |
+| `entity` | Representerar databastabeller och relationer. |
+| `dto` | Definierar typade request- och responseobjekt för API:t. |
+| `security` | Hanterar JWT, autentisering och åtkomstregler. |
+| `exception` | Gemensam hantering av fel och HTTP-statuskoder. |
+| `nativebridge` | Kopplar Java-backenden till native kod genom JNA. |
+=======
+| Paket | Ansvar |
+| --- | --- |
+| `client` | Kommunikation med externa tjänster som Marketstack. |
+| `controller` | Tar emot HTTP-anrop och returnerar HTTP-svar. |
+| `service` | Innehåller affärslogik och samordnar repositories och externa tjänster. |
+| `repository` | Läser och sparar data med Spring Data JPA. |
+| `entity` | Representerar databastabeller och relationer. |
+| `dto` | Definierar request- och responseobjekt för API:t. |
+| `security` | Hanterar JWT, autentisering och åtkomstregler. |
+| `exception` | Hanterar applikationsfel och HTTP-statuskoder. |
+| `nativebridge` | Kopplar Java-backenden till native C/C++-kod genom JNA. |
+
+> develop:backend/AvanzaPortal/Backend-ReadMe.md
 
 Det huvudsakliga flödet är:
 
 ```text
-HTTP request -> Controller -> Service -> Repository -> PostgreSQL
-                      |            |
-                      +--> DTO <---+
+React frontend
+      |
+      v
+REST Controller
+      |
+      v
+Service
+  |        \
+  v         v
+Repository  Marketstack/JNA
+  |
+  v
+PostgreSQL
 ```
 
-Controllers ska vara tunna. De läser requestdata och den autentiserade
-användaren, anropar rätt service och skapar ett HTTP-svar. Affärslogik och
-behörighetskontroller ska ligga i servicelagret.
+Controllers ska främst hantera requests och responses. Affärslogik och behörighetskontroller ska ligga i servicelagret.
 
 ## Förutsättningar
 
+För att köra projektet lokalt behövs:
+
+- Docker Desktop med Docker Compose
 - JDK 21
 - Maven 3.9 eller senare
-- Docker Desktop med Docker Compose
+- Node.js om frontenden ska köras separat
+- En API-nyckel från Marketstack
 
-Kontrollera aktuell Java-version:
+Kontrollera att Maven använder Java 21:
 
 ```bash
 java -version
@@ -65,131 +95,235 @@ På macOS kan Java 21 väljas för den aktuella terminalen med:
 export JAVA_HOME=$(/usr/libexec/java_home -v 21)
 ```
 
+## Miljövariabler
+
+Skapa filen `infra/.env`. Filen är gitignorerad och ska aldrig committas.
+
+```env
+DB_USERNAME=avanza
+DB_PASSWORD=your_local_password
+JWT_SECRET=your_random_secret_with_at_least_32_characters
+MARKETSTACK_API_KEY=your_marketstack_api_key
+```
+
+Hemligheter ska alltid hanteras genom miljövariabler och får inte hårdkodas i koden.
+
 ## Starta systemet med Docker
+
+Docker är det rekommenderade sättet att köra hela systemet eftersom imagen bygger Java-backenden, React-frontenden och de native biblioteken.
 
 Kör från projektets rot:
 
 ```bash
 cd infra
-docker compose up --build
+docker compose --env-file .env up --build
 ```
 
-Docker startar PostgreSQL och Spring Boot-applikationen. Backenden lyssnar på
-port `8082`. Lokal portmappning styrs av
-`infra/docker-compose.override.yml`.
+När systemet har startat finns applikationen på:
 
-Stoppa miljön med:
+```text
+http://localhost:8082
+```
+
+PostgreSQL kan nås lokalt på port `5433`.
+
+Stoppa systemet med:
 
 ```bash
-docker compose down
+docker compose --env-file .env down
 ```
 
-## Starta backenden med Maven
-
-Databasen måste vara tillgänglig och datasource-inställningarna måste peka på
-rätt värd. Gå därefter till Maven-modulen:
+För att även ta bort den lokala databasvolymen:
 
 ```bash
-cd backend/AvanzaPortal
-mvn spring-boot:run
+docker compose --env-file .env down -v
 ```
 
-Standardkonfigurationen finns i `src/main/resources/application.properties`.
-Docker Compose skriver över databasinställningarna genom miljövariabler.
+Det sista kommandot tar bort all lokal data och bör endast användas när databasen ska återställas.
 
-## Aktiekurser
+## Köra frontenden separat
 
-Backenden hämtar end-of-day-kurser från Marketstack. API-nyckeln tillförs som
-miljövariabel och ska aldrig sparas i Git:
+Frontenden kan köras separat i utvecklingsläge med hot reload:
 
-```env
-MARKETSTACK_API_KEY=your_marketstack_api_key
+```bash
+cd frontend
+npm install
+npm run dev
 ```
 
-`MarketService` översätter applikationens tickers till Marketstacks
-symbolformat och cachar hämtade priser för att minska antalet externa anrop.
-Svenska aktier använder Nasdaq Stockholm (`XSTO`), exempelvis `ERIC-B.ST` och
-`VOLV-B.ST`. Om en ticker saknas eller leverantören inte returnerar ett giltigt
-pris får anroparen ett tomt resultat i stället för ett ogiltigt pris.
+Frontenden finns då på:
+
+```text
+http://localhost:5173
+```
+
+Backenden fortsätter att köras på port `8082`.
+
+## Testanvändare
+
+Den lokala databasen innehåller följande användare:
+
+```text
+anna@example.com / password123
+erik@example.com / password123
+```
 
 ## API-endpoints
 
-| Metod    | Endpoint                     | Beskrivning                                                           |
-| -------- | ---------------------------- | --------------------------------------------------------------------- |
-| `POST`   | `/api/auth/login`            | Verifierar användarens inloggningsuppgifter och skapar en JWT-cookie. |
-| `GET`    | `/api/auth/me`               | Kontrollerar att den aktuella förfrågan är autentiserad.              |
-| `DELETE` | `/api/auth/logout`           | Rensar JWT-cookien och loggar ut användaren.                          |
-| `GET`    | `/api/portfolio`             | Hämtar portföljöversikten för den inloggade användaren.               |
-| `GET`    | `/api/holdings`              | Hämtar den inloggade användarens innehav.                             |
-| `POST`   | `/api/holdings/add`          | Lägger till ett innehav för den inloggade användaren.                 |
-| `POST`   | `/api/holdings/delete`       | Tar bort ett innehav för den inloggade användaren.                    |
-| `GET`    | `/api/alerts?page=0&size=10` | Hämtar sidindelade driftvarningar och aktuella livevarningar.         |
-| `PUT`    | `/api/alerts/{id}/dismiss`   | Markerar en driftvarning som hanterad.                                |
-| `GET`    | `/api/market/fx/{from}/{to}` | Hämtar växelkursen mellan två valutor.                                |
-| `GET`    | `/api/market/price/{ticker}` | Hämtar senaste tillgängliga priset för en aktieticker.                |
-| `GET`    | `/api/target-allocations`    | Hämtar den inloggade användarens målallokeringar.                     |
-| `PUT`    | `/api/target-allocations`    | Uppdaterar den inloggade användarens målallokeringar.                 |
+### Autentisering
 
-Alla API-endpoints förutom `POST /api/auth/login` och
-`DELETE /api/auth/logout` kräver autentisering. JWT:n skickas som en
-HttpOnly-cookie med namnet `jwt`.
+| Metod    | Endpoint           | Beskrivning                                    |
+| -------- | ------------------ | ---------------------------------------------- |
+| `POST`   | `/api/auth/login`  | Loggar in användaren och skapar en JWT-cookie. |
+| `GET`    | `/api/auth/me`     | Kontrollerar om användaren är inloggad.        |
+| `DELETE` | `/api/auth/logout` | Tar bort JWT-cookien och loggar ut användaren. |
 
-```http
-Cookie: jwt=<token>
-```
+### Portfölj och innehav
+
+| Metod  | Endpoint                              | Beskrivning                                |
+| ------ | ------------------------------------- | ------------------------------------------ |
+| `GET`  | `/api/portfolio`                      | Hämtar användarens portföljöversikt.       |
+| `GET`  | `/api/holdings?page=0&size=10`        | Hämtar användarens innehav med pagination. |
+| `POST` | `/api/holdings/add`                   | Lägger till ett innehav.                   |
+| `POST` | `/api/holdings/delete?holdingId={id}` | Tar bort ett innehav.                      |
+
+### Alerts
+
+| Metod | Endpoint                     | Beskrivning                                                      |
+| ----- | ---------------------------- | ---------------------------------------------------------------- |
+| `GET` | `/api/alerts?page=0&size=10` | Hämtar lagrade alerts, live drift-alerts och aktuell driftgräns. |
+| `PUT` | `/api/alerts/{id}/dismiss`   | Markerar en alert som hanterad.                                  |
+
+### Målallokering
+
+| Metod | Endpoint                  | Beskrivning                           |
+| ----- | ------------------------- | ------------------------------------- |
+| `GET` | `/api/target-allocations` | Hämtar användarens målallokering.     |
+| `PUT` | `/api/target-allocations` | Uppdaterar användarens målallokering. |
+
+### Marknadsdata
+
+| Metod  | Endpoint                     | Beskrivning                                |
+| ------ | ---------------------------- | ------------------------------------------ |
+| `GET`  | `/api/market/price/{ticker}` | Hämtar senaste tillgängliga aktiekurs.     |
+| `GET`  | `/api/market/fx/{from}/{to}` | Hämtar växlingskurs mellan två valutor.    |
+| `POST` | `/api/market/backtest`       | Kör en backtest med lagrad historisk data. |
+
+Alla endpoints förutom login och logout kräver en autentiserad användare.
 
 ## Autentisering och säkerhet
 
-Spring Security är konfigurerat för ett stateless API. Servern ska därför inte
-förlita sig på `HttpSession` för att identifiera användaren. JWT-filtret läser
-token, verifierar den och lägger användarens identitet i Spring Securitys
-`SecurityContext`.
+Backenden använder Spring Security och ett stateless autentiseringsflöde. Efter en lyckad inloggning sparas JWT-token i en HttpOnly-cookie som heter `jwt`.
 
-Lösenord verifieras med BCrypt. Äldre MD5-lösenord migreras vid en lyckad
-inloggning där det fortfarande behövs.
+Frontend behöver därför skicka cookies tillsammans med API-anrop:
 
-Ägarskapskontroller ska förhindra IDOR-sårbarheter: en autentiserad användare får
-endast läsa eller ändra resurser som tillhör det egna kontot.
-
-JWT-hemligheten ska sättas genom miljövariabeln `JWT_SECRET` utanför lokal
-utveckling. Standardvärdet i `application.properties` är endast för utveckling.
-
-## Databas och migreringar
-
-PostgreSQL används som databas. Databasstrukturen versioneras med Flyway och
-migreringarna finns i:
-
-```text
-src/main/resources/db/migration
+```javascript
+fetch("/api/portfolio", {
+  credentials: "include",
+});
 ```
 
-Nya schemaändringar ska läggas till som en ny Flyway-migrering. En redan körd
-migrering ska inte ändras eftersom Flyway kontrollerar dess checksumma.
+JWT-filtret verifierar cookien och placerar användarens identitet i Spring Securitys `SecurityContext`.
 
-Spring Data JPA används genom repository-interface. Delar av den äldre koden
-kan fortfarande använda `JdbcTemplate`; kvarvarande SQL ska migreras stegvis
-utan att API-beteendet eller behörighetskontrollerna försvinner.
+Lösenord sparas och verifieras med BCrypt. Äldre MD5-lösenord kan migreras till BCrypt efter en lyckad inloggning.
+
+Ägarskapskontroller används för att förhindra IDOR-sårbarheter. En användare ska endast kunna läsa, ändra eller ta bort data som tillhör det egna kontot.
+
+## Databas och Flyway
+
+PostgreSQL 15 används som databas. Docker Compose skapar databasen och laddar testdata från:
+
+```text
+infra/seed.sql
+```
+
+Databasförändringar versioneras med Flyway. Migreringarna finns i:
+
+```text
+backend/AvanzaPortal/src/main/resources/db/migration
+```
+
+När databasschemat ändras ska en ny Flyway-migrering skapas. En migrering som redan har körts ska inte ändras eftersom Flyway kontrollerar dess checksumma.
+
+Backenden använder Spring Data JPA och repository-interface för databasåtkomst. Den äldre användningen av `JdbcTemplate` har ersatts i den nuvarande backendkoden.
 
 ## DTO:er
 
-API:t använder DTO:er för att skilja externa request- och responsemodeller från
-JPA-entiteterna. Det gör API-kontraktet tydligare och undviker att interna
-databasrelationer exponeras direkt. DTO:erna är indelade efter område:
+DTO:er används för att skilja API-modeller från databasens JPA-entiteter.
+
+DTO:erna är indelade efter område:
 
 ```text
-dto/auth
 dto/alerts
+dto/auth
 dto/holdings
+dto/market
 dto/portfolio
+dto/targetallocation
 ```
 
-När en DTO refaktoreras ska befintliga JSON-fältnamn behållas, om förändringen
-inte uttryckligen är en avtalad breaking change.
+Request-DTO:er använder Jakarta Validation där indata behöver kontrolleras. När en DTO ändras ska befintliga JSON-fältnamn behållas om ändringen inte uttryckligen ska vara en breaking change.
+
+## Marknadsdata
+
+Backenden hämtar end-of-day-priser från Marketstack. Aktiekurserna är alltså de senast tillgängliga slutkurserna och ska inte betraktas som realtidskurser.
+
+`MarketService` översätter applikationens tickers till Marketstacks symbolformat. Exempel:
+
+```text
+ERIC-B -> ERIC-B.ST
+VOLV-B -> VOLV-B.ST
+SWED-A -> SWED-A.ST
+SAND   -> SAND.ST
+AAPL   -> AAPL
+```
+
+Priser cachas i 24 timmar för att minska antalet externa API-anrop. Om en ticker inte stöds eller Marketstack inte returnerar ett giltigt pris returneras inget pris i stället för ett hårdkodat värde.
+
+## Native C/C++ och JNA
+
+Java-backenden kommunicerar med native C/C++-bibliotek genom JNA.
+
+Följande native delar är kopplade till backenden:
+
+- FX-beräkningar
+- Riskberäkningar, bland annat Sharpe-kvot
+- Backtestmotor
+
+Docker-imagen bygger biblioteken och kopierar följande filer till runtime-miljön:
+
+```text
+libfx.so
+librisk.so
+libbacktest.so
+```
+
+Backtest-endpointen använder historiska priser från databasen och stöder strategierna:
+
+```text
+BUY_HOLD
+REBALANCE_MONTHLY
+```
+
+Minst två gemensamma handelsdagar krävs för de valda aktierna.
 
 ## Tester
 
-Testerna finns under `src/test/java` och använder JUnit 5 samt Mockito. Kör hela
-testsviten från backendmodulen:
+Backendtesterna finns i:
+
+```text
+backend/AvanzaPortal/src/test/java
+```
+
+Testerna använder JUnit 5, Mockito och Spring MockMvc.
+
+Kör hela testsviten från projektets rot:
+
+```bash
+mvn -f backend/AvanzaPortal/pom.xml clean test
+```
+
+Eller från backendmodulen:
 
 ```bash
 cd backend/AvanzaPortal
@@ -199,41 +333,74 @@ mvn clean test
 Kör en enskild testklass med:
 
 ```bash
-mvn -Dtest=PortfolioServiceTest test
+mvn -Dtest=MarketServiceTest test
 ```
 
-Servicetester verifierar affärslogik med mockade repositories. Controller- och
-säkerhetstester bör även kontrollera HTTP-status, autentisering och API:ts
-responsekontrakt. JPA-frågor och relationer behöver dessutom integrationstester
-mot en riktig eller containerbaserad PostgreSQL-databas.
+Testerna täcker bland annat:
+
+- autentisering och JWT
+- holdings och ägarskapskontroller
+- portföljberäkningar
+- målallokering och validering
+- alerts och driftberäkningar
+- Marketstack-klienter och caching
+- backtest-input och mappning av native-resultat
+- controllers och HTTP-statuskoder
 
 ## Genomförd modernisering
 
 - Projektet använder Java 21 och Spring Boot 3.2.
-- Ett servicelager har införts för att flytta logik från controllers.
-- Spring Data JPA och Flyway har lagts till.
+- Servicelager har införts för att flytta logik från controllers.
+- Spring Data JPA används för databasåtkomst.
+- Flyway används för databasmigreringar.
 - Spring Security, JWT och BCrypt har införts.
-- Typade DTO:er används i flera API-flöden.
-- Tester finns för services, controllers och JWT-komponenter.
-- JNA-stöd finns för kommande native riskberäkningar.
+- Autentiseringen använder HttpOnly-cookie i stället för `HttpSession`.
+- DTO:er används för API-anrop och responses.
+- Ägarskapskontroller skyddar användarnas data.
+- Holdings och alerts har pagination.
+- Marketstack används i stället för hårdkodade aktiekurser.
+- En gemensam driftgräns används för portfölj och alerts.
+- Native FX-, risk- och backtestkod är kopplad till Java genom JNA.
+- Tester finns för services, controllers, säkerhet och externa klienter.
 
 ## Kända begränsningar
 
+<<<<<<< HEAD:backend/AvanzaPortal/DEVELOPMENT.md
 [`docs/known-bugs.md`](../../docs/known-bugs.md) listan har tagits bort eftersom den blandade äldre v1-problem med
 pågående v2-arbete och inte längre gav en tillförlitlig bild av backendens
 aktuella status. Nya begränsningar kan upptäckas när systemet vidareutvecklas;
 dokumentera dem som GitHub-issues och uppdatera den här guiden när de påverkar
 hur backend körs eller används.
 
-## Bidra till backenden
+=======
 
-1. Skapa eller välj ett GitHub-issue.
-2. Skapa en branch från den senaste versionen av `develop`.
-3. Gör en avgränsad förändring och lägg till relevanta tester.
-4. Kör `mvn clean test` med Java 21.
-5. Pusha branchen och öppna en pull request mot `develop`.
-6. Be minst en gruppmedlem granska ändringen före merge.
+- Marketstack ger end-of-day-priser och inte realtidskurser.
+- Endast ett begränsat antal tickers stöds av den nuvarande marknadskonfigurationen.
+- Backtest kräver historiska priser i databasen.
+- Automatisk import av historisk data är ännu inte kopplad till ett schemalagt jobb eller en publik endpoint.
+- Portföljöversikten är en aggregerad vy och hämtar därför samtliga innehav utan pagination.
+- JWT-cookiens produktionsinställningar behöver konfigureras separat, exempelvis `Secure=true` över HTTPS.
+- Fler integrations-, säkerhets- och lasttester behövs innan systemet är produktionsredo.
 
-Undvik att blanda orelaterade refaktoreringar i samma pull request. Dokumentera
-medvetna ändringar av API-kontrakt, databasstruktur eller säkerhetsbeteende i
-PR-beskrivningen.
+## Arbetsflöde
+
+> develop:backend/AvanzaPortal/Backend-ReadMe.md
+
+1. Välj eller skapa ett GitHub-issue.
+2. Uppdatera den lokala `develop`-branchen.
+3. Skapa en separat branch för uppgiften.
+4. Gör en avgränsad förändring.
+5. Lägg till eller uppdatera relevanta tester.
+6. Kör testerna med Java 21.
+7. Pusha branchen och öppna en pull request mot `develop`.
+8. Be minst en gruppmedlem granska ändringen före merge.
+
+Exempel:
+
+```bash
+git switch develop
+git pull --ff-only
+git switch -c feature/issue-number-short-description
+```
+
+Undvik att blanda orelaterade ändringar i samma pull request. API-förändringar, databasändringar och säkerhetsförändringar ska förklaras i PR-beskrivningen.
