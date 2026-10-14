@@ -96,13 +96,13 @@ Databasuppkoppling (`SPRING_DATASOURCE_*`) sätts i [infra/docker-compose.yml](i
 Lokal portmappning ändras i [infra/docker-compose.override.yml](infra/docker-compose.override.yml) —
 rör aldrig `docker-compose.yml`, se [DRIFT.md](DRIFT.md) för plattformskontraktet.
 
-## Dokumentation
+## Alla dokumentations filer
 
 - [docs/architecture.md](docs/architecture.md) — systembeskrivning för v1
 - [docs/known-bugs.md](docs/known-bugs.md) — kända fel/antipatterns (uppgiftslista)
 - [docs/README-pain-points.md](docs/README-pain-points.md) — vad som spricker vid skala
 - [docs/v2-targets.md](docs/v2-targets.md) — målarkitektur för v2
 - [DRIFT.md](DRIFT.md) — drift och deploy
-- [backend/AvanzaPortal/Backend-ReadMe.md](backend/AvanzaPortal/Backend-ReadMe.md) — startguide, arkitektur, API och testning för Java-backenden
+- [backend/AvanzaPortal/DEVELOPMENT.md](backend/AvanzaPortal/DEVELOPMENT.md) — startguide, arkitektur, API och testning för Java-backenden
 - [native/docs/BUILD.md](native/docs/BUILD.md) — native-dokumentation
 - [native/docs/CONTRIBUTE.md](native/docs/CONTRIBUTE.md) — information om kodstilen

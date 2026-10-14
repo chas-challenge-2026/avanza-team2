@@ -116,20 +116,26 @@ pris får anroparen ett tomt resultat i stället för ett ogiltigt pris.
 
 | Metod | Endpoint | Beskrivning |
 | --- | --- | --- |
-| `POST` | `/api/auth/login` | Verifierar användaren och returnerar en JWT. |
-| `DELETE` | `/api/auth/logout` | Avslutar klientens inloggningsflöde. |
-| `GET` | `/api/portfolio` | Hämtar portföljöversikten. |
-| `GET` | `/api/holdings` | Hämtar användarens innehav. |
-| `POST` | `/api/holdings/add` | Lägger till ett innehav. |
-| `POST` | `/api/holdings/delete` | Tar bort ett innehav. |
-| `GET` | `/api/alerts` | Hämtar driftvarningar. |
-| `PUT` | `/api/alerts/{id}/dismiss` | Markerar en varning som hanterad. |
+| `POST` | `/api/auth/login` | Verifierar användarens inloggningsuppgifter och skapar en JWT-cookie. |
+| `GET` | `/api/auth/me` | Kontrollerar att den aktuella förfrågan är autentiserad. |
+| `DELETE` | `/api/auth/logout` | Rensar JWT-cookien och loggar ut användaren. |
+| `GET` | `/api/portfolio` | Hämtar portföljöversikten för den inloggade användaren. |
+| `GET` | `/api/holdings` | Hämtar den inloggade användarens innehav. |
+| `POST` | `/api/holdings/add` | Lägger till ett innehav för den inloggade användaren. |
+| `POST` | `/api/holdings/delete` | Tar bort ett innehav för den inloggade användaren. |
+| `GET` | `/api/alerts?page=0&size=10` | Hämtar sidindelade driftvarningar och aktuella livevarningar. |
+| `PUT` | `/api/alerts/{id}/dismiss` | Markerar en driftvarning som hanterad. |
+| `GET` | `/api/market/fx/{from}/{to}` | Hämtar växelkursen mellan två valutor. |
+| `GET` | `/api/market/price/{ticker}` | Hämtar senaste tillgängliga priset för en aktieticker. |
+| `GET` | `/api/target-allocations` | Hämtar den inloggade användarens målallokeringar. |
+| `PUT` | `/api/target-allocations` | Uppdaterar den inloggade användarens målallokeringar. |
 
-Alla endpoints förutom `/api/auth/**` kräver autentisering. JWT skickas i
-HTTP-headern:
+Alla API-endpoints förutom `POST /api/auth/login` och
+`DELETE /api/auth/logout` kräver autentisering. JWT:n skickas som en
+HttpOnly-cookie med namnet `jwt`.
 
 ```http
-Authorization: Bearer <token>
+Cookie: jwt=<token>
 ```
 
 ## Autentisering och säkerhet
