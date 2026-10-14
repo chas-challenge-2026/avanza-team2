@@ -6,8 +6,11 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Optional;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -109,5 +112,38 @@ class AuthServiceTest {
         assertThrows(BadCredentialsException.class, () -> authService.authenticate(wrongRequest));
 
         verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void authenticate_ifLegacyMd5HashFails_throwBadCredentialsException() {
+        User md5User = new User();
+        md5User.setId(4L);
+        md5User.setName("Legacy User");
+        md5User.setEmail("legacy@example.com");
+        md5User.setPassword_md5(authService.md5Hash("secret123"));
+        md5User.setPassword_bcrypt(null);
+
+        LoginRequestDTO wrongRequest = new LoginRequestDTO("legacy@example.com", "wrongpassword");
+
+        when(userRepository.findByEmail("legacy@example.com")).thenReturn(Optional.of(md5User));
+
+        assertThrows(BadCredentialsException.class, () -> authService.authenticate(wrongRequest));
+
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void md5hash_ShouldCatchNoSuchAlgorithmException() {
+        try (MockedStatic<MessageDigest> messageDigest = mockStatic(MessageDigest.class)) {
+            messageDigest.when(() -> MessageDigest.getInstance("MD5"))
+                    .thenThrow(new NoSuchAlgorithmException("MD5"));
+
+            IllegalStateException exception = assertThrows(
+                    IllegalStateException.class,
+                    () -> authService.md5Hash("test"));
+
+            assertEquals("MD5 algorithm is not available", exception.getMessage());
+            assertTrue(exception.getCause() instanceof NoSuchAlgorithmException);
+        }
     }
 }

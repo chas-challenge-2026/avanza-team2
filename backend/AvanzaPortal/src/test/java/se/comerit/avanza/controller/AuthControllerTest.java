@@ -6,6 +6,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import static org.junit.jupiter.api.Assertions.*;
 import se.comerit.avanza.dto.auth.LoginRequestDTO;
 import se.comerit.avanza.dto.auth.LoginResponseDTO;
@@ -22,6 +23,9 @@ public class AuthControllerTest {
 
     @Mock
     private AuthService authService;
+
+    @Mock
+    private Authentication authentication;
 
     private AuthController authController;
 
@@ -58,6 +62,15 @@ public class AuthControllerTest {
                 .thenThrow(new IllegalArgumentException("Invalid credentials"));
 
         assertThrows(IllegalArgumentException.class, () -> authController.login(request));
+    }
+
+    @Test
+    @DisplayName("Me endpoint - Returns 204 No Content")
+    void meEndpoint_ReturnsNoContent() {
+        ResponseEntity<Void> result = authController.me(authentication);
+
+        assertEquals(HttpStatus.NO_CONTENT, result.getStatusCode());
+        assertNull(result.getBody());
     }
 
     @Test
