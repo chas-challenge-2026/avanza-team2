@@ -104,5 +104,6 @@ rör aldrig `docker-compose.yml`, se [DRIFT.md](DRIFT.md) för plattformskontrak
 - [docs/v2-targets.md](docs/v2-targets.md) — målarkitektur för v2
 - [DRIFT.md](DRIFT.md) — drift och deploy
 - [backend/AvanzaPortal/DEVELOPMENT.md](backend/AvanzaPortal/DEVELOPMENT.md) — startguide, arkitektur, API och testning för Java-backenden
+- [frontend/DEVELOPMENT.md](frontend/DEVELOPMENT.md) — utveckling, struktur, API och byggning av frontend
 - [native/docs/BUILD.md](native/docs/BUILD.md) — native-dokumentation
 - [native/docs/CONTRIBUTE.md](native/docs/CONTRIBUTE.md) — information om kodstilen
