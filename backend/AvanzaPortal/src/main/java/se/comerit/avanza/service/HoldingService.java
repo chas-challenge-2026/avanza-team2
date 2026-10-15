@@ -89,8 +89,9 @@ public class HoldingService {
             double currentPrice = price.get().doubleValue();
             double quantity = ((BigDecimal) holding.get("quantity")).doubleValue();
             double averageBuyPrice = ((BigDecimal) holding.get("avg_buy_price")).doubleValue();
-            double marketValue = quantity * currentPrice;
-            double costBasis = quantity * averageBuyPrice;
+            double conversionRate = getSekConversionRate((String) holding.get("currency"));
+            double marketValue = toSek(quantity * currentPrice, conversionRate);
+            double costBasis = toSek(quantity * averageBuyPrice, conversionRate);
 
             holding.put("currentPrice", currentPrice);
             holding.put("marketValue", roundToTwoDecimals(marketValue));
@@ -102,6 +103,16 @@ public class HoldingService {
 
     private double roundToTwoDecimals(double value) {
         return Math.round(value * 100.0) / 100.0;
+    }
+
+    private double getSekConversionRate(String currency) {
+        return "USD".equalsIgnoreCase(currency)
+                ? marketService.getFx("USD", "SEK").rate()
+                : 1.0;
+    }
+
+    private double toSek(double amount, double conversionRate) {
+        return amount * conversionRate;
     }
 
     private void addHolding(Integer accountId, String ticker, String instrumentName, String quantity,
@@ -149,8 +160,9 @@ public class HoldingService {
                     .orElseThrow(() -> new RuntimeException("Failed to retrieve current price for ticker: " + ticker));
             double quantity = ((BigDecimal) holding.get("quantity")).doubleValue();
             double averageBuyPrice = ((BigDecimal) holding.get("avg_buy_price")).doubleValue();
-            double marketValue = quantity * currentPrice;
-            double costBasis = quantity * averageBuyPrice;
+            double conversionRate = getSekConversionRate((String) holding.get("currency"));
+            double marketValue = toSek(quantity * currentPrice, conversionRate);
+            double costBasis = toSek(quantity * averageBuyPrice, conversionRate);
 
             holding.put("currentPrice", currentPrice);
             holding.put("marketValue", roundToTwoDecimals(marketValue));
