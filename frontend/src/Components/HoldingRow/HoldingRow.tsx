@@ -14,12 +14,6 @@ type HoldingRowProps = {
     onClick?: (id: string) => void;
 };
 
-// Formats numbers using Swedish number formatting.
-const formatNumber = (value: number): string =>
-    value.toLocaleString('sv-SE', {
-        maximumFractionDigits: 2,
-    });
-
 const formatShares = (value: number): string =>
     value.toLocaleString('sv-SE', {
         maximumFractionDigits: 0,
