@@ -358,7 +358,7 @@ public class PortfolioService {
 
             allocationRows.add(new AllocationRowDTO(
                     accType,
-                    Math.round(actual * 100.0) / 100.0,
+                    actual,
                     target,
                     Math.round(drift * 10000.0) / 100.0,
                     drift > getDriftThreshold()));
