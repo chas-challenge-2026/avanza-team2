@@ -20,6 +20,16 @@ const formatNumber = (value: number): string =>
         maximumFractionDigits: 2,
     });
 
+const formatShares = (value: number): string =>
+    value.toLocaleString('sv-SE', {
+        maximumFractionDigits: 0,
+    });
+
+const formatSek = (value: number): string =>
+    value.toLocaleString('sv-SE', {
+        maximumFractionDigits: 0,
+    });
+
 // Formats percentage returns with two decimal places and the correct sign.
 const formatReturn = (value: number): string => {
     const formattedValue = value.toLocaleString('sv-SE', {
@@ -55,11 +65,11 @@ const HoldingRow = ({ item, onClick }: HoldingRowProps) => {
 
             <div style={styles.rightContent}>
                 <span style={styles.text}>
-                    {formatNumber(item.shares)}
+                    {formatShares(item.shares)} st.
                 </span>
 
                 <span style={styles.text}>
-                    {formatNumber(item.value)} SEK
+                    {formatSek(item.value)} SEK
                 </span>
 
                 <span

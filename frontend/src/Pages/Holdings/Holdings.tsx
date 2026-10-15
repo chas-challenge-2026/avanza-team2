@@ -407,7 +407,7 @@ const Holdings = () => {
                 {!loading && !error && filteredHoldings.length > 0 && (
                     <div className="holdings-column-heading">
                         <span>Aktie</span>
-                        <span>Antal aktier</span>
+                        <span>Antal aktier (st.)</span>
                         <span>Värde (SEK)</span>
                         <span>Avkastning</span>
                         <span aria-hidden="true" />
