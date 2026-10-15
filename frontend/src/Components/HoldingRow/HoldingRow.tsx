@@ -38,11 +38,11 @@ const HoldingRow = ({ item, onClick }: HoldingRowProps) => {
         item.returnPercent >= 0 ? '#16A34A' : '#DC2626';
 
     return (
-                <div
-                    style={styles.row}
-                    onClick={() => onClick && onClick(item.id)}
-                    >
-                    <div style={styles.leftContent}>
+        <div
+            style={styles.row}
+            onClick={() => onClick && onClick(item.id)}
+        >
+            <div style={styles.leftContent}>
                 <div style={styles.iconContainer}>
                     <span>📈</span>
                 </div>
@@ -54,17 +54,14 @@ const HoldingRow = ({ item, onClick }: HoldingRowProps) => {
             </div>
 
             <div style={styles.rightContent}>
-                {/* Display the number of shares as a whole number when applicable. */}
                 <span style={styles.text}>
                     {formatNumber(item.shares)}
                 </span>
 
-                {/* Format the market value using Swedish number formatting. */}
                 <span style={styles.text}>
                     {formatNumber(item.value)} SEK
                 </span>
 
-                {/* Display the percentage return with two decimal places. */}
                 <span
                     style={{
                         ...styles.return,
@@ -84,8 +81,9 @@ export default HoldingRow;
 
 const styles: Record<string, React.CSSProperties> = {
     row: {
-        display: 'flex',
-        justifyContent: 'space-between',
+        display: 'grid',
+        gridTemplateColumns: 'minmax(0, 1fr) minmax(42px, auto) minmax(76px, auto) minmax(65px, auto) 12px',
+        columnGap: '8px',
         alignItems: 'center',
         padding: '16px 20px',
         backgroundColor: '#FFFFFF',
@@ -99,7 +97,6 @@ const styles: Record<string, React.CSSProperties> = {
         gridTemplateColumns: '40px 1fr',
         alignItems: 'center',
         columnGap: '14px',
-        flex: '1',
         minWidth: 0,
     },
     stockInfo: {
@@ -132,14 +129,13 @@ const styles: Record<string, React.CSSProperties> = {
         color: '#64748B',
     },
     rightContent: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '24px',
+        display: 'contents',
     },
     text: {
         fontSize: '14px',
         fontWeight: 500,
         color: '#334155',
+        textAlign: 'right',
     },
     return: {
         fontSize: '14px',

@@ -23,6 +23,7 @@ const ACCOUNT_OPTIONS: DropdownOption[] = [
 
 // Available currency filter options.
 const CURRENCY_OPTIONS: DropdownOption[] = [
+    { label: 'Alla valutor', value: 'all' },
     { label: 'SEK', value: 'sek' },
     { label: 'EUR', value: 'eur' },
     { label: 'USD', value: 'usd' },
@@ -112,7 +113,7 @@ const Holdings = () => {
     // Stores the current search query and selected filters.
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedAccount, setSelectedAccount] = useState(initialAccount);
-    const [selectedCurrency, setSelectedCurrency] = useState('sek');
+    const [selectedCurrency, setSelectedCurrency] = useState('all');
 
     // Fetches the authenticated user's holdings when the component mounts.
     useEffect(() => {
@@ -167,20 +168,12 @@ const Holdings = () => {
                 const mappedHoldings: HoldingViewItem[] =
                     data.holdings.map((holding) => {
                         const quantity = toNumber(holding.quantity);
-                        const averageBuyPrice = toNumber(
-                            holding.avg_buy_price,
-                        );
-
                         const pnl = holding.pnl;
+                        const marketValue = toNumber(holding.marketValue);
 
-                        // Calculate the invested value using the average purchase price.
-                        const investedValue =
-                            quantity * averageBuyPrice;
-
-                        // Calculate the percentage return when the invested value is available.
                         const returnPercent =
-                            pnl !== null && investedValue > 0
-                                ? (pnl / investedValue) * 100
+                            pnl !== null && marketValue - pnl > 0
+                                ? (pnl / (marketValue - pnl)) * 100
                                 : 0;
 
                         return {
@@ -188,7 +181,7 @@ const Holdings = () => {
                             symbol: holding.ticker ?? '',
                             name: holding.instrument_name ?? '',
                             shares: quantity,
-                            value: toNumber(holding.marketValue),
+                            value: marketValue,
                             returnPercent,
                             accountType: holding.account_type ?? '',
                             accountName: holding.account_name ?? '',
@@ -252,6 +245,7 @@ const Holdings = () => {
 
             // Match the selected currency.
             const matchesCurrency =
+                selectedCurrency === 'all' ||
                 normalize(item.currency) === selectedCurrency;
 
             return (
@@ -409,6 +403,16 @@ const Holdings = () => {
                             Inga innehav hittades.
                         </div>
                     )}
+
+                {!loading && !error && filteredHoldings.length > 0 && (
+                    <div className="holdings-column-heading">
+                        <span>Aktie</span>
+                        <span>Antal aktier</span>
+                        <span>Värde (SEK)</span>
+                        <span>Avkastning</span>
+                        <span aria-hidden="true" />
+                    </div>
+                )}
 
                 {!loading && !error && (
                     <div>
