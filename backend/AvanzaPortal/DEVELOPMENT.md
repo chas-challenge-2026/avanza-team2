@@ -26,6 +26,18 @@ Källkoden finns i:
 backend/AvanzaPortal/src/main/java/se/comerit/avanza
 ```
 
+<<<<<<< HEAD:backend/AvanzaPortal/DEVELOPMENT.md
+| Paket | Ansvar |
+| -------------- | -------------------------------------------------------- |
+| `controller` | Tar emot HTTP-anrop och returnerar HTTP-svar. |
+| `service` | Innehåller affärslogik och samordnar repositories. |
+| `repository` | Läser och sparar data med Spring Data JPA. |
+| `entity` | Representerar databastabeller och relationer. |
+| `dto` | Definierar typade request- och responseobjekt för API:t. |
+| `security` | Hanterar JWT, autentisering och åtkomstregler. |
+| `exception` | Gemensam hantering av fel och HTTP-statuskoder. |
+| `nativebridge` | Kopplar Java-backenden till native kod genom JNA. |
+=======
 | Paket | Ansvar |
 | --- | --- |
 | `client` | Kommunikation med externa tjänster som Marketstack. |
@@ -37,6 +49,8 @@ backend/AvanzaPortal/src/main/java/se/comerit/avanza
 | `security` | Hanterar JWT, autentisering och åtkomstregler. |
 | `exception` | Hanterar applikationsfel och HTTP-statuskoder. |
 | `nativebridge` | Kopplar Java-backenden till native C/C++-kod genom JNA. |
+
+> develop:backend/AvanzaPortal/Backend-ReadMe.md
 
 Det huvudsakliga flödet är:
 
@@ -158,42 +172,42 @@ erik@example.com / password123
 
 ### Autentisering
 
-| Metod | Endpoint | Beskrivning |
-| --- | --- | --- |
-| `POST` | `/api/auth/login` | Loggar in användaren och skapar en JWT-cookie. |
-| `GET` | `/api/auth/me` | Kontrollerar om användaren är inloggad. |
+| Metod    | Endpoint           | Beskrivning                                    |
+| -------- | ------------------ | ---------------------------------------------- |
+| `POST`   | `/api/auth/login`  | Loggar in användaren och skapar en JWT-cookie. |
+| `GET`    | `/api/auth/me`     | Kontrollerar om användaren är inloggad.        |
 | `DELETE` | `/api/auth/logout` | Tar bort JWT-cookien och loggar ut användaren. |
 
 ### Portfölj och innehav
 
-| Metod | Endpoint | Beskrivning |
-| --- | --- | --- |
-| `GET` | `/api/portfolio` | Hämtar användarens portföljöversikt. |
-| `GET` | `/api/holdings?page=0&size=10` | Hämtar användarens innehav med pagination. |
-| `POST` | `/api/holdings/add` | Lägger till ett innehav. |
-| `POST` | `/api/holdings/delete?holdingId={id}` | Tar bort ett innehav. |
+| Metod  | Endpoint                              | Beskrivning                                |
+| ------ | ------------------------------------- | ------------------------------------------ |
+| `GET`  | `/api/portfolio`                      | Hämtar användarens portföljöversikt.       |
+| `GET`  | `/api/holdings?page=0&size=10`        | Hämtar användarens innehav med pagination. |
+| `POST` | `/api/holdings/add`                   | Lägger till ett innehav.                   |
+| `POST` | `/api/holdings/delete?holdingId={id}` | Tar bort ett innehav.                      |
 
 ### Alerts
 
-| Metod | Endpoint | Beskrivning |
-| --- | --- | --- |
+| Metod | Endpoint                     | Beskrivning                                                      |
+| ----- | ---------------------------- | ---------------------------------------------------------------- |
 | `GET` | `/api/alerts?page=0&size=10` | Hämtar lagrade alerts, live drift-alerts och aktuell driftgräns. |
-| `PUT` | `/api/alerts/{id}/dismiss` | Markerar en alert som hanterad. |
+| `PUT` | `/api/alerts/{id}/dismiss`   | Markerar en alert som hanterad.                                  |
 
 ### Målallokering
 
-| Metod | Endpoint | Beskrivning |
-| --- | --- | --- |
-| `GET` | `/api/target-allocations` | Hämtar användarens målallokering. |
+| Metod | Endpoint                  | Beskrivning                           |
+| ----- | ------------------------- | ------------------------------------- |
+| `GET` | `/api/target-allocations` | Hämtar användarens målallokering.     |
 | `PUT` | `/api/target-allocations` | Uppdaterar användarens målallokering. |
 
 ### Marknadsdata
 
-| Metod | Endpoint | Beskrivning |
-| --- | --- | --- |
-| `GET` | `/api/market/price/{ticker}` | Hämtar senaste tillgängliga aktiekurs. |
-| `GET` | `/api/market/fx/{from}/{to}` | Hämtar växlingskurs mellan två valutor. |
-| `POST` | `/api/market/backtest` | Kör en backtest med lagrad historisk data. |
+| Metod  | Endpoint                     | Beskrivning                                |
+| ------ | ---------------------------- | ------------------------------------------ |
+| `GET`  | `/api/market/price/{ticker}` | Hämtar senaste tillgängliga aktiekurs.     |
+| `GET`  | `/api/market/fx/{from}/{to}` | Hämtar växlingskurs mellan två valutor.    |
+| `POST` | `/api/market/backtest`       | Kör en backtest med lagrad historisk data. |
 
 Alla endpoints förutom login och logout kräver en autentiserad användare.
 
@@ -205,7 +219,7 @@ Frontend behöver därför skicka cookies tillsammans med API-anrop:
 
 ```javascript
 fetch("/api/portfolio", {
-  credentials: "include"
+  credentials: "include",
 });
 ```
 
@@ -351,6 +365,15 @@ Testerna täcker bland annat:
 
 ## Kända begränsningar
 
+<<<<<<< HEAD:backend/AvanzaPortal/DEVELOPMENT.md
+[`docs/known-bugs.md`](../../docs/known-bugs.md) listan har tagits bort eftersom den blandade äldre v1-problem med
+pågående v2-arbete och inte längre gav en tillförlitlig bild av backendens
+aktuella status. Nya begränsningar kan upptäckas när systemet vidareutvecklas;
+dokumentera dem som GitHub-issues och uppdatera den här guiden när de påverkar
+hur backend körs eller används.
+
+=======
+
 - Marketstack ger end-of-day-priser och inte realtidskurser.
 - Endast ett begränsat antal tickers stöds av den nuvarande marknadskonfigurationen.
 - Backtest kräver historiska priser i databasen.
@@ -360,6 +383,8 @@ Testerna täcker bland annat:
 - Fler integrations-, säkerhets- och lasttester behövs innan systemet är produktionsredo.
 
 ## Arbetsflöde
+
+> develop:backend/AvanzaPortal/Backend-ReadMe.md
 
 1. Välj eller skapa ett GitHub-issue.
 2. Uppdatera den lokala `develop`-branchen.

@@ -1,24 +1,31 @@
 package se.comerit.avanza.controller;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
-import se.comerit.avanza.dto.market.FxRateResponseDTO;
-import se.comerit.avanza.dto.market.BacktestResponseDTO;
-import se.comerit.avanza.service.MarketService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import static org.mockito.Mockito.when;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+
+import se.comerit.avanza.dto.market.BacktestRequestDTO;
+import se.comerit.avanza.dto.market.BacktestResponseDTO;
+import se.comerit.avanza.dto.market.FxRateResponseDTO;
+import se.comerit.avanza.exception.ApiExceptionHandler;
+import se.comerit.avanza.exception.UnsupportedCurrencyPairException;
+import se.comerit.avanza.service.MarketService;
+
+import static org.mockito.Mockito.when;
+import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import org.springframework.http.MediaType;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -38,7 +45,9 @@ class MarketControllerTest {
                 when(marketService.getFx("eur", "usd"))
                                 .thenReturn(new FxRateResponseDTO("2026-09-16", "EUR", "USD", 1.1539));
 
-                MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new MarketController(marketService)).build();
+                MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new MarketController(marketService))
+                                .setControllerAdvice(new ApiExceptionHandler())
+                                .build();
 
                 mockMvc.perform(get("/api/market/fx/eur/usd"))
                                 .andDo(print())
@@ -49,12 +58,16 @@ class MarketControllerTest {
         @Test
         void getFxReturnsBadRequestForUnknownPair() throws Exception {
                 when(marketService.getFx("xx", "usd"))
-                                .thenThrow(new IllegalArgumentException("Unknown currency pair"));
+                                .thenThrow(new UnsupportedCurrencyPairException("Unknown currency pair"));
 
-                MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new MarketController(marketService)).build();
+                MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new MarketController(marketService))
+                                .setControllerAdvice(new ApiExceptionHandler())
+                                .build();
 
                 mockMvc.perform(get("/api/market/fx/xx/usd"))
-                                .andExpect(status().isBadRequest());
+                                .andExpect(status().isBadRequest())
+                                .andExpect(jsonPath("$.title").value("Bad Request"))
+                                .andExpect(jsonPath("$.detail").value("Unknown currency pair"));
         }
 
         @Test
@@ -62,7 +75,9 @@ class MarketControllerTest {
                 when(marketService.getPrice("ERIC-B"))
                                 .thenReturn(Optional.of(new BigDecimal("94.96")));
 
-                MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new MarketController(marketService)).build();
+                MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new MarketController(marketService))
+                                .setControllerAdvice(new ApiExceptionHandler())
+                                .build();
 
                 mockMvc.perform(get("/api/market/price/ERIC-B"))
                                 .andExpect(status().isOk())
@@ -74,44 +89,107 @@ class MarketControllerTest {
                 when(marketService.getPrice("UNKNOWN"))
                                 .thenReturn(Optional.empty());
 
-                MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new MarketController(marketService)).build();
+                MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new MarketController(marketService))
+                                .setControllerAdvice(new ApiExceptionHandler())
+                                .build();
 
                 mockMvc.perform(get("/api/market/price/UNKNOWN"))
-                                .andExpect(status().isNotFound());
+                                .andExpect(status().isNotFound())
+                                .andExpect(jsonPath("$.title").value("Not Found"))
+                                .andExpect(jsonPath("$.detail").value("Price not found for ticker: UNKNOWN"));
         }
 
         @Test
-        void postBacktestReturnsJsonAnalysisWithoutNativePointer() throws Exception {
-                when(marketService.getBacktestAnalysis(org.mockito.ArgumentMatchers.any()))
-                                .thenReturn(new BacktestResponseDTO(
-                                                0.25,
-                                                0.10,
-                                                -0.08,
-                                                1.5,
-                                                java.util.List.of("ERIC-B", "VOLV-B"),
-                                                java.util.List.of(java.time.LocalDate.parse("2026-10-01"))));
+        void getBacktestAnalysisReturnsOkWithAnalysis() throws Exception {
+                BacktestRequestDTO request = new BacktestRequestDTO(
+                                List.of("ERIC-B", "VOLV-B"),
+                                LocalDate.parse("2025-01-01"),
+                                LocalDate.parse("2025-12-31"),
+                                "BUY_HOLD");
+                BacktestResponseDTO response = new BacktestResponseDTO(
+                                0.15,
+                                0.15,
+                                -0.08,
+                                1.25,
+                                List.of("ERIC-B", "VOLV-B"),
+                                List.of(LocalDate.parse("2025-01-01"), LocalDate.parse("2025-12-31")));
+                when(marketService.getBacktestAnalysis(request)).thenReturn(response);
+
+                MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new MarketController(marketService))
+                                .setControllerAdvice(new ApiExceptionHandler())
+                                .build();
+
+                mockMvc.perform(post("/api/market/backtest")
+                                .contentType(APPLICATION_JSON)
+                                .content("""
+                                                {
+                                                  "tickers": ["ERIC-B", "VOLV-B"],
+                                                  "startDate": "2025-01-01",
+                                                  "endDate": "2025-12-31",
+                                                  "strategy": "BUY_HOLD"
+                                                }
+                                                """))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.totalReturn").value(0.15))
+                                .andExpect(jsonPath("$.annualizedReturn").value(0.15))
+                                .andExpect(jsonPath("$.maxDrawdown").value(-0.08))
+                                .andExpect(jsonPath("$.sharpeRatio").value(1.25))
+                                .andExpect(jsonPath("$.tickers[0]").value("ERIC-B"))
+                                .andExpect(jsonPath("$.tickers[1]").value("VOLV-B"))
+                                .andExpect(jsonPath("$.dates[0]").value("2025-01-01"))
+                                .andExpect(jsonPath("$.dates[1]").value("2025-12-31"));
+        }
+
+        @Test
+        void getBacktestAnalysisReturnsBadRequestForIllegalArgumentException() throws Exception {
+                BacktestRequestDTO request = new BacktestRequestDTO(
+                                List.of("ERIC-B"),
+                                LocalDate.parse("2025-01-01"),
+                                LocalDate.parse("2025-12-31"),
+                                "BUY_HOLD");
+                when(marketService.getBacktestAnalysis(request))
+                                .thenThrow(new IllegalArgumentException("Invalid backtest parameters"));
 
                 MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new MarketController(marketService)).build();
 
                 mockMvc.perform(post("/api/market/backtest")
-                                .contentType(MediaType.APPLICATION_JSON)
+                                .contentType(APPLICATION_JSON)
                                 .content("""
                                                 {
-                                                        "tickers": ["ERIC-B", "VOLV-B"],
-                                                        "startDate": "2026-10-01",
-                                                        "endDate": "2026-10-06",
-                                                        "strategy": "BUY_HOLD"
+                                                  "tickers": ["ERIC-B"],
+                                                  "startDate": "2025-01-01",
+                                                  "endDate": "2025-12-31",
+                                                  "strategy": "BUY_HOLD"
                                                 }
                                                 """))
-                                .andExpect(status().isOk())
-                                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                                .andExpect(jsonPath("$.totalReturn").value(0.25))
-                                .andExpect(jsonPath("$.annualizedReturn").value(0.10))
-                                .andExpect(jsonPath("$.maxDrawdown").value(-0.08))
-                                .andExpect(jsonPath("$.sharpeRatio").value(1.5))
-                                .andExpect(jsonPath("$.tickers[0]").value("ERIC-B"))
-                                .andExpect(jsonPath("$.dates[0]").value("2026-10-01"))
-                                .andExpect(jsonPath("$.result").doesNotExist())
-                                .andExpect(jsonPath("$.prices").doesNotExist());
+                                .andExpect(status().isBadRequest())
+                                .andExpect(content().string(""));
         }
+
+        @Test
+        void getBacktestAnalysisReturnsBadRequestForIllegalStateException() throws Exception {
+                BacktestRequestDTO request = new BacktestRequestDTO(
+                                List.of("ERIC-B"),
+                                LocalDate.parse("2025-01-01"),
+                                LocalDate.parse("2025-12-31"),
+                                "BUY_HOLD");
+                when(marketService.getBacktestAnalysis(request))
+                                .thenThrow(new IllegalStateException("Historical data is unavailable"));
+
+                MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new MarketController(marketService)).build();
+
+                mockMvc.perform(post("/api/market/backtest")
+                                .contentType(APPLICATION_JSON)
+                                .content("""
+                                                {
+                                                  "tickers": ["ERIC-B"],
+                                                  "startDate": "2025-01-01",
+                                                  "endDate": "2025-12-31",
+                                                  "strategy": "BUY_HOLD"
+                                                }
+                                                """))
+                                .andExpect(status().isBadRequest())
+                                .andExpect(content().string(""));
+        }
+
 }

@@ -18,6 +18,7 @@ import se.comerit.avanza.dto.holdings.HoldingResponseDTO;
 import se.comerit.avanza.entity.Account;
 import se.comerit.avanza.entity.Holdings;
 import se.comerit.avanza.entity.User;
+import se.comerit.avanza.exception.ResourceNotFoundException;
 import se.comerit.avanza.repository.AccountRepository;
 import se.comerit.avanza.repository.HoldingsRepository;
 import se.comerit.avanza.repository.UserRepository;
@@ -110,7 +111,7 @@ public class HoldingService {
         BigDecimal parsedAvgBuyPrice = new BigDecimal(avgBuyPrice);
 
         Account account = accountRepository.findById(accountId.longValue())
-                .orElseThrow(() -> new IllegalArgumentException("Account not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
 
         Holdings holding = new Holdings(ticker.toUpperCase(), instrumentName, parsedQuantity, parsedAvgBuyPrice,
                 currency, account);

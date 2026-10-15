@@ -1,7 +1,6 @@
 package se.comerit.avanza.controller;
 
 import java.math.BigDecimal;
-
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import se.comerit.avanza.dto.market.BacktestRequestDTO;
 import se.comerit.avanza.dto.market.BacktestResponseDTO;
 import se.comerit.avanza.dto.market.FxRateResponseDTO;
+import se.comerit.avanza.exception.ResourceNotFoundException;
 import se.comerit.avanza.service.MarketService;
 
 /**
@@ -41,11 +41,7 @@ public class MarketController {
      */
     @GetMapping("/fx/{from}/{to}")
     public ResponseEntity<FxRateResponseDTO> getFx(@PathVariable String from, @PathVariable String to) {
-        try {
-            return ResponseEntity.ok(marketService.getFx(from, to));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-        }
+        return ResponseEntity.ok(marketService.getFx(from, to));
     }
 
     /**
@@ -58,7 +54,7 @@ public class MarketController {
     public ResponseEntity<BigDecimal> getPrice(@PathVariable String ticker) {
         return marketService.getPrice(ticker)
                 .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+                .orElseThrow(() -> new ResourceNotFoundException("Price not found for ticker: " + ticker));
     }
 
     /**

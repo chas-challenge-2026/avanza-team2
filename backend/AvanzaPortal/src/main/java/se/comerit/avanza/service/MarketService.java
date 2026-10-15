@@ -21,6 +21,7 @@ import se.comerit.avanza.dto.market.BacktestRequestDTO;
 import se.comerit.avanza.dto.market.BacktestResponseDTO;
 import se.comerit.avanza.dto.market.FxRateResponseDTO;
 import se.comerit.avanza.entity.HistoricalStockPrice;
+import se.comerit.avanza.exception.UnsupportedCurrencyPairException;
 import se.comerit.avanza.nativebridge.BacktestInputBuilder;
 import se.comerit.avanza.nativebridge.BacktestLibrary;
 import se.comerit.avanza.nativebridge.BacktestResultStructure;
@@ -96,7 +97,7 @@ public class MarketService {
      * @param from the base currency
      * @param to   the quote currency
      * @return the FX rate response DTO
-     * @throws IllegalArgumentException if the currency pair is unknown
+     * @throws UnsupportedCurrencyPairException if the currency pair is unknown
      */
     public FxRateResponseDTO getFx(String from, String to) {
         // Get the current date in epoch seconds at the start of the day (UTC)
@@ -109,7 +110,7 @@ public class MarketService {
 
         // If the rate is negative, it indicates an unknown currency pair.
         if (rate < 0) {
-            throw new IllegalArgumentException("Unknown currency pair: " + from + "/" + to);
+            throw new UnsupportedCurrencyPairException("Unknown currency pair: " + from + "/" + to);
         }
 
         // Return the FX rate response DTO with the current date, base currency, quote

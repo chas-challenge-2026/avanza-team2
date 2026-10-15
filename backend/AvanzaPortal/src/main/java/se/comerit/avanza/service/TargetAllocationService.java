@@ -15,7 +15,7 @@ import se.comerit.avanza.dto.targetallocation.TargetAllocationResponseDTO;
 import se.comerit.avanza.dto.targetallocation.UpdateTargetAllocationsRequestDTO;
 import se.comerit.avanza.entity.TargetAllocations;
 import se.comerit.avanza.entity.User;
-import se.comerit.avanza.exception.InvalidTargetAllocationException;
+import se.comerit.avanza.exception.InvalidRequestException;
 import se.comerit.avanza.repository.TargetRepository;
 import se.comerit.avanza.repository.UserRepository;
 @Service 
@@ -96,7 +96,7 @@ public class TargetAllocationService {
             case "KF" -> "KF";
             case "DEPA", "DEPÅ" -> "Depa";
             case "PENSION" -> "Pension";
-            default -> throw new InvalidTargetAllocationException(
+            default -> throw new InvalidRequestException(
                     "Unsupported account type: " + accountType);
         };
     }
@@ -111,7 +111,7 @@ public class TargetAllocationService {
             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
     if (total.compareTo(TOTAL_PERCENTAGE) != 0) {
-        throw new InvalidTargetAllocationException(
+        throw new InvalidRequestException(
                 "Target allocation percentages must total 100");
     }
 
@@ -122,7 +122,7 @@ public class TargetAllocationService {
                 .toLowerCase(Locale.ROOT);
 
         if (!accountTypes.add(normalizedType)) {
-            throw new InvalidTargetAllocationException(
+            throw new InvalidRequestException(
                     "Duplicate account type: " + allocation.accountType());
         }
     }
