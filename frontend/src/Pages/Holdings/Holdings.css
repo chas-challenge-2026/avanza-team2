@@ -89,6 +89,22 @@
     border-bottom: 1px solid #F1F5F9;
 }
 
+.holdings-column-heading {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(42px, auto) minmax(76px, auto) minmax(65px, auto) 12px;
+    column-gap: 8px;
+    padding: 12px 20px;
+    border-bottom: 1px solid #E2E8F0;
+    color: #64748B;
+    font-size: 11px;
+    font-weight: 600;
+    text-align: right;
+}
+
+.holdings-column-heading span:first-child {
+    text-align: left;
+}
+
 /* Sammanfattning längst ner */
 .holdings-summary-content {
     padding: 12px 20px;

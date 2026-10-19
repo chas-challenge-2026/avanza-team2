@@ -437,6 +437,27 @@ class PortfolioServiceTest {
         }
 
         @Test
+        void shouldPreserveAllocationPrecisionSoActualsSumToOneHundred() {
+                Map<String, Double> totals = Map.of(
+                                "ISK", 1.0,
+                                "KF", 1.0,
+                                "Depa", 1.0,
+                                "Pension", 0.0);
+
+                List<AllocationRowDTO> result = portfolioService.detectDrift(
+                                totals,
+                                List.of(),
+                                3.0);
+
+                double actualSum = result.stream()
+                                .mapToDouble(AllocationRowDTO::actual)
+                                .sum();
+
+                assertEquals(100.0, actualSum, 1e-10);
+                assertEquals(100.0 / 3.0, result.get(0).actual(), 1e-10);
+        }
+
+        @Test
         void shouldHandleDriftWhenPortfolioIsEmpty() {
                 // Arrange
                 Map<String, Double> totals =
