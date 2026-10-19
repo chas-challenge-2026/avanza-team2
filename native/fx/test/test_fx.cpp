@@ -43,6 +43,8 @@ constexpr std::string_view sample_xml = R"(
       <Cube currency='USD' rate='1.1032'/>
       <Cube currency='SEK' rate='11.1875'/>
       <Cube currency='GBP' rate='0.8621'/>
+      <Cube currency='XAA' rate='nan'/>
+      <Cube currency='XBB' rate='inf'/>
     </Cube>
   </Cube>
 </gesmes:Envelope>)";
@@ -76,6 +78,12 @@ void test_table()
   CHECK(!table.per_eur("XXX"));
 
   CHECK(approx_equal(table.rate("USD", "SEK").value_or(0.0), 11.1875 / 1.1032));
+
+  // Rates that aren't positive and finite are skipped.
+  table.set("AAA", -1.0);
+  table.set("BBB", std::nan(""));
+  table.set("CCC", HUGE_VAL);
+  CHECK(!table.per_eur("AAA") && !table.per_eur("BBB") && !table.per_eur("CCC"));
 }
 
 void test_parse()
@@ -83,7 +91,7 @@ void test_parse()
   std::cout << "parse_xml\n";
 
   FxTable table = ecb::parse_xml(sample_xml);
-  CHECK(table.size() == 4); // EUR is always added, plus USD, SEK and GBP
+  CHECK(table.size() == 4); // EUR is always added, plus USD, SEK and GBP. nan and inf are skipped
   CHECK(table.date() == "2026-09-04");
 
   CHECK(approx_equal(table.per_eur("USD").value_or(0.0), 1.1032));

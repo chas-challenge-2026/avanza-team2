@@ -25,7 +25,7 @@ public:
   /**
    * @brief Records a currency's rate.
    * @param _currency Currency code.
-   * @param _per_eur Units of _currency per EUR; ignored when the code is empty or this isn't positive.
+   * @param _per_eur Units of _currency per EUR; ignored when the code is empty or this isn't a positive, finite number.
    */
   void set(std::string_view _currency, double _per_eur);
 
