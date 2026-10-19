@@ -22,8 +22,6 @@ interface Drift {
   diffPct: number;
 }
 
-interface AllocationRow extends Drift {}
-
 // Format percentages consistently using Swedish number formatting.
 const percentageFormatter = new Intl.NumberFormat("sv-SE", {
   minimumFractionDigits: 0,
@@ -85,7 +83,7 @@ export const RebalanceCard = ({
     drift !== null && Math.abs(drift.diffPct) > thresholdPct;
 
   // Build rows from the target allocation to preserve a consistent order.
-  const allocationRows: AllocationRow[] = target.map((targetSlice) => {
+  const allocationRows: Drift[] = target.map((targetSlice) => {
     const currentSlice = current.find(
       (slice) => slice.label === targetSlice.label,
     );
