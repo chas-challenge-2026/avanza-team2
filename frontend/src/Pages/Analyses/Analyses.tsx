@@ -16,10 +16,10 @@ import {
   type PeriodId,
 } from './analysesSampleData.ts'
 
-// Use the same API configuration as the Overview page.
+// Use the same API configuration as the rest of the frontend.
 const API_URL = import.meta.env.VITE_API_URL ?? ''
 
-// Define the portfolio response returned by the backend.
+// Define the portfolio response returned by the existing portfolio endpoint.
 interface PortfolioResponse {
   accountSummary: {
     id: number
@@ -53,6 +53,21 @@ interface PortfolioResponse {
   totalPortfolioValue: number
 }
 
+// Define a single historical performance point returned by the backend.
+interface HistoricalPerformancePoint {
+  date: string
+  portfolioPct: number
+  indexPct: number | null
+}
+
+// Define the complete historical performance response.
+interface HistoricalPerformanceResponse {
+  startValue: number
+  points: HistoricalPerformancePoint[]
+  unavailableTickers: string[]
+  warning: string | null
+}
+
 // Define the allocation format expected by RebalanceCard.
 interface AllocationSlice {
   label: string
@@ -79,24 +94,26 @@ const formatAccountType = (accountType: string) => {
 export const Analyses = () => {
   const [periodId, setPeriodId] = useState<PeriodId>(defaultPeriodId)
 
-  // Store the portfolio data received from the backend.
+  // Store the current portfolio data received from the backend.
   const [portfolio, setPortfolio] = useState<PortfolioResponse | null>(null)
 
-  // Track loading and API errors.
+  // Store the historical performance data for the selected period.
+  const [performance, setPerformance] =
+    useState<HistoricalPerformanceResponse | null>(null)
+
+  // Track portfolio loading and errors separately from historical performance.
   const [isLoading, setIsLoading] = useState(true)
+  const [isPerformanceLoading, setIsPerformanceLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [performanceError, setPerformanceError] = useState<string | null>(null)
 
-  // Keep the existing historical performance data for now.
-  const period =
-    performancePeriods.find((p) => p.id === periodId) ??
-    performancePeriods[0]
-
+  // Fetch the current portfolio once when the page is opened.
   useEffect(() => {
     const controller = new AbortController()
 
     const loadPortfolio = async () => {
       try {
-        // Fetch the authenticated user's portfolio.
+        // Include the session cookie when requesting the authenticated portfolio.
         const response = await fetch(`${API_URL}/api/portfolio`, {
           credentials: 'include',
           signal: controller.signal,
@@ -126,11 +143,62 @@ export const Analyses = () => {
 
     void loadPortfolio()
 
-    // Cancel the request when the component unmounts.
+    // Cancel the request if the component unmounts.
     return () => {
       controller.abort()
     }
   }, [])
+
+  // Fetch historical performance whenever the selected period changes.
+  useEffect(() => {
+    const controller = new AbortController()
+
+    const loadPerformance = async () => {
+      setIsPerformanceLoading(true)
+      setPerformanceError(null)
+      setPerformance(null)
+
+      try {
+        // Request historical performance for the selected time period.
+        const response = await fetch(
+          `${API_URL}/api/portfolio/performance?period=${encodeURIComponent(periodId)}`,
+          {
+            credentials: 'include',
+            signal: controller.signal,
+          },
+        )
+
+        if (!response.ok) {
+          throw new Error(
+            `Historical performance request failed: ${response.status}`,
+          )
+        }
+
+        const data =
+          (await response.json()) as HistoricalPerformanceResponse
+
+        setPerformance(data)
+      } catch {
+        // Ignore errors caused by cancelling an outdated request.
+        if (!controller.signal.aborted) {
+          setPerformanceError(
+            'Kunde inte hämta historisk utveckling. Försök igen senare.',
+          )
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsPerformanceLoading(false)
+        }
+      }
+    }
+
+    void loadPerformance()
+
+    // Cancel the previous request when the period changes or the page unmounts.
+    return () => {
+      controller.abort()
+    }
+  }, [periodId])
 
   const handlePeriodChange = (value: string) => {
     const selected = performancePeriods.find((p) => p.id === value)
@@ -140,9 +208,10 @@ export const Analyses = () => {
     }
   }
 
-  // Calculate the invested amount from holdings with complete data.
+  // Calculate the invested amount using holdings with complete data.
   const investedValue =
     portfolio?.enrichedHoldings.reduce((total, holding) => {
+      // Skip holdings without both the current value and unrealized return.
       if (
         holding.valueSek === null ||
         holding.unrealizedReturn === null
@@ -150,20 +219,25 @@ export const Analyses = () => {
         return total
       }
 
+      // Calculate the original invested amount for this holding.
       return total + holding.valueSek - holding.unrealizedReturn
     }, 0) ?? 0
 
-  // Calculate the total unrealized return from the available holdings.
+  // Calculate the total unrealized return using the same holdings.
   const gainSek =
     portfolio?.enrichedHoldings.reduce((total, holding) => {
-      if (holding.unrealizedReturn === null) {
+      // Use the same data requirements as the invested value calculation.
+      if (
+        holding.valueSek === null ||
+        holding.unrealizedReturn === null
+      ) {
         return total
       }
 
       return total + holding.unrealizedReturn
     }, 0) ?? 0
 
-  // Calculate the return percentage using the invested amount.
+  // Calculate the return percentage based on the invested amount.
   const gainPercent =
     investedValue > 0 ? (gainSek / investedValue) * 100 : 0
 
@@ -193,11 +267,52 @@ export const Analyses = () => {
           className="self-start"
         />
 
-        {/* Historical performance remains unchanged for now. */}
-        <PerformanceCard
-          points={period.points}
-          startValue={period.startValue}
-        />
+        {/* Show historical performance from the backend instead of sample data. */}
+        {isPerformanceLoading ? (
+          <div
+            className="rounded-2xl border border-neutral-200 bg-white p-5"
+            role="status"
+          >
+            <p className="text-sm text-neutral-600">
+              Hämtar historisk utveckling...
+            </p>
+          </div>
+        ) : performanceError ? (
+          <div
+            className="rounded-2xl border border-neutral-200 bg-white p-5"
+            role="alert"
+          >
+            <p className="text-sm text-red-700">{performanceError}</p>
+          </div>
+        ) : performance ? (
+          <>
+            <PerformanceCard
+              points={performance.points}
+              startValue={performance.startValue}
+            />
+
+            {/* Explain when historical data is incomplete or unavailable. */}
+            {performance.warning && (
+              <p className="text-sm text-amber-700" role="status">
+                {performance.warning}
+              </p>
+            )}
+
+            {/* Show which holdings lack historical price data, if any. */}
+            {performance.unavailableTickers.length > 0 && (
+              <p className="text-sm text-neutral-600">
+                Historisk kursdata saknas för:{' '}
+                {performance.unavailableTickers.join(', ')}.
+              </p>
+            )}
+          </>
+        ) : (
+          <div className="rounded-2xl border border-neutral-200 bg-white p-5">
+            <p className="text-sm text-neutral-500">
+              Ingen historisk data tillgänglig.
+            </p>
+          </div>
+        )}
 
         {/* Show the existing rebalance card with live allocation data. */}
         {portfolio && (
