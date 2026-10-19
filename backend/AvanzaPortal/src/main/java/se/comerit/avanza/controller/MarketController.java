@@ -76,4 +76,9 @@ public class MarketController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
+
+    @PostMapping("/history/import")
+    public ResponseEntity<Integer> importHistoricalPrices() {
+        return ResponseEntity.ok(marketService.importHistoricalData());
+    }
 }
