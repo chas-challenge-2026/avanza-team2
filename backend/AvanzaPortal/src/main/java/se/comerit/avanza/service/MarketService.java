@@ -49,6 +49,15 @@ public class MarketService {
 
     private static final List<String> HISTORICAL_TICKERS = List.of(
             "ERIC-B", "VOLV-B", "AAPL", "SWED-A", "SAND");
+    private static final Map<String, String> HISTORICAL_TICKER_BY_PROVIDER_SYMBOL = Map.of(
+            "ERIC-B.ST", "ERIC-B",
+            "VOLV-B.ST", "VOLV-B",
+            "AAPL", "AAPL",
+            "SWED-A.ST", "SWED-A",
+            "SAND.ST", "SAND");
+    private static final List<String> HISTORICAL_PROVIDER_SYMBOLS = HISTORICAL_TICKERS.stream()
+            .map(ticker -> MARKET_SYMBOLS.get(ticker).symbol())
+            .toList();
     private static final Set<String> BACKTEST_STRATEGIES = Set.of("BUY_HOLD", "REBALANCE_MONTHLY");
 
     // The FX library used to fetch foreign exchange rates.
@@ -214,7 +223,7 @@ public class MarketService {
         }
 
         List<HistoricalPriceClient.HistoricalPrice> fetchedPrices = historicalDataClient
-                .fetchHistoricalPrices(HISTORICAL_TICKERS, fromDate, toDate);
+                .fetchHistoricalPrices(HISTORICAL_PROVIDER_SYMBOLS, fromDate, toDate);
         List<String> returnedSymbols = fetchedPrices.stream()
                 .map(HistoricalPriceClient.HistoricalPrice::symbol)
                 .distinct()
@@ -226,13 +235,16 @@ public class MarketService {
         List<HistoricalStockPrice> pricesToSave = fetchedPrices
                 .stream()
                 .filter(price -> {
-                    LocalDate nextDate = nextDateByTicker.get(price.symbol());
+                    String ticker = HISTORICAL_TICKER_BY_PROVIDER_SYMBOL.get(price.symbol());
+                    LocalDate nextDate = ticker == null ? null : nextDateByTicker.get(ticker);
                     return nextDate != null
                             && !price.date().isBefore(nextDate)
                             && !price.date().isAfter(toDate);
                 })
                 .map(price -> new HistoricalStockPrice(
-                        price.symbol(), price.date(), price.close()))
+                        HISTORICAL_TICKER_BY_PROVIDER_SYMBOL.get(price.symbol()),
+                        price.date(),
+                        price.close()))
                 .toList();
 
         historicalRepository.saveAll(pricesToSave);

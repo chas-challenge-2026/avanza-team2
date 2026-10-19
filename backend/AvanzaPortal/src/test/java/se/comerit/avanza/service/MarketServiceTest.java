@@ -43,6 +43,8 @@ class MarketServiceTest {
 
         private static final List<String> HISTORICAL_TICKERS = List.of(
                         "ERIC-B", "VOLV-B", "AAPL", "SWED-A", "SAND");
+        private static final List<String> HISTORICAL_PROVIDER_SYMBOLS = List.of(
+                        "ERIC-B.ST", "VOLV-B.ST", "AAPL", "SWED-A.ST", "SAND.ST");
 
         @Test
         void getFxReturnsRateForKnownPair() {
@@ -170,10 +172,10 @@ class MarketServiceTest {
                 HistoricalRepository historicalRepository = mock(HistoricalRepository.class);
                 List<HistoricalPriceClient.HistoricalPrice> fetchedPrices = List.of(
                                 new HistoricalPriceClient.HistoricalPrice(
-                                                "ERIC-B", fromDate, new BigDecimal("74.200000")),
+                                                "ERIC-B.ST", fromDate, new BigDecimal("74.200000")),
                                 new HistoricalPriceClient.HistoricalPrice(
                                                 "AAPL", toDate, new BigDecimal("256.180000")));
-                when(historyClient.fetchHistoricalPrices(HISTORICAL_TICKERS, fromDate, toDate))
+                when(historyClient.fetchHistoricalPrices(HISTORICAL_PROVIDER_SYMBOLS, fromDate, toDate))
                                 .thenReturn(fetchedPrices);
 
                 MarketService service = createService(
@@ -181,7 +183,7 @@ class MarketServiceTest {
                                 historyClient, Clock.fixed(Instant.parse("2026-10-07T10:00:00Z"), ZoneOffset.UTC), 360);
 
                 assertEquals(2, service.importHistoricalData());
-                verify(historyClient).fetchHistoricalPrices(HISTORICAL_TICKERS, fromDate, toDate);
+                verify(historyClient).fetchHistoricalPrices(HISTORICAL_PROVIDER_SYMBOLS, fromDate, toDate);
                 verify(historicalRepository).saveAll(argThat(rows -> {
                         List<HistoricalStockPrice> savedRows = new ArrayList<>();
                         rows.forEach(savedRows::add);
@@ -208,18 +210,18 @@ class MarketServiceTest {
                                         .thenReturn(Optional.of(new HistoricalStockPrice(
                                                         ticker, latestDate, new BigDecimal("100.00"))));
                 }
-                when(historyClient.fetchHistoricalPrices(HISTORICAL_TICKERS, fromDate, toDate))
+                when(historyClient.fetchHistoricalPrices(HISTORICAL_PROVIDER_SYMBOLS, fromDate, toDate))
                                 .thenReturn(List.of(
                                                 new HistoricalPriceClient.HistoricalPrice(
-                                                                "ERIC-B", LocalDate.of(2026, 9, 30),
+                                                                "ERIC-B.ST", LocalDate.of(2026, 9, 30),
                                                                 new BigDecimal("70.00")),
                                                 new HistoricalPriceClient.HistoricalPrice(
-                                                                "ERIC-B", fromDate, new BigDecimal("71.00")),
+                                                                "ERIC-B.ST", fromDate, new BigDecimal("71.00")),
                                                 new HistoricalPriceClient.HistoricalPrice(
-                                                                "VOLV-B", LocalDate.of(2026, 10, 5),
+                                                                "VOLV-B.ST", LocalDate.of(2026, 10, 5),
                                                                 new BigDecimal("270.00")),
                                                 new HistoricalPriceClient.HistoricalPrice(
-                                                                "VOLV-B", toDate, new BigDecimal("271.00")),
+                                                                "VOLV-B.ST", toDate, new BigDecimal("271.00")),
                                                 new HistoricalPriceClient.HistoricalPrice(
                                                                 "UNKNOWN", LocalDate.of(2026, 10, 2),
                                                                 new BigDecimal("1.00"))));
@@ -229,7 +231,7 @@ class MarketServiceTest {
                                 historyClient, Clock.fixed(Instant.parse("2026-10-07T10:00:00Z"), ZoneOffset.UTC), 360);
 
                 assertEquals(2, service.importHistoricalData());
-                verify(historyClient).fetchHistoricalPrices(HISTORICAL_TICKERS, fromDate, toDate);
+                verify(historyClient).fetchHistoricalPrices(HISTORICAL_PROVIDER_SYMBOLS, fromDate, toDate);
                 verify(historicalRepository).saveAll(argThat(rows -> {
                         Set<String> savedKeys = new HashSet<>();
                         rows.forEach(price -> savedKeys.add(price.getTicker() + ":" + price.getPriceDate()));
