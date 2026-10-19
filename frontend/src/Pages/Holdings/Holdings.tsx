@@ -25,7 +25,6 @@ const ACCOUNT_OPTIONS: DropdownOption[] = [
 const CURRENCY_OPTIONS: DropdownOption[] = [
     { label: 'Alla valutor', value: 'all' },
     { label: 'SEK', value: 'sek' },
-    { label: 'EUR', value: 'eur' },
     { label: 'USD', value: 'usd' },
 ];
 
