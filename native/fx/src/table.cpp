@@ -15,7 +15,7 @@ void FxTable::set(std::string_view _currency, double _per_eur)
 
 std::optional<double> FxTable::per_eur(std::string_view _currency) const
 {
-  auto it = rates_.find(std::string(_currency));
+  auto it = rates_.find(_currency);
   if (it == rates_.end())
     return std::nullopt;
 

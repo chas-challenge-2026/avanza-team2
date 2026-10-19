@@ -1,9 +1,11 @@
 #pragma once
 
+#include <cstddef>
+#include <functional>
+#include <map>
 #include <optional>
 #include <string>
 #include <string_view>
-#include <unordered_map>
 
 /*
 Currency conversion table.
@@ -11,6 +13,9 @@ Currency conversion table.
 Rates are stored the way the ECB publishes them: "units of currency per EUR".
 EUR is always present with a rate of 1.0, so any pair resolves as a cross rate
 through EUR without special casing the base currency.
+
+The map uses std::less<> so a lookup can compare a std::string_view against
+the keys directly, without building a std::string first.
 */
 class FxTable
 {
@@ -51,12 +56,12 @@ public:
    */
   const std::string& date() const { return date_; }
 
-  const std::unordered_map<std::string, double>& rates() const { return rates_; }
+  const std::map<std::string, double, std::less<>>& rates() const { return rates_; }
 
   std::size_t size() const { return rates_.size(); }
   bool        empty() const { return rates_.empty(); }
 
 private:
-  std::unordered_map<std::string, double> rates_;
-  std::string                             date_;
+  std::map<std::string, double, std::less<>> rates_;
+  std::string                                date_;
 };

@@ -190,6 +190,28 @@ void test_refresh()
 
   ecb_up = true;
   CHECK(get(utc(2026, 9, 24, 15, 36)) == 2 && fetches == 4);
+
+  // A lookup that arrives while another one is fetching gets the old value
+  // and does not start a second fetch.
+  int  during_fetch = 0;
+  auto slow_fetch   = [&]() -> std::optional<int> {
+    ++fetches;
+    during_fetch = get(utc(2026, 9, 25, 15, 31));
+    return 3;
+  };
+  auto value = rates::refresh(cache, slow_fetch, utc(2026, 9, 25, 15, 31));
+  CHECK(value && *value == 3);
+  CHECK(during_fetch == 2 && fetches == 5);
+}
+
+void test_c_api()
+{
+  std::cout << "C entry points\n";
+
+  // A null currency fails before any table is fetched, so no network is needed.
+  CHECK(fx_rate(nullptr, "SEK", 0) < 0.0);
+  CHECK(std::isnan(fx_convert(100.0, nullptr, "SEK", 0)));
+  CHECK(std::isnan(fx_convert(-100.0, "USD", nullptr, 0)));
 }
 
 // Only run with --live, since these reach ECB over the network.
@@ -237,6 +259,7 @@ int main(int _argc, char** _argv)
   test_parse_history();
   test_rollover();
   test_refresh();
+  test_c_api();
 
   if (_argc > 1 && std::string_view(_argv[1]) == "--live") {
     test_live();
