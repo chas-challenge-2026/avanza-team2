@@ -18,7 +18,8 @@ Currency conversion for foreign holdings, backing the base-currency switch
 - Both fetches sit behind a cache that's invalidated once a day at 15:30
   UTC, shortly after ECB publishes around 16:00 CET, instead of refetching
   on every lookup. A failed refetch keeps serving the last known good table
-  and tries ECB again after 5 minutes.
+  and tries ECB again after 5 minutes. Only one lookup fetches at a time,
+  lookups that arrive meanwhile get the previous table.
 - `fx_rate_date` tells the caller which ECB trading day a lookup uses, so an
   old rate can be told apart from today's.
 
@@ -55,4 +56,17 @@ the library, it has no entry point of its own, `test/` is what supplies
     make fx/run-live     # same, but also hits real ECB endpoints
 
 `libfx.so` exports `fx_rate`/`fx_convert`/`fx_rate_date` from `rates.h`
-for the JNA bridge to load.
+for the JNA bridge to load. `make -C fx solib` is the same as `so` and is
+what the backend Dockerfile runs.
+
+On failure `fx_rate` and `fx_rate_date` return a negative value, since a
+valid rate or date is never negative. `fx_convert` returns NaN instead,
+because converting a negative amount gives a negative result.
+
+## Platform
+
+The date handling uses the POSIX functions `gmtime_r`, `timegm` and
+`strptime`, and the C API takes the timestamp as a C `long`. The module
+builds on Linux and macOS, which is where it runs (the backend Docker image
+is Linux). Windows is not supported: those functions are missing there and
+`long` is only 32 bits, so a JNA mapping would need `NativeLong` as well.
