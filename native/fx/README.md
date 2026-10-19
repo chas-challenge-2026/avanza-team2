@@ -19,7 +19,9 @@ Currency conversion for foreign holdings, backing the base-currency switch
   UTC, shortly after ECB publishes around 16:00 CET, instead of refetching
   on every lookup. A failed refetch keeps serving the last known good table
   and tries ECB again after 5 minutes. Only one lookup fetches at a time,
-  lookups that arrive meanwhile get the previous table.
+  lookups that arrive meanwhile get the previous table. A failed fetch is
+  logged to stderr with the URL and the error from libcurl, so it shows up
+  in `docker compose logs`.
 - `fx_rate_date` tells the caller which ECB trading day a lookup uses, so an
   old rate can be told apart from today's.
 

@@ -2,6 +2,8 @@
 
 #include <chrono>
 #include <condition_variable>
+#include <cstdio>
+#include <exception>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -91,7 +93,10 @@ std::shared_ptr<const T> refresh(Cached<T>& _cache, Fetch _fetch, Clock::time_po
   std::optional<T> fetched;
   try {
     fetched = _fetch();
+  } catch (const std::exception& _e) {
+    std::fprintf(stderr, "fx: fetch threw: %s\n", _e.what());
   } catch (...) {
+    std::fprintf(stderr, "fx: fetch threw an unknown exception\n");
   }
 
   std::shared_ptr<const T> result;
