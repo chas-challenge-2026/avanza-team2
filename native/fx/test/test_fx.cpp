@@ -43,6 +43,8 @@ constexpr std::string_view sample_xml = R"(
       <Cube currency='USD' rate='1.1032'/>
       <Cube currency='SEK' rate='11.1875'/>
       <Cube currency='GBP' rate='0.8621'/>
+      <Cube currency='XAA' rate='nan'/>
+      <Cube currency='XBB' rate='inf'/>
     </Cube>
   </Cube>
 </gesmes:Envelope>)";
@@ -76,6 +78,12 @@ void test_table()
   CHECK(!table.per_eur("XXX"));
 
   CHECK(approx_equal(table.rate("USD", "SEK").value_or(0.0), 11.1875 / 1.1032));
+
+  // Rates that aren't positive and finite are skipped.
+  table.set("AAA", -1.0);
+  table.set("BBB", std::nan(""));
+  table.set("CCC", HUGE_VAL);
+  CHECK(!table.per_eur("AAA") && !table.per_eur("BBB") && !table.per_eur("CCC"));
 }
 
 void test_parse()
@@ -83,7 +91,7 @@ void test_parse()
   std::cout << "parse_xml\n";
 
   FxTable table = ecb::parse_xml(sample_xml);
-  CHECK(table.size() == 4); // EUR is always added, plus USD, SEK and GBP
+  CHECK(table.size() == 4); // EUR is always added, plus USD, SEK and GBP. nan and inf are skipped
   CHECK(table.date() == "2026-09-04");
 
   CHECK(approx_equal(table.per_eur("USD").value_or(0.0), 1.1032));
@@ -190,6 +198,28 @@ void test_refresh()
 
   ecb_up = true;
   CHECK(get(utc(2026, 9, 24, 15, 36)) == 2 && fetches == 4);
+
+  // A lookup that arrives while another one is fetching gets the old value
+  // and does not start a second fetch.
+  int  during_fetch = 0;
+  auto slow_fetch   = [&]() -> std::optional<int> {
+    ++fetches;
+    during_fetch = get(utc(2026, 9, 25, 15, 31));
+    return 3;
+  };
+  auto value = rates::refresh(cache, slow_fetch, utc(2026, 9, 25, 15, 31));
+  CHECK(value && *value == 3);
+  CHECK(during_fetch == 2 && fetches == 5);
+}
+
+void test_c_api()
+{
+  std::cout << "C entry points\n";
+
+  // A null currency fails before any table is fetched, so no network is needed.
+  CHECK(fx_rate(nullptr, "SEK", 0) < 0.0);
+  CHECK(std::isnan(fx_convert(100.0, nullptr, "SEK", 0)));
+  CHECK(std::isnan(fx_convert(-100.0, "USD", nullptr, 0)));
 }
 
 // Only run with --live, since these reach ECB over the network.
@@ -237,6 +267,7 @@ int main(int _argc, char** _argv)
   test_parse_history();
   test_rollover();
   test_refresh();
+  test_c_api();
 
   if (_argc > 1 && std::string_view(_argv[1]) == "--live") {
     test_live();

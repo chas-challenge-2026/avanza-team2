@@ -105,5 +105,8 @@ rör aldrig `docker-compose.yml`, se [DRIFT.md](DRIFT.md) för plattformskontrak
 - [DRIFT.md](DRIFT.md) — drift och deploy
 - [backend/AvanzaPortal/DEVELOPMENT.md](backend/AvanzaPortal/DEVELOPMENT.md) — startguide, arkitektur, API och testning för Java-backenden
 - [frontend/DEVELOPMENT.md](frontend/DEVELOPMENT.md) — utveckling, struktur, API och byggning av frontend
+- [native/README.md](native/README.md) — översikt över native-modulerna och JNA-integrationen
+- [native/fx/README.md](native/fx/README.md) — FX-pipeline: ECB-kurser, cache och C-API för JNA
+- [native/risk/README.md](native/risk/README.md) — riskmodulen
 - [native/docs/BUILD.md](native/docs/BUILD.md) — native-dokumentation
 - [native/docs/CONTRIBUTE.md](native/docs/CONTRIBUTE.md) — information om kodstilen
