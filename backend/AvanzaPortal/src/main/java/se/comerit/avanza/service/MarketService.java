@@ -10,6 +10,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -33,6 +35,8 @@ import com.sun.jna.Pointer;
  */
 @Service
 public class MarketService {
+
+    private static final Logger logger = LoggerFactory.getLogger(MarketService.class);
 
     static final long PRICE_CACHE_TTL_MILLIS = 24 * 60 * 60 * 1000L;
 
@@ -209,8 +213,17 @@ public class MarketService {
             return 0;
         }
 
-        List<HistoricalStockPrice> pricesToSave = historicalDataClient
-                .fetchHistoricalPrices(HISTORICAL_TICKERS, fromDate, toDate)
+        List<HistoricalPriceClient.HistoricalPrice> fetchedPrices = historicalDataClient
+                .fetchHistoricalPrices(HISTORICAL_TICKERS, fromDate, toDate);
+        List<String> returnedSymbols = fetchedPrices.stream()
+                .map(HistoricalPriceClient.HistoricalPrice::symbol)
+                .distinct()
+                .sorted()
+                .toList();
+        logger.info("Historical import requested tickers={} range={}..{}; received rows={} symbols={}",
+                HISTORICAL_TICKERS, fromDate, toDate, fetchedPrices.size(), returnedSymbols);
+
+        List<HistoricalStockPrice> pricesToSave = fetchedPrices
                 .stream()
                 .filter(price -> {
                     LocalDate nextDate = nextDateByTicker.get(price.symbol());
@@ -223,6 +236,7 @@ public class MarketService {
                 .toList();
 
         historicalRepository.saveAll(pricesToSave);
+        logger.info("Historical import saved {} rows", pricesToSave.size());
         return pricesToSave.size();
     }
 
