@@ -26,14 +26,6 @@ import se.comerit.avanza.repository.AlertsRepository;
 import se.comerit.avanza.repository.HoldingsRepository;
 import se.comerit.avanza.repository.TargetRepository;
 import se.comerit.avanza.repository.UserRepository;
-import java.time.LocalDate;
-import java.util.Comparator;
-import java.util.TreeMap;
-
-import se.comerit.avanza.dto.portfolio.HistoricalPerformanceDTO;
-import se.comerit.avanza.dto.portfolio.HistoricalPerformancePointDTO;
-import se.comerit.avanza.entity.HistoricalStockPrice;
-import se.comerit.avanza.repository.HistoricalRepository;
 
 /**
  * PortfolioService is a layer in between the controller and the repository.
@@ -50,19 +42,11 @@ public class PortfolioService {
     private DriftTresholdConfig tresholdConfig;
     private MarketService marketService;
     private RiskLibrary riskLibrary;
-    private HistoricalRepository historicalRepository;
 
-    public PortfolioService(
-            AccountRepository accountRepository,
-            HoldingsRepository holdingsRepository,
-            TargetRepository targetRepository,
-            AlertsRepository alertRepository,
-            UserRepository userRepository,
+    public PortfolioService(AccountRepository accountRepository, HoldingsRepository holdingsRepository,
+            TargetRepository targetRepository, AlertsRepository alertRepository, UserRepository userRepository,
             DriftTresholdConfig tresholdConfig,
-            MarketService marketService,
-            RiskLibrary riskLibrary,
-            HistoricalRepository historicalRepository) {
-
+            MarketService marketService, RiskLibrary riskLibrary) {
         this.accountRepository = accountRepository;
         this.holdingsRepository = holdingsRepository;
         this.targetRepository = targetRepository;
@@ -71,7 +55,6 @@ public class PortfolioService {
         this.tresholdConfig = tresholdConfig;
         this.marketService = marketService;
         this.riskLibrary = riskLibrary;
-        this.historicalRepository = historicalRepository;
     }
 
     // Find user by email (used for authentication)
@@ -144,148 +127,6 @@ public class PortfolioService {
 
         return prices;
     }
-
-    /**
- * Calculates simulated historical performance using the user's current holdings.
- *
- * This method does not reconstruct historical purchases or sales.
- * It assumes the current quantity of each holding was owned throughout the
- * selected period.
- *
- * @param userId the ID of the user
- * @param period the requested period: 1m, 3m, or 1y
- * @return historical portfolio performance data
- */
-public HistoricalPerformanceDTO getHistoricalPerformance(Long userId, String period) {
-    // Determine the first date to include in the requested period.
-    LocalDate endDate = LocalDate.now();
-    LocalDate startDate = switch (period == null ? "" : period) {
-        case "1m" -> endDate.minusMonths(1);
-        case "3m" -> endDate.minusMonths(3);
-        case "1y" -> endDate.minusYears(1);
-        default -> throw new IllegalArgumentException("Unsupported period: " + period);
-    };
-
-    // Retrieve the user's current holdings.
-    List<Holdings> holdings = holdingsRepository
-            .findAllByUserId(userId, Pageable.unpaged())
-            .getContent();
-
-    if (holdings.isEmpty()) {
-        return new HistoricalPerformanceDTO(
-                0.0,
-                List.of(),
-                List.of(),
-                "No holdings are available for this portfolio.");
-    }
-
-    // Collect the tickers that need historical prices.
-    List<String> tickers = holdings.stream()
-            .map(Holdings::getTicker)
-            .filter(ticker -> ticker != null && !ticker.isBlank())
-            .distinct()
-            .toList();
-
-    // Load all historical prices for the selected date range.
-    List<HistoricalStockPrice> historicalPrices =
-            historicalRepository.findByTickerInAndPriceDateBetween(
-                    tickers, startDate, endDate);
-
-    // Group prices by date and ticker for efficient lookup.
-    Map<LocalDate, Map<String, BigDecimal>> pricesByDate = new TreeMap<>();
-
-    for (HistoricalStockPrice price : historicalPrices) {
-        pricesByDate
-                .computeIfAbsent(price.getPriceDate(), ignored -> new HashMap<>())
-                .put(price.getTicker(), price.getClosePrice());
-    }
-
-    // Identify holdings that have no historical prices in the requested period.
-    List<String> unavailableTickers = holdings.stream()
-            .map(Holdings::getTicker)
-            .distinct()
-            .filter(ticker -> historicalPrices.stream()
-                    .noneMatch(price -> price.getTicker().equals(ticker)))
-            .toList();
-
-    if (!unavailableTickers.isEmpty()) {
-        return new HistoricalPerformanceDTO(
-                0.0,
-                List.of(),
-                unavailableTickers,
-                "Historical prices are missing for one or more holdings.");
-    }
-
-    // Calculate the portfolio value for each date.
-    Map<LocalDate, Double> portfolioValues = new TreeMap<>();
-
-    for (Map.Entry<LocalDate, Map<String, BigDecimal>> dateEntry : pricesByDate.entrySet()) {
-        double portfolioValue = 0.0;
-        boolean allPricesAvailable = true;
-
-        for (Holdings holding : holdings) {
-            BigDecimal historicalPrice = dateEntry.getValue().get(holding.getTicker());
-
-            // Do not estimate a missing price for an individual date.
-            if (historicalPrice == null) {
-                allPricesAvailable = false;
-                break;
-            }
-
-            double quantity = holding.getQuantity().doubleValue();
-            double price = historicalPrice.doubleValue();
-
-            // Convert USD holdings to SEK using the current FX rate.
-            if ("USD".equalsIgnoreCase(holding.getCurrency())) {
-                price *= getUsdToSekRate();
-            }
-
-            portfolioValue += quantity * price;
-        }
-
-        if (allPricesAvailable) {
-            portfolioValues.put(dateEntry.getKey(), portfolioValue);
-        }
-    }
-
-    if (portfolioValues.size() < 2) {
-        return new HistoricalPerformanceDTO(
-                0.0,
-                List.of(),
-                unavailableTickers,
-                "Not enough historical data is available for this period.");
-    }
-
-    // Use the first available portfolio value as the performance baseline.
-    double startValue = portfolioValues.values().iterator().next();
-
-    if (startValue <= 0.0) {
-        return new HistoricalPerformanceDTO(
-                0.0,
-                List.of(),
-                unavailableTickers,
-                "The starting portfolio value must be greater than zero.");
-    }
-
-    // Convert each portfolio value into a percentage change from the baseline.
-    List<HistoricalPerformancePointDTO> points = portfolioValues.entrySet().stream()
-            .map(entry -> new HistoricalPerformancePointDTO(
-                    entry.getKey(),
-                    ((entry.getValue() - startValue) / startValue) * 100.0,
-                    null))
-            .toList();
-
-    return new HistoricalPerformanceDTO(
-            startValue,
-            points,
-            unavailableTickers,
-            null);
-}
-
-
-
-
-
 
     // USD to SEK conversion
     public double getUsdToSekRate() {

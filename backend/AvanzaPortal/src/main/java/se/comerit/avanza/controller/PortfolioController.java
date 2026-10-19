@@ -22,8 +22,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import org.springframework.web.bind.annotation.RequestParam;
-import se.comerit.avanza.dto.portfolio.HistoricalPerformanceDTO;
 
 /**
  * PortfolioController builds up a comprehensive view of the user's portfolio,
@@ -103,31 +101,5 @@ public class PortfolioController {
                                 portfolioService.getUsdToSekRate());
 
                 return ResponseEntity.ok(response);
-        }
-
-        /**
-         * Retrieves historical portfolio performance for the authenticated user.
-         *
-         * The period parameter determines how far back the historical data should go.
-         * Supported periods are 1m, 3m, and 1y.
-         */
-        @GetMapping("/portfolio/performance")
-        public ResponseEntity<HistoricalPerformanceDTO> getHistoricalPerformance(
-                        @AuthenticationPrincipal String userName,
-                        @RequestParam(defaultValue = "1m") String period) {
-
-                // Find the authenticated user before retrieving any portfolio data.
-                Optional<User> findUser = portfolioService.findByEmail(userName);
-
-                if (findUser.isEmpty()) {
-                        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-                }
-
-                // Use the authenticated user's ID to retrieve their historical performance.
-                Long userId = findUser.get().getId();
-
-                HistoricalPerformanceDTO performance = portfolioService.getHistoricalPerformance(userId, period);
-
-                return ResponseEntity.ok(performance);
         }
 }
