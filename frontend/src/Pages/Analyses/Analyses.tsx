@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Title } from '../../Components/Title/Title.tsx'
 import { DropdownBtn } from '../../Components/DropdownBtn/DropdownBtn.tsx'
-import { PerformanceCard } from '../../Components/PerformanceCard/PerformanceCard.tsx'
 import { RebalanceCard } from '../../Components/RebalanceCard/RebalanceCard.tsx'
 import { SummaryList } from '../../Components/SummaryList/SummaryList.tsx'
 import {
+  formatDecimal,
   formatSek,
   formatSignedPercent,
   formatSignedSek,
@@ -18,6 +18,50 @@ import {
 
 // Use the same API configuration as the rest of the frontend.
 const API_URL = import.meta.env.VITE_API_URL ?? ''
+const HISTORY_IMPORT_INTERVAL_MS = 24 * 60 * 60 * 1000
+const HISTORY_IMPORT_LAST_ATTEMPT_KEY = 'avanza.historical-import.last-attempt'
+
+interface BacktestResponse {
+  totalReturn: number
+  annualizedReturn: number
+  maxDrawdown: number
+  sharpeRatio: number
+  tickers: string[]
+  dates: string[]
+}
+
+let historyImportInFlight: Promise<number | null> | null = null
+
+const importHistoryOnceDaily = (): Promise<number | null> => {
+  if (historyImportInFlight) {
+    return historyImportInFlight
+  }
+
+  const lastAttempt = Number(
+    window.localStorage.getItem(HISTORY_IMPORT_LAST_ATTEMPT_KEY),
+  )
+  if (lastAttempt > 0 && Date.now() - lastAttempt < HISTORY_IMPORT_INTERVAL_MS) {
+    return Promise.resolve(null)
+  }
+
+  window.localStorage.setItem(HISTORY_IMPORT_LAST_ATTEMPT_KEY, String(Date.now()))
+  historyImportInFlight = fetch(`${API_URL}/api/market/history/import`, {
+    method: 'POST',
+    credentials: 'include',
+  })
+    .then(async (response) => {
+      if (!response.ok) {
+        throw new Error(`Historical import failed: ${response.status}`)
+      }
+
+      return (await response.json()) as number
+    })
+    .finally(() => {
+      historyImportInFlight = null
+    })
+
+  return historyImportInFlight
+}
 
 // Define the portfolio response returned by the existing portfolio endpoint.
 interface PortfolioResponse {
@@ -53,21 +97,6 @@ interface PortfolioResponse {
   totalPortfolioValue: number
 }
 
-// Define a single historical performance point returned by the backend.
-interface HistoricalPerformancePoint {
-  date: string
-  portfolioPct: number
-  indexPct: number | null
-}
-
-// Define the complete historical performance response.
-interface HistoricalPerformanceResponse {
-  startValue: number
-  points: HistoricalPerformancePoint[]
-  unavailableTickers: string[]
-  warning: string | null
-}
-
 // Define the allocation format expected by RebalanceCard.
 interface AllocationSlice {
   label: string
@@ -93,19 +122,21 @@ const formatAccountType = (accountType: string) => {
 
 export const Analyses = () => {
   const [periodId, setPeriodId] = useState<PeriodId>(defaultPeriodId)
+  const [historyImportReady, setHistoryImportReady] = useState(false)
+  const [historyImportMessage, setHistoryImportMessage] = useState<string | null>(null)
+  const [historyImportError, setHistoryImportError] = useState<string | null>(null)
 
   // Store the current portfolio data received from the backend.
   const [portfolio, setPortfolio] = useState<PortfolioResponse | null>(null)
 
-  // Store the historical performance data for the selected period.
-  const [performance, setPerformance] =
-    useState<HistoricalPerformanceResponse | null>(null)
+  // Store the native backtest result for the selected period.
+  const [backtest, setBacktest] = useState<BacktestResponse | null>(null)
 
   // Track portfolio loading and errors separately from historical performance.
   const [isLoading, setIsLoading] = useState(true)
-  const [isPerformanceLoading, setIsPerformanceLoading] = useState(true)
+  const [isBacktestLoading, setIsBacktestLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [performanceError, setPerformanceError] = useState<string | null>(null)
+  const [backtestError, setBacktestError] = useState<string | null>(null)
 
   // Fetch the current portfolio once when the page is opened.
   useEffect(() => {
@@ -149,56 +180,96 @@ export const Analyses = () => {
     }
   }, [])
 
-  // Fetch historical performance whenever the selected period changes.
+  // Attempt one historical import per rolling 24 hours for this browser.
   useEffect(() => {
-    const controller = new AbortController()
+    let active = true
 
-    const loadPerformance = async () => {
-      setIsPerformanceLoading(true)
-      setPerformanceError(null)
-      setPerformance(null)
-
+    const loadHistory = async () => {
       try {
-        // Request historical performance for the selected time period.
-        const response = await fetch(
-          `${API_URL}/api/portfolio/performance?period=${encodeURIComponent(periodId)}`,
-          {
-            credentials: 'include',
-            signal: controller.signal,
-          },
-        )
-
-        if (!response.ok) {
-          throw new Error(
-            `Historical performance request failed: ${response.status}`,
-          )
+        const importedRows = await importHistoryOnceDaily()
+        if (active) {
+          setHistoryImportMessage(importedRows === null
+            ? 'Historisk import har redan försökts under de senaste 24 timmarna.'
+            : `Historisk import klar: ${importedRows} rader sparades.`)
         }
-
-        const data =
-          (await response.json()) as HistoricalPerformanceResponse
-
-        setPerformance(data)
       } catch {
-        // Ignore errors caused by cancelling an outdated request.
-        if (!controller.signal.aborted) {
-          setPerformanceError(
-            'Kunde inte hämta historisk utveckling. Försök igen senare.',
+        if (active) {
+          setHistoryImportError(
+            'Historisk import misslyckades. Ett nytt försök tillåts om 24 timmar.',
           )
         }
       } finally {
-        if (!controller.signal.aborted) {
-          setIsPerformanceLoading(false)
+        if (active) {
+          setHistoryImportReady(true)
         }
       }
     }
 
-    void loadPerformance()
+    void loadHistory()
 
-    // Cancel the previous request when the period changes or the page unmounts.
+    return () => {
+      active = false
+    }
+  }, [])
+
+  // Run the native backtest after the import attempt and whenever the period changes.
+  useEffect(() => {
+    if (!historyImportReady || isLoading || !portfolio) {
+      return
+    }
+
+    const controller = new AbortController()
+    const tickers = [...new Set(portfolio.enrichedHoldings.map((holding) => holding.ticker))]
+    const end = new Date()
+    const start = new Date(end.getTime())
+    const periodDays: Record<PeriodId, number> = { '1m': 30, '3m': 90, '1y': 365 }
+    start.setUTCDate(start.getUTCDate() - periodDays[periodId])
+    const endDate = end.toISOString().slice(0, 10)
+    const startDate = start.toISOString().slice(0, 10)
+
+    const loadBacktest = async () => {
+      setIsBacktestLoading(true)
+      setBacktestError(null)
+      setBacktest(null)
+
+      try {
+        const response = await fetch(`${API_URL}/api/market/backtest`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
+          body: JSON.stringify({
+            tickers,
+            startDate,
+            endDate,
+            strategy: 'BUY_HOLD',
+          }),
+        })
+
+        if (!response.ok) {
+          throw new Error(`Backtest request failed: ${response.status}`)
+        }
+
+        setBacktest((await response.json()) as BacktestResponse)
+      } catch {
+        if (!controller.signal.aborted) {
+          setBacktestError(
+            'Kunde inte köra backtest. Kontrollera att historiska priser finns för perioden.',
+          )
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsBacktestLoading(false)
+        }
+      }
+    }
+
+    void loadBacktest()
+
     return () => {
       controller.abort()
     }
-  }, [periodId])
+  }, [historyImportReady, isLoading, periodId, portfolio])
 
   const handlePeriodChange = (value: string) => {
     const selected = performancePeriods.find((p) => p.id === value)
@@ -267,8 +338,19 @@ export const Analyses = () => {
           className="self-start"
         />
 
-        {/* Show historical performance from the backend instead of sample data. */}
-        {isPerformanceLoading ? (
+        {historyImportError && (
+          <p className="text-sm text-amber-700" role="status">
+            {historyImportError}
+          </p>
+        )}
+
+        {historyImportMessage && (
+          <p className="text-sm text-neutral-600" role="status">
+            {historyImportMessage}
+          </p>
+        )}
+
+        {isBacktestLoading ? (
           <div
             className="rounded-2xl border border-neutral-200 bg-white p-5"
             role="status"
@@ -277,34 +359,46 @@ export const Analyses = () => {
               Hämtar historisk utveckling...
             </p>
           </div>
-        ) : performanceError ? (
+        ) : backtestError ? (
           <div
             className="rounded-2xl border border-neutral-200 bg-white p-5"
             role="alert"
           >
-            <p className="text-sm text-red-700">{performanceError}</p>
+            <p className="text-sm text-red-700">{backtestError}</p>
           </div>
-        ) : performance ? (
+        ) : backtest ? (
           <>
-            <PerformanceCard
-              points={performance.points}
-              startValue={performance.startValue}
+            <SummaryList
+              title="Backtestresultat"
+              rows={[
+                {
+                  label: 'Total avkastning',
+                  value: formatSignedPercent(backtest.totalReturn * 100),
+                  tone: backtest.totalReturn >= 0 ? 'positive' : 'negative',
+                },
+                {
+                  label: 'Annualiserad avkastning',
+                  value: formatSignedPercent(backtest.annualizedReturn * 100),
+                  tone: backtest.annualizedReturn >= 0 ? 'positive' : 'negative',
+                },
+                {
+                  label: 'Maximal nedgång',
+                  value: formatSignedPercent(backtest.maxDrawdown * 100),
+                  tone: 'negative',
+                },
+                {
+                  label: 'Sharpekvot',
+                  value: formatDecimal(backtest.sharpeRatio),
+                },
+              ]}
             />
-
-            {/* Explain when historical data is incomplete or unavailable. */}
-            {performance.warning && (
-              <p className="text-sm text-amber-700" role="status">
-                {performance.warning}
-              </p>
-            )}
-
-            {/* Show which holdings lack historical price data, if any. */}
-            {performance.unavailableTickers.length > 0 && (
-              <p className="text-sm text-neutral-600">
-                Historisk kursdata saknas för:{' '}
-                {performance.unavailableTickers.join(', ')}.
-              </p>
-            )}
+            <p className="text-sm text-neutral-600">
+              Tickers: {backtest.tickers.join(', ')}. Period:{' '}
+              {backtest.dates[0]}–{backtest.dates[backtest.dates.length - 1]}.
+            </p>
+            <p className="text-sm text-amber-700" role="note">
+              Backtestet använder historiska priser utan historisk valutakonvertering.
+            </p>
           </>
         ) : (
           <div className="rounded-2xl border border-neutral-200 bg-white p-5">

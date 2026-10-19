@@ -77,6 +77,11 @@ public class MarketController {
         }
     }
 
+    /**
+     * Imports historical stock prices for the supported tickers.
+     *
+     * @return the number of historical stock prices imported
+     */
     @PostMapping("/history/import")
     public ResponseEntity<Integer> importHistoricalPrices() {
         return ResponseEntity.ok(marketService.importHistoricalData());
