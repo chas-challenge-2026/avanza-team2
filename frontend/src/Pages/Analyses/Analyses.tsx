@@ -3,6 +3,7 @@ import { Title } from '../../Components/Title/Title.tsx'
 import { DropdownBtn } from '../../Components/DropdownBtn/DropdownBtn.tsx'
 import { PerformanceCard } from '../../Components/PerformanceCard/PerformanceCard.tsx'
 import { RebalanceCard } from '../../Components/RebalanceCard/RebalanceCard.tsx'
+import { RiskMetricsCard } from '../../Components/RiskMetricsCard/RiskMetricsCard.tsx'
 import { SummaryList } from '../../Components/SummaryList/SummaryList.tsx'
 import { formatSek, formatSignedPercent, formatSignedSek } from '../../utils/format.ts'
 import {
@@ -42,6 +43,13 @@ export const Analyses = () => {
         />
 
         <PerformanceCard points={period.points} startValue={period.startValue} />
+
+        <RiskMetricsCard
+          volatility={14.2}
+          maxDrawdown={-18.5}
+          sharpeRatio={1.25}
+          periodLabel={period.label}
+        />
 
         <RebalanceCard current={currentAllocation} target={targetAllocation} />
 

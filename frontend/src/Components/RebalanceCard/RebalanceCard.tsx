@@ -63,14 +63,29 @@ export const RebalanceCard = ({
         className ? ` ${className}` : ''
       }`}
     >
-      <h3 className="text-lg font-bold text-neutral-900 text-left m-4">Rebalanseringshjälp</h3>
+      {/* 1. Ny rubrik */}
+      <h3 className="text-lg font-bold text-neutral-900 text-left m-4">Fördelning & Mål</h3>
 
       <div className="m-4 grid grid-cols-2 gap-4">
         <AllocationRing title="Din Portfölj" slices={current} />
         <AllocationRing title="Ditt Mål" slices={target} />
       </div>
 
-      <p className="m-4 text-left text-sm text-neutral-600">{message}</p>
+      {/* 2. Alert-ruta för texten */}
+      {needsRebalance ? (
+        <div className="m-4 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-sm text-left flex items-start gap-3">
+          <span className="text-amber-600 font-bold text-base leading-none">⚠️</span>
+          <div>
+            <p className="font-bold text-amber-900 mb-0.5">Avvikelse upptäckt</p>
+            <p className="text-amber-800 leading-relaxed">{message}</p>
+          </div>
+        </div>
+      ) : (
+        <div className="m-4 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-sm text-left flex items-center gap-3">
+          <span className="text-emerald-600 font-bold text-base leading-none">✓</span>
+          <p className="text-emerald-800 font-medium">{message}</p>
+        </div>
+      )}
 
       {needsRebalance && (
         <div className="m-4 flex justify-center">
