@@ -30,9 +30,9 @@ interface BacktestResponse {
   dates: string[]
 }
 
-let historyImportInFlight: Promise<number | null> | null = null
+let historyImportInFlight: Promise<void> | null = null
 
-const importHistoryOnceDaily = (): Promise<number | null> => {
+const importHistoryOnceDaily = (): Promise<void> => {
   if (historyImportInFlight) {
     return historyImportInFlight
   }
@@ -41,7 +41,7 @@ const importHistoryOnceDaily = (): Promise<number | null> => {
     window.localStorage.getItem(HISTORY_IMPORT_LAST_ATTEMPT_KEY),
   )
   if (lastAttempt > 0 && Date.now() - lastAttempt < HISTORY_IMPORT_INTERVAL_MS) {
-    return Promise.resolve(null)
+    return Promise.resolve()
   }
 
   window.localStorage.setItem(HISTORY_IMPORT_LAST_ATTEMPT_KEY, String(Date.now()))
@@ -49,12 +49,10 @@ const importHistoryOnceDaily = (): Promise<number | null> => {
     method: 'POST',
     credentials: 'include',
   })
-    .then(async (response) => {
+    .then((response) => {
       if (!response.ok) {
         throw new Error(`Historical import failed: ${response.status}`)
       }
-
-      return (await response.json()) as number
     })
     .finally(() => {
       historyImportInFlight = null
@@ -123,7 +121,6 @@ const formatAccountType = (accountType: string) => {
 export const Analyses = () => {
   const [periodId, setPeriodId] = useState<PeriodId>(defaultPeriodId)
   const [historyImportReady, setHistoryImportReady] = useState(false)
-  const [historyImportMessage, setHistoryImportMessage] = useState<string | null>(null)
   const [historyImportError, setHistoryImportError] = useState<string | null>(null)
 
   // Store the current portfolio data received from the backend.
@@ -186,12 +183,7 @@ export const Analyses = () => {
 
     const loadHistory = async () => {
       try {
-        const importedRows = await importHistoryOnceDaily()
-        if (active) {
-          setHistoryImportMessage(importedRows === null
-            ? 'Historisk import har redan försökts under de senaste 24 timmarna.'
-            : `Historisk import klar: ${importedRows} rader sparades.`)
-        }
+        await importHistoryOnceDaily()
       } catch {
         if (active) {
           setHistoryImportError(
@@ -344,12 +336,6 @@ export const Analyses = () => {
           </p>
         )}
 
-        {historyImportMessage && (
-          <p className="text-sm text-neutral-600" role="status">
-            {historyImportMessage}
-          </p>
-        )}
-
         {isBacktestLoading ? (
           <div
             className="rounded-2xl border border-neutral-200 bg-white p-5"
@@ -397,7 +383,7 @@ export const Analyses = () => {
               {backtest.dates[0]}–{backtest.dates[backtest.dates.length - 1]}.
             </p>
             <p className="text-sm text-amber-700" role="note">
-              Backtestet använder historiska priser utan historisk valutakonvertering.
+              Historiska priser har konverterats till SEK med ECB-kursen för respektive handelsdag.
             </p>
           </>
         ) : (

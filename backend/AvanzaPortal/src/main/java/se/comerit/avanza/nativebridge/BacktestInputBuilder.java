@@ -25,8 +25,8 @@ public class BacktestInputBuilder {
 
     /**
      * Loads and aligns daily closing prices in the row-major order expected by
-     * the native backtest function. All selected tickers must use the same
-     * currency.
+     * the native backtest function. Prices remain in their original currencies;
+     * the service converts them before calling the native engine.
      * 
      * @param tickers   the list of tickers to include in the backtest
      * @param startDate the start date of the backtest period

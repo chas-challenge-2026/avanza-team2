@@ -306,6 +306,55 @@ class MarketServiceTest {
                 verify(backtestLibrary).backtest_free_result(nativePointer);
         }
 
+        @Test
+        void shouldConvertUsdHistoricalPricesToSekUsingEachPricesDate() {
+                HistoricalRepository historicalRepository = mock(HistoricalRepository.class);
+                FxLibrary fxLibrary = mock(FxLibrary.class);
+                BacktestLibrary backtestLibrary = mock(BacktestLibrary.class);
+                List<String> tickers = List.of("AAPL", "ERIC-B");
+                LocalDate firstDate = LocalDate.of(2026, 10, 1);
+                LocalDate secondDate = firstDate.plusDays(1);
+                long firstTimestamp = firstDate.atStartOfDay(ZoneOffset.UTC).toEpochSecond();
+                long secondTimestamp = secondDate.atStartOfDay(ZoneOffset.UTC).toEpochSecond();
+                when(historicalRepository.findByTickerInAndPriceDateBetween(tickers, firstDate, secondDate))
+                                .thenReturn(List.of(
+                                                new HistoricalStockPrice("AAPL", firstDate, new BigDecimal("10")),
+                                                new HistoricalStockPrice("ERIC-B", firstDate, new BigDecimal("100")),
+                                                new HistoricalStockPrice("AAPL", secondDate, new BigDecimal("11")),
+                                                new HistoricalStockPrice("ERIC-B", secondDate, new BigDecimal("110"))));
+                when(fxLibrary.fx_convert(10.0, "USD", "SEK", firstTimestamp)).thenReturn(100.0);
+                when(fxLibrary.fx_convert(11.0, "USD", "SEK", secondTimestamp)).thenReturn(110.0);
+
+                BacktestResultStructure nativeMemory = new BacktestResultStructure();
+                nativeMemory.total_return = 0.10;
+                nativeMemory.annualized_return = 0.05;
+                nativeMemory.max_drawdown = -0.02;
+                nativeMemory.sharpe_ratio = 1.1;
+                nativeMemory.write();
+                var nativePointer = nativeMemory.getPointer();
+                when(backtestLibrary.run_backtest(
+                                argThat(prices -> Arrays.equals(
+                                                prices, new double[] { 100.0, 100.0, 110.0, 110.0 })),
+                                eq(2), eq(2), eq("BUY_HOLD")))
+                                .thenReturn(nativePointer);
+
+                MarketService service = createService(
+                                fxLibrary,
+                                mock(StockPriceClient.class),
+                                historicalRepository,
+                                mock(HistoricalPriceClient.class),
+                                backtestLibrary,
+                                Clock.systemUTC(),
+                                360);
+
+                service.getBacktestAnalysis(
+                                new BacktestRequestDTO(tickers, firstDate, secondDate, "BUY_HOLD"));
+
+                verify(fxLibrary).fx_convert(10.0, "USD", "SEK", firstTimestamp);
+                verify(fxLibrary).fx_convert(11.0, "USD", "SEK", secondTimestamp);
+                verify(backtestLibrary).backtest_free_result(nativePointer);
+        }
+
         private MarketService createService(FxLibrary fxLibrary, StockPriceClient stockPriceClient) {
                 return createService(fxLibrary, stockPriceClient, Clock.systemUTC());
         }
