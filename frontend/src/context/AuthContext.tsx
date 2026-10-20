@@ -2,65 +2,74 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { AuthContext, type AuthUser } from './auth-context';
 
 const API_URL = import.meta.env.VITE_API_URL ?? '';
+const AUTH_CHECK_INTERVAL = 30 * 1000;
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<AuthUser | null>(null);
 
-  /**
-   * Checks with the backend whether the current HttpOnly JWT cookie
-   * represents an authenticated user.
-   */
   useEffect(() => {
+    let isMounted = true;
+    let isChecking = false;
+
     const checkAuthentication = async () => {
+      if (isChecking) return;
+      isChecking = true;
+
       try {
         const response = await fetch(`${API_URL}/api/auth/me`, {
           method: 'GET',
-
-          // Allow the browser to send the HttpOnly JWT cookie.
           credentials: 'include',
         });
 
-        setIsAuthenticated(response.ok);
+        if (!isMounted) return;
 
-        // /api/auth/me returns no body, so the user's name/email can't be
-        // restored here — it's only known right after a fresh login below.
-        if (!response.ok) {
+        if (response.ok) {
+          setIsAuthenticated(true);
+        } else if (response.status === 401 || response.status === 403) {
+          setIsAuthenticated(false);
           setUser(null);
         }
       } catch {
-        setIsAuthenticated(false);
-        setUser(null);
+        // Keep the current authentication state during temporary network failures.
       } finally {
-        setIsLoading(false);
+        isChecking = false;
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
-    checkAuthentication();
+    void checkAuthentication();
+
+    const intervalId = window.setInterval(
+      () => void checkAuthentication(),
+      AUTH_CHECK_INTERVAL,
+    );
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void checkAuthentication();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
-  /**
-   * Logs the user in through the backend.
-   *
-   * The backend sets the JWT as an HttpOnly cookie.
-   * The JWT is therefore never stored in localStorage or accessible
-   * to JavaScript.
-   */
   const login = async (email: string, password: string) => {
     const response = await fetch(`${API_URL}/api/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-
-      // Allow the backend to set the HttpOnly cookie.
       credentials: 'include',
-
-      body: JSON.stringify({
-        email,
-        password,
-      }),
+      body: JSON.stringify({ email, password }),
     });
 
     if (!response.ok) {
@@ -72,17 +81,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsAuthenticated(true);
   };
 
-  /**
-   * Logs the user out through the backend.
-   *
-   * The backend clears the HttpOnly JWT cookie.
-   */
   const logout = async () => {
     try {
       await fetch(`${API_URL}/api/auth/logout`, {
         method: 'DELETE',
-
-        // Send the JWT cookie so the backend can clear it.
         credentials: 'include',
       });
     } finally {

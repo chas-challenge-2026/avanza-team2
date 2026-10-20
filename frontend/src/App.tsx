@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Navbar } from './Components/Navbar/Navbar.tsx'
 import { TopBar } from './Components/TopBar/TopBar.tsx'
 import { Footer } from './Components/Footer/Footer.tsx'
@@ -24,10 +24,6 @@ function App() {
   const navigate = useNavigate()
   const auth = useAuth()
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-
-  useEffect(() => {
-    setIsSidebarOpen(false)
-  }, [location.pathname])
 
   const handleLogin = async (email: string, password: string) => {
   await auth.login(email, password);

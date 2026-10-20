@@ -7,6 +7,7 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.queryParam;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -131,5 +132,29 @@ class HistoricalDataClientTest {
         SYMBOLS,
         REQUESTED_DATE.plusDays(1),
         REQUESTED_DATE).isEmpty());
+  }
+
+  @Test
+  void returnsEmptyListWhenLookBackDaysLessThanZero() {
+    RestClient.Builder builder = RestClient.builder();
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    HistoricalDataClient client = new HistoricalDataClient(builder, BASE_URL, "test-key", -1);
+
+    assertTrue(client.fetchRecentHistoricalPrices(SYMBOLS).isEmpty());
+    server.verify(); // Confirms no HTTP request was sent.
+  }
+
+  @Test
+  void shouldCatchRestClientException() {
+    RestClient.Builder builder = RestClient.builder();
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    server.expect(requestTo(containsString("/v2/eod?")))
+        .andRespond(withServerError());
+
+    HistoricalDataClient client = new HistoricalDataClient(builder, BASE_URL, "test-key", 360);
+
+    assertTrue(client.fetchHistoricalPrices(
+        SYMBOLS, REQUESTED_DATE, REQUESTED_DATE).isEmpty());
+    server.verify();
   }
 }

@@ -24,7 +24,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import se.comerit.avanza.dto.targetallocation.TargetAllocationRequestDTO;
 import se.comerit.avanza.dto.targetallocation.TargetAllocationResponseDTO;
 import se.comerit.avanza.dto.targetallocation.UpdateTargetAllocationsRequestDTO;
-import se.comerit.avanza.exception.InvalidTargetAllocationException;
+import se.comerit.avanza.exception.ApiExceptionHandler;
+import se.comerit.avanza.exception.InvalidRequestException;
 import se.comerit.avanza.service.TargetAllocationService;
 
 class TargetAllocationControllerTest {
@@ -40,7 +41,9 @@ class TargetAllocationControllerTest {
     void setUp() {
         targetAllocationService = org.mockito.Mockito.mock(TargetAllocationService.class);
         TargetAllocationController controller = new TargetAllocationController(targetAllocationService);
-        mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(controller)
+                .setControllerAdvice(new ApiExceptionHandler())
+                .build();
         objectMapper = new ObjectMapper();
         authentication = new UsernamePasswordAuthenticationToken(USER_EMAIL, null, List.of());
     }
@@ -107,7 +110,7 @@ class TargetAllocationControllerTest {
                         .principal(authentication)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest());
+                        .andExpect(status().isBadRequest());
 
         verifyNoInteractions(targetAllocationService);
     }
@@ -120,14 +123,15 @@ class TargetAllocationControllerTest {
         when(targetAllocationService.updateTargetAllocationsForAuthenticatedUser(
                 org.mockito.ArgumentMatchers.eq(USER_EMAIL),
                 any(UpdateTargetAllocationsRequestDTO.class)))
-                .thenThrow(new InvalidTargetAllocationException(
+                .thenThrow(new InvalidRequestException(
                         "Target allocation percentages must total 100"));
 
         mockMvc.perform(put("/api/target-allocations")
                         .principal(authentication)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("Target allocation percentages must total 100"));
     }
 
     private TargetAllocationRequestDTO allocation(String accountType, String percentage) {

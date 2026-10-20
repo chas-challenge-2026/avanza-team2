@@ -18,5 +18,10 @@
     "name": "marketstack.api-key",
     "type": "java.lang.String",
     "description": "A description for 'marketstack.api-key'"
+  },
+  {
+    "name": "marketstack.history.lookback-days",
+    "type": "java.lang.String",
+    "description": "A description for 'marketstack.history.lookback-days'"
   }
 ]}

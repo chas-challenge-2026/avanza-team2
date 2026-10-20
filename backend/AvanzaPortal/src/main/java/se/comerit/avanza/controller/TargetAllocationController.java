@@ -15,9 +15,7 @@ import se.comerit.avanza.dto.targetallocation.TargetAllocationResponseDTO;
 import se.comerit.avanza.dto.targetallocation.UpdateTargetAllocationsRequestDTO;
 import se.comerit.avanza.service.TargetAllocationService;
 
-
-
-@RestController 
+@RestController
 @RequestMapping("/api/target-allocations")
 public class TargetAllocationController {
 
@@ -26,28 +24,29 @@ public class TargetAllocationController {
     public TargetAllocationController(TargetAllocationService targetAllocationService) {
         this.targetAllocationService = targetAllocationService;
     }
-    
+
     @GetMapping
     public ResponseEntity<List<TargetAllocationResponseDTO>> getTargetAllocations(Authentication authentication) {
 
         // Get the target allocations for the authenticated user
-        List<TargetAllocationResponseDTO> allocations = targetAllocationService.getTargetAllocationsForAuthenticatedUser(authentication.getName());
-        
+        List<TargetAllocationResponseDTO> allocations = targetAllocationService
+                .getTargetAllocationsForAuthenticatedUser(authentication.getName());
+
         // Return the allocations in the response
         return ResponseEntity.ok(allocations);
     }
 
     @PutMapping
-    public ResponseEntity<List<TargetAllocationResponseDTO>> updateTargetAllocations(@Valid @RequestBody UpdateTargetAllocationsRequestDTO request, 
-        Authentication authentication) {
+    public ResponseEntity<List<TargetAllocationResponseDTO>> updateTargetAllocations(
+            @Valid @RequestBody UpdateTargetAllocationsRequestDTO request,
+            Authentication authentication) {
 
         // Update the target allocations for the authenticated user
-        List<TargetAllocationResponseDTO> allocations = targetAllocationService.updateTargetAllocationsForAuthenticatedUser(authentication.getName(),request);
-        
+        List<TargetAllocationResponseDTO> allocations = targetAllocationService
+                .updateTargetAllocationsForAuthenticatedUser(authentication.getName(), request);
+
         // Return the updated allocations in the response
         return ResponseEntity.ok(allocations);
     }
 
-    
-    
 }

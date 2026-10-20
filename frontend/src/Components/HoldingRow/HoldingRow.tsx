@@ -15,27 +15,46 @@ type HoldingRowProps = {
     onClick?: (id: string) => void;
 };
 
+const formatNumber = (value: number): string =>
+    value.toLocaleString('sv-SE', {
+        maximumFractionDigits: 2,
+    });
+
+const formatReturn = (value: number): string => {
+    const formattedValue = value.toLocaleString('sv-SE', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    });
+
+    return value >= 0 ? `+${formattedValue}%` : `${formattedValue}%`;
+};
+
 const HoldingRow = ({ item, onClick }: HoldingRowProps) => {
+    const returnColor = item.returnPercent >= 0 ? '#16A34A' : '#DC2626';
+
     return (
-        <div style={styles.row} onClick={() => onClick && onClick(item.id)}>
+        <div style={styles.row} onClick={() => onClick?.(item.id)}>
             <div style={styles.leftContent} className="holding-row-left">
                 <div style={styles.iconContainer}>
                     <span>📈</span>
                 </div>
-                <div className="holding-row-text">
-                    <h4 style={styles.symbol} className="holding-row-symbol">{item.symbol}</h4>
-                    <p style={styles.name} className="holding-row-name">{item.name}</p>
+                <div style={styles.stockInfo} className="holding-row-text">
+                    <h4 style={styles.symbol} className="holding-row-symbol">
+                        {item.symbol}
+                    </h4>
+                    <p style={styles.name} className="holding-row-name">
+                        {item.name}
+                    </p>
                 </div>
             </div>
 
             <div style={styles.rightContent} className="holding-row-right">
-                <span style={styles.text} className="holding-row-shares">{item.shares}</span>
-                <span style={styles.text}>{item.value.toLocaleString('sv-SE')} SEK</span>
-                <span style={{ 
-                    ...styles.return, 
-                    color: item.returnPercent >= 0 ? '#16A34A' : '#DC2626' 
-                }}>
-                    {item.returnPercent >= 0 ? `+${item.returnPercent}%` : `${item.returnPercent}%`}
+                <span style={styles.text} className="holding-row-shares">
+                    {formatNumber(item.shares)}
+                </span>
+                <span style={styles.text}>{formatNumber(item.value)} SEK</span>
+                <span style={{ ...styles.return, color: returnColor }}>
+                    {formatReturn(item.returnPercent)}
                 </span>
                 <span style={styles.arrow}>›</span>
             </div>
@@ -58,19 +77,30 @@ const styles: Record<string, React.CSSProperties> = {
         transition: 'background-color 0.2s ease',
     },
     leftContent: {
-        display: 'flex',
+        display: 'grid',
+        gridTemplateColumns: '40px 1fr',
         alignItems: 'center',
-        gap: '14px',
+        columnGap: '14px',
+        flex: '1',
+        minWidth: 0,
+    },
+    stockInfo: {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        minWidth: 0,
     },
     iconContainer: {
         width: '40px',
         height: '40px',
+        boxSizing: 'border-box',
         borderRadius: '10px',
         backgroundColor: '#EFF6FF',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         fontSize: '18px',
+        flexShrink: 0,
     },
     symbol: {
         margin: 0,
@@ -96,8 +126,9 @@ const styles: Record<string, React.CSSProperties> = {
     return: {
         fontSize: '14px',
         fontWeight: 600,
-        width: '60px',
+        width: '75px',
         textAlign: 'right',
+        whiteSpace: 'nowrap',
     },
     arrow: {
         fontSize: '18px',
