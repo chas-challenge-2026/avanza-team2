@@ -315,17 +315,21 @@ export const Analyses = () => {
 
   // Map the actual account allocation returned by the backend.
   const currentAllocation: AllocationSlice[] =
-    portfolio?.allocationRows.map((row) => ({
-      label: formatAccountType(row.accountType),
-      percent: row.actual,
-    })) ?? []
+    portfolio?.allocationRows
+      .filter((row) => row.accountType !== 'Pension')
+      .map((row) => ({
+        label: formatAccountType(row.accountType),
+        percent: row.actual,
+      })) ?? []
 
   // Map the user's target allocation returned by the backend.
   const targetAllocation: AllocationSlice[] =
-    portfolio?.allocationRows.map((row) => ({
-      label: formatAccountType(row.accountType),
-      percent: row.target,
-    })) ?? []
+    portfolio?.allocationRows
+      .filter((row) => row.accountType !== 'Pension')
+      .map((row) => ({
+        label: formatAccountType(row.accountType),
+        percent: row.target,
+      })) ?? []
 
   return (
     <div className="p-6">
