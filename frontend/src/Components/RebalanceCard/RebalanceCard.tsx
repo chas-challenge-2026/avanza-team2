@@ -256,21 +256,17 @@ export const RebalanceCard = ({
         </div>
       </div>
 
-      {/* Highlight the largest deviation and retain the existing action. */}
-      <div className="mx-auto mt-4 w-full max-w-5xl rounded-xl bg-neutral-50 p-4">
-        <p className="text-sm leading-6 text-neutral-700">{message}</p>
-
-        {needsRebalance && (
-          <div className="mt-4 flex justify-center">
+      {/* Keep the action below the allocation details without repeating the alert text. */}
+      {needsRebalance && (
+        <div className="mx-auto mt-4 flex w-full max-w-5xl justify-center">
             <Button
               label="Balansera om portföljen"
               onClick={onRebalance ?? (() => {})}
               pill
               className="px-6 py-3"
             />
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

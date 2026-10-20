@@ -1,5 +1,10 @@
 import { useState } from 'react'
 
+const metricFormatter = new Intl.NumberFormat('sv-SE', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})
+
 interface RiskMetricItemProps {
   label: string
   sublabel: string
@@ -69,7 +74,7 @@ export const RiskMetricsCard = ({
         <RiskMetricItem
           label="Svängningar"
           sublabel="Volatilitet"
-          value={volatility === null ? 'Ej tillgänglig' : `${volatility.toString().replace('.', ',')}%`}
+          value={volatility === null ? 'Ej tillgänglig' : `${metricFormatter.format(volatility)}%`}
           explanation={volatility === null
             ? 'Backtestmotorn returnerar inte volatilitet ännu.'
             : 'Visar hur mycket din portfölj brukar svänga upp och ner i värde. Högre siffra innebär mer svängningar.'}
@@ -77,13 +82,13 @@ export const RiskMetricsCard = ({
         <RiskMetricItem
           label="Största fall"
           sublabel="Max Drawdown"
-          value={`${maxDrawdown.toString().replace('.', ',')}%`}
+          value={`${metricFormatter.format(maxDrawdown)}%`}
           explanation="Det mesta din portfölj har fallit i värde från sin högsta punkt under valda perioden."
         />
         <RiskMetricItem
           label="Riskeffektivitet"
           sublabel="Sharpe-kvot"
-          value={sharpeRatio.toString().replace('.', ',')}
+          value={metricFormatter.format(sharpeRatio)}
           explanation="Mäter hur mycket avkastning du fått i förhållande till risken du tagit. Ett värde över 1,0 anses bra."
         />
       </div>
