@@ -6,13 +6,17 @@ type NotificationCardProps = {
     timestamp: string;
     category: NotificationCategory;
     icon: string;
+    onDismiss?: () => void;
+    isDismissing?: boolean;
 };
 
 const NotificationCard = ({
     title,
     subtitle,
     timestamp,
-    icon
+    icon,
+    onDismiss,
+    isDismissing = false,
 }: NotificationCardProps) => {
 
     return (
@@ -25,6 +29,19 @@ const NotificationCard = ({
             </div>
 
             <span style={styles.time}>{timestamp}</span>
+
+            {onDismiss && (
+                <button
+                    type="button"
+                    style={styles.dismissButton}
+                    onClick={onDismiss}
+                    disabled={isDismissing}
+                    aria-label={`Avvisa notis: ${title}`}
+                    title="Avvisa notis"
+                >
+                    Avvisa
+                </button>
+            )}
         </div>
     );
 };
@@ -75,5 +92,15 @@ const styles: Record<string, React.CSSProperties> = {
         fontSize: '11px',
         color: '#94A3B8',
         whiteSpace: 'nowrap',
+    },
+    dismissButton: {
+        border: 0,
+        background: 'transparent',
+        color: '#475569',
+        font: 'inherit',
+        fontSize: '12px',
+        padding: '6px 8px',
+        whiteSpace: 'nowrap',
+        cursor: 'pointer',
     },
 };

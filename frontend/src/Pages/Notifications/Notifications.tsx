@@ -33,6 +33,7 @@ interface AlertsResponse {
 
 interface Notification {
     id: string;
+    storedAlertId?: number;
     title: string;
     subtitle: string;
     timestamp: string;
@@ -56,6 +57,7 @@ const Notiser = () => {
     const [activeFilter, setActiveFilter] = useState('Alla');
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [error, setError] = useState<string | null>(null);
+    const [dismissingAlertId, setDismissingAlertId] = useState<number | null>(null);
 
     const filters = [
         'Alla',
@@ -89,6 +91,7 @@ const Notiser = () => {
                         .filter((alert) => !alert.dismissed)
                         .map((alert) => ({
                             id: `stored-${alert.id}`,
+                            storedAlertId: alert.id,
                             title: alert.message,
                             subtitle: 'Varning',
                             timestamp: formatDate(alert.createdAt),
@@ -105,7 +108,7 @@ const Notiser = () => {
                             subtitle: 'Live-varning',
                             timestamp: alert.createdAt,
                             category: 'Värdepapper',
-                            icon: '📈',
+                            icon: '⚠️',
                         }));
 
                 setNotifications([
@@ -133,6 +136,30 @@ const Notiser = () => {
             window.clearInterval(intervalId);
         };
     }, []);
+
+    const dismissAlert = async (alertId: number) => {
+        setDismissingAlertId(alertId);
+
+        try {
+            const response = await fetch(`${API_URL}/api/alerts/${alertId}/dismiss`, {
+                method: 'PUT',
+                credentials: 'include',
+            });
+
+            if (!response.ok) {
+                throw new Error(`Dismiss alert failed: ${response.status}`);
+            }
+
+            setNotifications((current) =>
+                current.filter((notification) => notification.storedAlertId !== alertId)
+            );
+            setError(null);
+        } catch {
+            setError('Kunde inte avvisa notisen. Försök igen.');
+        } finally {
+            setDismissingAlertId(null);
+        }
+    };
 
     const filteredNotifications =
         activeFilter === 'Alla'
@@ -165,16 +192,22 @@ const Notiser = () => {
             )}
 
             <div className="notifications-list">
-                {filteredNotifications.map((notification) => (
-                    <NotificationCard
-                        key={notification.id}
-                        title={notification.title}
-                        subtitle={notification.subtitle}
-                        timestamp={notification.timestamp}
-                        category={notification.category}
-                        icon={notification.icon}
-                    />
-                ))}
+                {filteredNotifications.map((notification) => {
+                    const alertId = notification.storedAlertId;
+
+                    return (
+                        <NotificationCard
+                            key={notification.id}
+                            title={notification.title}
+                            subtitle={notification.subtitle}
+                            timestamp={notification.timestamp}
+                            category={notification.category}
+                            icon={notification.icon}
+                            onDismiss={alertId === undefined ? undefined : () => void dismissAlert(alertId)}
+                            isDismissing={dismissingAlertId !== null}
+                        />
+                    );
+                })}
             </div>
         </div>
     );
