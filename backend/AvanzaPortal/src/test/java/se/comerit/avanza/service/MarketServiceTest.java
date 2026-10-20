@@ -22,6 +22,8 @@ import se.comerit.avanza.dto.market.BacktestRequestDTO;
 import se.comerit.avanza.dto.market.BacktestResponseDTO;
 import se.comerit.avanza.dto.market.FxRateResponseDTO;
 import se.comerit.avanza.entity.HistoricalStockPrice;
+import se.comerit.avanza.exception.FxDataUnavailableException;
+import se.comerit.avanza.exception.UnsupportedCurrencyPairException;
 import se.comerit.avanza.nativebridge.BacktestResultStructure;
 import se.comerit.avanza.nativebridge.BacktestLibrary;
 import se.comerit.avanza.nativebridge.FxLibrary;
@@ -34,9 +36,11 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MarketServiceTest {
@@ -50,14 +54,42 @@ class MarketServiceTest {
         void getFxReturnsRateForKnownPair() {
                 FxLibrary fxLibrary = mock(FxLibrary.class);
                 StockPriceClient stockPriceClient = mock(StockPriceClient.class);
-                when(fxLibrary.fx_rate(eq("USD"), eq("SEK"), anyLong())).thenReturn(1.1539);
+                LocalDate rateDate = LocalDate.of(2026, 10, 20);
+                long rateTimestamp = rateDate.atStartOfDay(ZoneOffset.UTC).toEpochSecond();
+                when(fxLibrary.fx_rate_date(0L)).thenReturn(rateTimestamp);
+                when(fxLibrary.fx_rate("USD", "SEK", 0L)).thenReturn(1.1539);
 
                 MarketService service = createService(fxLibrary, stockPriceClient);
                 FxRateResponseDTO result = service.getFx("usd", "sek");
 
+                assertEquals(rateDate.toString(), result.date());
                 assertEquals("USD", result.base());
                 assertEquals("SEK", result.quote());
                 assertEquals(1.1539, result.rate());
+                verify(fxLibrary).fx_rate_date(0L);
+                verify(fxLibrary).fx_rate("USD", "SEK", 0L);
+        }
+
+        @Test
+        void getFxThrowsUnavailableWhenNoLatestRateDateExists() {
+                FxLibrary fxLibrary = mock(FxLibrary.class);
+                when(fxLibrary.fx_rate_date(0L)).thenReturn(-1L);
+                MarketService service = createService(fxLibrary, mock(StockPriceClient.class));
+
+                assertThrows(FxDataUnavailableException.class, () -> service.getFx("USD", "SEK"));
+                verify(fxLibrary, never()).fx_rate(anyString(), anyString(), anyLong());
+        }
+
+        @Test
+        void getFxThrowsUnsupportedPairWhenRateDataExists() {
+                FxLibrary fxLibrary = mock(FxLibrary.class);
+                LocalDate rateDate = LocalDate.of(2026, 10, 20);
+                when(fxLibrary.fx_rate_date(0L))
+                                .thenReturn(rateDate.atStartOfDay(ZoneOffset.UTC).toEpochSecond());
+                when(fxLibrary.fx_rate("XYZ", "SEK", 0L)).thenReturn(-1.0);
+                MarketService service = createService(fxLibrary, mock(StockPriceClient.class));
+
+                assertThrows(UnsupportedCurrencyPairException.class, () -> service.getFx("XYZ", "SEK"));
         }
 
         @Test
