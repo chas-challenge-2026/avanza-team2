@@ -384,7 +384,7 @@ export const Analyses = () => {
               Tickers: {backtest.tickers.join(', ')}. Period:{' '}
               {backtest.dates[0]}–{backtest.dates[backtest.dates.length - 1]}.
             </p>
-            <p className="text-sm text-amber-700" role="note">
+            <p className="text-sm text-orange-400" role="note">
               Historiska priser har konverterats till SEK med ECB-kursen för respektive handelsdag.
             </p>
           </>
