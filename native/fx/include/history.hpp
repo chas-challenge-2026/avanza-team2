@@ -2,6 +2,7 @@
 
 #include "table.hpp"
 
+#include <cstddef>
 #include <map>
 #include <string>
 

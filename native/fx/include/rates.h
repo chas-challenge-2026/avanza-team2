@@ -33,7 +33,8 @@ double fx_rate(const char* _from, const char* _to, long _date);
  * @param _from Source currency code.
  * @param _to Target currency code.
  * @param _date Unix timestamp, 0 for the latest daily rate.
- * @return The converted amount, or a negative value on failure.
+ * @return The converted amount, or NaN on failure. The amount may itself be
+ * negative, so a negative result is not an error.
  */
 double fx_convert(double _amount, const char* _from, const char* _to, long _date);
 

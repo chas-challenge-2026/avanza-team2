@@ -1,22 +1,22 @@
 const signedPercentFormat = new Intl.NumberFormat('sv-SE', {
   signDisplay: 'exceptZero',
   minimumFractionDigits: 1,
-  maximumFractionDigits: 1,
+  maximumFractionDigits: 2,
 });
 
 const signedSekFormat = new Intl.NumberFormat('sv-SE', {
   signDisplay: 'exceptZero',
-  maximumFractionDigits: 0,
+  maximumFractionDigits: 2,
 });
 
 const decimalFormat = new Intl.NumberFormat('sv-SE', {
   minimumFractionDigits: 1,
-  maximumFractionDigits: 1,
+  maximumFractionDigits: 2,
 });
 
 const sekFormat = new Intl.NumberFormat('sv-SE', {
-  minimumFractionDigits: 1,
-  maximumFractionDigits: 1,
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2,
 });
 
 export const formatSignedPercent = (value: number) => `${signedPercentFormat.format(value)}%`;

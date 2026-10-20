@@ -15,9 +15,14 @@ type HoldingRowProps = {
     onClick?: (id: string) => void;
 };
 
-const formatNumber = (value: number): string =>
+const formatShares = (value: number): string =>
     value.toLocaleString('sv-SE', {
-        maximumFractionDigits: 2,
+        maximumFractionDigits: 0,
+    });
+
+const formatSek = (value: number): string =>
+    value.toLocaleString('sv-SE', {
+        maximumFractionDigits: 0,
     });
 
 const formatReturn = (value: number): string => {
@@ -50,9 +55,9 @@ const HoldingRow = ({ item, onClick }: HoldingRowProps) => {
 
             <div style={styles.rightContent} className="holding-row-right">
                 <span style={styles.text} className="holding-row-shares">
-                    {formatNumber(item.shares)}
+                    {formatShares(item.shares)} st.
                 </span>
-                <span style={styles.text}>{formatNumber(item.value)} SEK</span>
+                <span style={styles.text}>{formatSek(item.value)} SEK</span>
                 <span style={{ ...styles.return, color: returnColor }}>
                     {formatReturn(item.returnPercent)}
                 </span>
@@ -66,8 +71,9 @@ export default HoldingRow;
 
 const styles: Record<string, React.CSSProperties> = {
     row: {
-        display: 'flex',
-        justifyContent: 'space-between',
+        display: 'grid',
+        gridTemplateColumns: 'minmax(0, 1fr) minmax(42px, auto) minmax(76px, auto) minmax(65px, auto) 12px',
+        columnGap: '8px',
         alignItems: 'center',
         padding: '16px 20px',
         backgroundColor: '#FFFFFF',
@@ -81,7 +87,6 @@ const styles: Record<string, React.CSSProperties> = {
         gridTemplateColumns: '40px 1fr',
         alignItems: 'center',
         columnGap: '14px',
-        flex: '1',
         minWidth: 0,
     },
     stockInfo: {
@@ -114,14 +119,13 @@ const styles: Record<string, React.CSSProperties> = {
         color: '#64748B',
     },
     rightContent: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '24px',
+        display: 'contents',
     },
     text: {
         fontSize: '14px',
         fontWeight: 500,
         color: '#334155',
+        textAlign: 'right',
     },
     return: {
         fontSize: '14px',

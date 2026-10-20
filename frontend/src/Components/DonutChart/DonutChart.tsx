@@ -1,5 +1,10 @@
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts';
 
+const percentageFormatter = new Intl.NumberFormat('sv-SE', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
 interface AllocationSlice {
   label: string;
   value: number;
@@ -62,7 +67,9 @@ export const DonutChart = ({
                 />
                 {slice.label}
               </span>
-              <span className="font-semibold text-neutral-900">{slice.value}%</span>
+              <span className="font-semibold text-neutral-900">
+                {percentageFormatter.format(slice.value)}%
+              </span>
             </li>
           ))}
         </ul>

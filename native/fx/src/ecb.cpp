@@ -3,6 +3,7 @@
 #include <curl/curl.h>
 
 #include <charconv>
+#include <cstdio>
 #include <string>
 #include <utility>
 
@@ -62,11 +63,17 @@ std::optional<std::string> http_get(const std::string& _url)
   ensure_curl_global_init();
 
   CURL* curl = curl_easy_init();
-  if (!curl)
+  if (!curl) {
+    std::fprintf(stderr, "fx: curl_easy_init failed\n");
     return std::nullopt;
+  }
+
+  // Filled in by libcurl with details such as the HTTP status on failure.
+  char error[CURL_ERROR_SIZE] = "";
 
   std::string body;
   curl_easy_setopt(curl, CURLOPT_URL, _url.c_str());
+  curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, error);
   curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
   curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1L);
   // The history file is several MB, 30 s leaves plenty of room.
@@ -78,8 +85,11 @@ std::optional<std::string> http_get(const std::string& _url)
   CURLcode result = curl_easy_perform(curl);
   curl_easy_cleanup(curl);
 
-  if (result != CURLE_OK)
+  if (result != CURLE_OK) {
+    std::fprintf(stderr, "fx: GET %s failed: %s\n", _url.c_str(),
+                 error[0] != '\0' ? error : curl_easy_strerror(result));
     return std::nullopt;
+  }
 
   return body;
 }
@@ -127,8 +137,10 @@ std::optional<FxTable> fetch_latest()
     return std::nullopt;
 
   FxTable table = parse_xml(*body);
-  if (table.size() <= 1) // nothing beyond the seeded EUR entry
+  if (table.size() <= 1) { // nothing beyond the seeded EUR entry
+    std::fprintf(stderr, "fx: no rates found in %s\n", daily_url.data());
     return std::nullopt;
+  }
 
   return table;
 }
@@ -171,8 +183,10 @@ std::optional<FxHistory> fetch_history()
     return std::nullopt;
 
   FxHistory history = parse_hist_xml(*body);
-  if (history.empty())
+  if (history.empty()) {
+    std::fprintf(stderr, "fx: no rates found in %s\n", hist_url.data());
     return std::nullopt;
+  }
 
   return history;
 }
