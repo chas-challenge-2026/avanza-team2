@@ -1,5 +1,7 @@
+/// <reference types="node" />
+
 import '@testing-library/jest-dom';
-import { TextEncoder, TextDecoder } from 'util';
+import { TextEncoder, TextDecoder } from 'node:util';
 
 if (!globalThis.TextEncoder) {
   globalThis.TextEncoder = TextEncoder as typeof globalThis.TextEncoder;
