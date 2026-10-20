@@ -1,10 +1,19 @@
-import { useState, useEffect } from 'react';
-import SearchInput from "../../Components/SearchInput/SearchInput";
-import { DropdownBtn, type DropdownOption } from "../../Components/DropdownBtn/DropdownBtn";
-import HoldingRow, { type HoldingItem } from "../../Components/HoldingRow/HoldingRow";
-import "./Holdings.css";
+import { useSearchParams } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
+import SearchInput from '../../Components/SearchInput/SearchInput';
+import {
+    DropdownBtn,
+    type DropdownOption,
+} from '../../Components/DropdownBtn/DropdownBtn';
+import HoldingRow, {
+    type HoldingItem,
+} from '../../Components/HoldingRow/HoldingRow';
+import './Holdings.css';
 
-// Alternativ för konton
+// API base URL from the frontend environment configuration.
+const API_URL = import.meta.env.VITE_API_URL ?? '';
+
+// Available account filter options.
 const ACCOUNT_OPTIONS: DropdownOption[] = [
     { label: 'Alla konton', value: 'all' },
     { label: 'ISK', value: 'isk' },
@@ -12,75 +21,293 @@ const ACCOUNT_OPTIONS: DropdownOption[] = [
     { label: 'Depå', value: 'depa' },
 ];
 
-// Alternativ för valutor
+// Available currency filter options.
 const CURRENCY_OPTIONS: DropdownOption[] = [
+    { label: 'Alla valutor', value: 'all' },
     { label: 'SEK', value: 'sek' },
-    { label: 'EUR', value: 'eur' },
     { label: 'USD', value: 'usd' },
 ];
 
+// Represents a single holding returned by the backend API.
+interface ApiHolding {
+    id: number;
+    ticker: string;
+    instrument_name: string;
+    quantity: number | string;
+    avg_buy_price: number | string | null;
+    currency: string | null;
+    account_type: string | null;
+    account_name: string | null;
+    currentPrice: number | null;
+    marketValue: number | null;
+    pnl: number | null;
+}
+
+// Represents the paginated response returned by the holdings endpoint.
+interface HoldingsResponse {
+    userName: string;
+    holdings: ApiHolding[];
+    accounts: {
+        id: number;
+        account_type: string;
+        account_name: string;
+    }[];
+    page: number;
+    size: number;
+    totalElements: number;
+    totalPages: number;
+}
+
+// Extends the existing frontend model with additional backend properties.
+interface HoldingViewItem extends HoldingItem {
+    accountType: string;
+    accountName: string;
+    currency: string;
+    pnl: number | null;
+}
+
+// Safely converts numeric values returned by the backend.
+const toNumber = (
+    value: number | string | null | undefined,
+): number => {
+    if (value === null || value === undefined) {
+        return 0;
+    }
+
+    const parsed = Number(value);
+
+    return Number.isFinite(parsed) ? parsed : 0;
+};
+
+// Normalizes strings to make searching and filtering case-insensitive.
+const normalize = (value: string | null | undefined): string =>
+    (value ?? '').trim().toLowerCase();
+
+// Formats monetary values using Swedish number formatting.
+const formatCurrency = (value: number): string =>
+    `${value.toLocaleString('sv-SE', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+    })} SEK`;
+
 const Holdings = () => {
-    // 1. States för data, laddning och felhantering
-    const [holdings, setHoldings] = useState<HoldingItem[]>([]);
-    const [loading, setLoading] = useState<boolean>(true);
+    const [searchParams] = useSearchParams();
+    
+    // Reads the selected account from the URL when navigating from the Overview page.
+    const accountFromUrl = searchParams.get('account')?.toLowerCase();
+    const initialAccount =
+    accountFromUrl === 'isk' ||
+    accountFromUrl === 'kf' ||
+    accountFromUrl === 'depa'
+        ? accountFromUrl
+        : 'all';
+
+    // Stores the holdings retrieved from the backend.
+    const [holdings, setHoldings] = useState<HoldingViewItem[]>([]);
+
+    // Tracks the loading state and any API errors.
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // 2. States för filter och sök
+    // Stores the current search query and selected filters.
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedAccount, setSelectedAccount] = useState('all');
-    const [selectedCurrency, setSelectedCurrency] = useState('sek');
+    const [selectedAccount, setSelectedAccount] = useState(initialAccount);
+    const [selectedCurrency, setSelectedCurrency] = useState('all');
 
-    // 3. Hämta data (Här byter du ut mot ert riktiga API-anrop sen, t.ex. fetch('/api/holdings'))
+    // Fetches the authenticated user's holdings when the component mounts.
     useEffect(() => {
+        const controller = new AbortController();
+
         const fetchHoldings = async () => {
             try {
                 setLoading(true);
-                // --- BÖRJAN PÅ DET SOM BYTS UT MOT API SEN ---
-                // Simulerar nätverksfördröjning
-                await new Date(); // bara för att illustrera async
-                const mockData: HoldingItem[] = [
-                    { id: '1', symbol: 'ERIC-B', name: 'Ericsson B', shares: 500, value: 37100, returnPercent: 8.32 },
-                    { id: '2', symbol: 'VOLV-B', name: 'Volvo B', shares: 100, value: 26850, returnPercent: 9.59 },
-                    { id: '3', symbol: 'AAPL', name: 'Apple Inc', shares: 50, value: 97674.7, returnPercent: 13.53 },
-                    { id: '4', symbol: 'SWED-A', name: 'Swedbank A', shares: 200, value: 38620, returnPercent: 4.38 },
-                    { id: '5', symbol: 'SAND', name: 'Sandvik', shares: 200, value: 63840, returnPercent: 3.69 },
-                ];
-                setHoldings(mockData);
-                // --- SLUT PÅ DET SOM BYTS UT ---
+                setError(null);
+
+                // Include cookies so the backend can identify the authenticated user.
+                const response = await fetch(
+                    `${API_URL}/api/holdings?page=0&size=100`,
+                    {
+                        method: 'GET',
+                        credentials: 'include',
+                        signal: controller.signal,
+                    },
+                );
+
+                // Handle unsuccessful HTTP responses.
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        throw new Error(
+                            'Du behöver vara inloggad för att se dina innehav.',
+                        );
+                    }
+
+                    if (response.status === 403) {
+                        throw new Error(
+                            'Du saknar behörighet att visa innehaven.',
+                        );
+                    }
+
+                    throw new Error(
+                        `Kunde inte hämta innehaven. HTTP ${response.status}.`,
+                    );
+                }
+
+                // Parse the JSON response returned by the backend.
+                const data =
+                    (await response.json()) as HoldingsResponse;
+
+                // Validate that the response contains a holdings array.
+                if (!Array.isArray(data.holdings)) {
+                    throw new Error(
+                        'Backend returnerade ett oväntat svar.',
+                    );
+                }
+
+                // Map backend field names to the existing frontend model.
+                const mappedHoldings: HoldingViewItem[] =
+                    data.holdings.map((holding) => {
+                        const quantity = toNumber(holding.quantity);
+                        const pnl = holding.pnl;
+                        const marketValue = toNumber(holding.marketValue);
+
+                        const returnPercent =
+                            pnl !== null && marketValue - pnl > 0
+                                ? (pnl / (marketValue - pnl)) * 100
+                                : 0;
+
+                        return {
+                            id: String(holding.id),
+                            symbol: holding.ticker ?? '',
+                            name: holding.instrument_name ?? '',
+                            shares: quantity,
+                            value: marketValue,
+                            returnPercent,
+                            accountType: holding.account_type ?? '',
+                            accountName: holding.account_name ?? '',
+                            currency: holding.currency ?? 'SEK',
+                            pnl,
+                        };
+                    });
+
+                // Update the component state only if the request is still active.
+                if (!controller.signal.aborted) {
+                    setHoldings(mappedHoldings);
+                }
             } catch (err) {
-                setError('Kunde inte hämta innehav. Försök igen senare.');
-                console.error(err);
+                // Ignore errors caused by intentionally cancelled requests.
+                if (controller.signal.aborted) {
+                    return;
+                }
+
+                console.error('Failed to fetch holdings:', err);
+
+                // Display a user-friendly error message.
+                setError(
+                    err instanceof Error
+                        ? err.message
+                        : 'Ett oväntat fel inträffade när innehaven skulle hämtas.',
+                );
             } finally {
-                setLoading(false);
+                // Reset the loading state when the request finishes.
+                if (!controller.signal.aborted) {
+                    setLoading(false);
+                }
             }
         };
 
         fetchHoldings();
-    }, [selectedAccount, selectedCurrency]); // Om du vill skicka med konton/valuta till API:et kan du lägga till dem här i beroendelistan!
 
-    // Filtrera innehav baserat på sökning (och eventuellt konto/valuta när API-filtren är på plats)
-    const filteredHoldings = holdings.filter(
-        (item) =>
-            item.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            item.name.toLowerCase().includes(searchQuery.toLowerCase())
+        // Cancel the request if the component unmounts.
+        return () => {
+            controller.abort();
+        };
+    }, []);
+
+    // Filters holdings by search query, account type, and currency.
+    const filteredHoldings = useMemo(() => {
+        const query = normalize(searchQuery);
+
+        return holdings.filter((item) => {
+            // Match the search query against the ticker symbol or instrument name.
+            const matchesSearch =
+                normalize(item.symbol).includes(query) ||
+                normalize(item.name).includes(query);
+
+            // Match the selected account against the account type or account name.
+            const accountType = normalize(item.accountType);
+            const accountName = normalize(item.accountName);
+
+            const matchesAccount =
+                selectedAccount === 'all' ||
+                accountType === selectedAccount ||
+                accountName.includes(selectedAccount);
+
+            // Match the selected currency.
+            const matchesCurrency =
+                selectedCurrency === 'all' ||
+                normalize(item.currency) === selectedCurrency;
+
+            return (
+                matchesSearch &&
+                matchesAccount &&
+                matchesCurrency
+            );
+        });
+    }, [
+        holdings,
+        searchQuery,
+        selectedAccount,
+        selectedCurrency,
+    ]);
+
+    // Calculate the total market value of the filtered holdings.
+    const totalValue = filteredHoldings.reduce(
+        (total, item) => total + item.value,
+        0,
     );
+
+    // Calculate the total profit or loss reported by the backend.
+    const totalReturn = filteredHoldings.reduce(
+        (total, item) => total + (item.pnl ?? 0),
+        0,
+    );
+
+    // Estimate the invested value from the market value and reported profit or loss.
+    const totalInvested = filteredHoldings.reduce(
+        (total, item) => total + item.value - (item.pnl ?? 0),
+        0,
+    );
+
+    // Calculate the overall return percentage when the invested value is positive.
+    const totalReturnPercent =
+        totalInvested > 0
+            ? (totalReturn / totalInvested) * 100
+            : 0;
+
+    // Select the appropriate CSS class for positive or negative returns.
+    const returnClass =
+        totalReturn >= 0 ? 'positive' : 'negative';
 
     return (
         <div className="holdings-container">
             <h1 className="holdings-title">Mina Innehav</h1>
 
-            {/* Sökfält och filterknappar */}
+            {/* Search field and filter controls. */}
             <div className="holdings-filter-section">
-                <SearchInput value={searchQuery} onChange={setSearchQuery} />
-                
+                <SearchInput
+                    value={searchQuery}
+                    onChange={setSearchQuery}
+                />
+
                 <div className="holdings-filter-buttons">
-                    <DropdownBtn 
+                    <DropdownBtn
                         options={ACCOUNT_OPTIONS}
                         value={selectedAccount}
                         onChange={setSelectedAccount}
                         placeholder="Välj konto"
                     />
-                    <DropdownBtn 
+
+                    <DropdownBtn
                         options={CURRENCY_OPTIONS}
                         value={selectedCurrency}
                         onChange={setSelectedCurrency}
@@ -89,70 +316,170 @@ const Holdings = () => {
                 </div>
             </div>
 
-            {/* KPI-kort */}
+            {/* Summary cards displaying the current portfolio values. */}
             <div className="holdings-kpi-grid">
                 <div className="holdings-kpi-card">
-                    <span className="holdings-kpi-label">Totalt värde</span>
-                    <div className="holdings-kpi-value">264 284,7 SEK</div>
-                    <div className="holdings-kpi-trend positive">↑ 1,23% idag</div>
+                    <span className="holdings-kpi-label">
+                        Totalt värde
+                    </span>
+
+                    <div className="holdings-kpi-value">
+                        {formatCurrency(totalValue)}
+                    </div>
+
+                    <div
+                        className={`holdings-kpi-trend ${returnClass}`}
+                    >
+                        {totalReturnPercent >= 0 ? '+' : ''}
+                        {totalReturnPercent.toLocaleString('sv-SE', {
+                            maximumFractionDigits: 2,
+                        })}
+                        % avkastning
+                    </div>
                 </div>
+
                 <div className="holdings-kpi-card">
-                    <span className="holdings-kpi-label">Avkastning (SEK)</span>
-                    <div className="holdings-kpi-value">+38 620</div>
-                    <div className="holdings-kpi-trend positive">↑ 1,23%</div>
+                    <span className="holdings-kpi-label">
+                        Avkastning (SEK)
+                    </span>
+
+                    <div className="holdings-kpi-value">
+                        {totalReturn >= 0 ? '+' : ''}
+                        {formatCurrency(totalReturn)}
+                    </div>
+
+                    <div
+                        className={`holdings-kpi-trend ${returnClass}`}
+                    >
+                        {filteredHoldings.length} innehav
+                    </div>
                 </div>
             </div>
 
-            {/* Innehav-lista med stöd för laddning och fel */}
+            {/* Holdings list with loading, error, and empty states. */}
             <div className="holdings-section-box">
-                <h3 className="holdings-section-title">Innehav</h3>
-                
+                <h3 className="holdings-section-title">
+                    Innehav
+                </h3>
+
                 {loading && (
-                    <div style={{ padding: '30px', textAlign: 'center', color: '#64748B', fontSize: '14px' }}>
+                    <div
+                        style={{
+                            padding: '30px',
+                            textAlign: 'center',
+                            color: '#64748B',
+                            fontSize: '14px',
+                        }}
+                    >
                         Laddar innehav...
                     </div>
                 )}
 
                 {error && (
-                    <div style={{ padding: '30px', textAlign: 'center', color: '#DC2626', fontSize: '14px' }}>
+                    <div
+                        style={{
+                            padding: '30px',
+                            textAlign: 'center',
+                            color: '#DC2626',
+                            fontSize: '14px',
+                        }}
+                    >
                         {error}
                     </div>
                 )}
 
-                {!loading && !error && filteredHoldings.length === 0 && (
-                    <div style={{ padding: '30px', textAlign: 'center', color: '#64748B', fontSize: '14px' }}>
-                        Inga innehav hittades.
+                {!loading &&
+                    !error &&
+                    filteredHoldings.length === 0 && (
+                        <div
+                            style={{
+                                padding: '30px',
+                                textAlign: 'center',
+                                color: '#64748B',
+                                fontSize: '14px',
+                            }}
+                        >
+                            Inga innehav hittades.
+                        </div>
+                    )}
+
+                {!loading && !error && filteredHoldings.length > 0 && (
+                    <div className="holdings-column-heading">
+                        <span>Aktie</span>
+                        <span>Antal aktier (st.)</span>
+                        <span>Värde (SEK)</span>
+                        <span>Avkastning</span>
+                        <span aria-hidden="true" />
                     </div>
                 )}
 
                 {!loading && !error && (
                     <div>
                         {filteredHoldings.map((item) => (
-                            <HoldingRow 
-                                key={item.id} 
-                                item={item} 
-                                onClick={(id) => console.log('Klickade på innehav:', id)} 
+                            <HoldingRow
+                                key={item.id}
+                                item={item}
+                                onClick={(id) =>
+                                    console.log(
+                                        'Clicked holding:',
+                                        id,
+                                    )
+                                }
                             />
                         ))}
                     </div>
                 )}
             </div>
 
-            {/* Total innehav */}
+            {/* Detailed summary of the filtered holdings. */}
             <div className="holdings-section-box">
-                <h3 className="holdings-section-title">Total innehav</h3>
+                <h3 className="holdings-section-title">
+                    Total innehav
+                </h3>
+
                 <div className="holdings-summary-content">
                     <div className="summary-row">
-                        <span className="summary-label">Värde totalt</span>
-                        <span className="summary-value">264 284 SEK</span>
+                        <span className="summary-label">
+                            Värde totalt
+                        </span>
+
+                        <span className="summary-value">
+                            {formatCurrency(totalValue)}
+                        </span>
                     </div>
+
                     <div className="summary-row">
-                        <span className="summary-label">Avkastning (SEK)</span>
-                        <span className="summary-value positive">+38 620 SEK</span>
+                        <span className="summary-label">
+                            Avkastning (SEK)
+                        </span>
+
+                        <span
+                            className={`summary-value ${returnClass}`}
+                        >
+                            {totalReturn >= 0 ? '+' : ''}
+                            {formatCurrency(totalReturn)}
+                        </span>
                     </div>
-                    <div className="summary-row" style={{ borderBottom: 'none' }}>
-                        <span className="summary-label">Avkastning (%)</span>
-                        <span className="summary-value positive">1,23%</span>
+
+                    <div
+                        className="summary-row"
+                        style={{ borderBottom: 'none' }}
+                    >
+                        <span className="summary-label">
+                            Avkastning (%)
+                        </span>
+
+                        <span
+                            className={`summary-value ${returnClass}`}
+                        >
+                            {totalReturnPercent.toLocaleString(
+                                'sv-SE',
+                                {
+                                    maximumFractionDigits: 2,
+                                },
+                            )}
+                            %
+                        </span>
                     </div>
                 </div>
             </div>

@@ -7,6 +7,7 @@
 
 #include <chrono>
 #include <ctime>
+#include <limits>
 #include <memory>
 #include <optional>
 
@@ -72,8 +73,9 @@ extern "C" double fx_rate(const char* _from, const char* _to, long _date)
 
 extern "C" double fx_convert(double _amount, const char* _from, const char* _to, long _date)
 {
+  // A negative amount gives a negative result, so failure has to be NaN here.
   auto rate = lookup(_from, _to, _date);
-  return rate ? _amount * *rate : -1.0;
+  return rate ? _amount * *rate : std::numeric_limits<double>::quiet_NaN();
 }
 
 extern "C" long fx_rate_date(long _date)

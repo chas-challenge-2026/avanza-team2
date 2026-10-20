@@ -14,28 +14,67 @@ type HoldingRowProps = {
     onClick?: (id: string) => void;
 };
 
+const formatShares = (value: number): string =>
+    value.toLocaleString('sv-SE', {
+        maximumFractionDigits: 0,
+    });
+
+const formatSek = (value: number): string =>
+    value.toLocaleString('sv-SE', {
+        maximumFractionDigits: 0,
+    });
+
+// Formats percentage returns with two decimal places and the correct sign.
+const formatReturn = (value: number): string => {
+    const formattedValue = value.toLocaleString('sv-SE', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    });
+
+    return value >= 0
+        ? `+${formattedValue}%`
+        : `${formattedValue}%`;
+};
+
 const HoldingRow = ({ item, onClick }: HoldingRowProps) => {
+    // Use green for positive returns and red for negative returns.
+    const returnColor =
+        item.returnPercent >= 0 ? '#16A34A' : '#DC2626';
+
     return (
-        <div style={styles.row} onClick={() => onClick && onClick(item.id)}>
+        <div
+            style={styles.row}
+            onClick={() => onClick && onClick(item.id)}
+        >
             <div style={styles.leftContent}>
                 <div style={styles.iconContainer}>
                     <span>📈</span>
                 </div>
-                <div>
+
+                <div style={styles.stockInfo}>
                     <h4 style={styles.symbol}>{item.symbol}</h4>
                     <p style={styles.name}>{item.name}</p>
                 </div>
             </div>
 
             <div style={styles.rightContent}>
-                <span style={styles.text}>{item.shares}</span>
-                <span style={styles.text}>{item.value.toLocaleString('sv-SE')} SEK</span>
-                <span style={{ 
-                    ...styles.return, 
-                    color: item.returnPercent >= 0 ? '#16A34A' : '#DC2626' 
-                }}>
-                    {item.returnPercent >= 0 ? `+${item.returnPercent}%` : `${item.returnPercent}%`}
+                <span style={styles.text}>
+                    {formatShares(item.shares)} st.
                 </span>
+
+                <span style={styles.text}>
+                    {formatSek(item.value)} SEK
+                </span>
+
+                <span
+                    style={{
+                        ...styles.return,
+                        color: returnColor,
+                    }}
+                >
+                    {formatReturn(item.returnPercent)}
+                </span>
+
                 <span style={styles.arrow}>›</span>
             </div>
         </div>
@@ -46,8 +85,9 @@ export default HoldingRow;
 
 const styles: Record<string, React.CSSProperties> = {
     row: {
-        display: 'flex',
-        justifyContent: 'space-between',
+        display: 'grid',
+        gridTemplateColumns: 'minmax(0, 1fr) minmax(42px, auto) minmax(76px, auto) minmax(65px, auto) 12px',
+        columnGap: '8px',
         alignItems: 'center',
         padding: '16px 20px',
         backgroundColor: '#FFFFFF',
@@ -57,19 +97,29 @@ const styles: Record<string, React.CSSProperties> = {
         transition: 'background-color 0.2s ease',
     },
     leftContent: {
-        display: 'flex',
+        display: 'grid',
+        gridTemplateColumns: '40px 1fr',
         alignItems: 'center',
-        gap: '14px',
+        columnGap: '14px',
+        minWidth: 0,
+    },
+    stockInfo: {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        minWidth: 0,
     },
     iconContainer: {
         width: '40px',
         height: '40px',
+        boxSizing: 'border-box',
         borderRadius: '10px',
         backgroundColor: '#EFF6FF',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         fontSize: '18px',
+        flexShrink: 0,
     },
     symbol: {
         margin: 0,
@@ -83,20 +133,20 @@ const styles: Record<string, React.CSSProperties> = {
         color: '#64748B',
     },
     rightContent: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '24px',
+        display: 'contents',
     },
     text: {
         fontSize: '14px',
         fontWeight: 500,
         color: '#334155',
+        textAlign: 'right',
     },
     return: {
         fontSize: '14px',
         fontWeight: 600,
-        width: '60px',
+        width: '75px',
         textAlign: 'right',
+        whiteSpace: 'nowrap',
     },
     arrow: {
         fontSize: '18px',

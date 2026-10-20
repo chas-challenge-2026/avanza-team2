@@ -71,7 +71,6 @@ class PortfolioServiceTest {
         @InjectMocks
         private PortfolioService portfolioService;
 
-
         @Test
         void shouldFindByEmailAndReturnUser() {
                 // Arrange
@@ -272,12 +271,10 @@ class PortfolioServiceTest {
                                 "USD",
                                 null);
 
-                Map<String, Double> prices =
-                                portfolioService.getCurrentPrices(List.of(holding));
+                Map<String, Double> prices = portfolioService.getCurrentPrices(List.of(holding));
 
                 // Act
-                EnrichedHoldingDTO result =
-                                portfolioService.enrichSingleHolding(holding, prices);
+                EnrichedHoldingDTO result = portfolioService.enrichSingleHolding(holding, prices);
 
                 // Assert
                 assertEquals(187.32, result.currentPrice(), 0.001);
@@ -305,11 +302,9 @@ class PortfolioServiceTest {
 
                 Map<Long, String> accountTypeMap = Map.of(10L, "ISK");
 
-                Map<String, Double> accountTypeTotals =
-                                portfolioService.initializeAccountTypeTotals();
+                Map<String, Double> accountTypeTotals = portfolioService.initializeAccountTypeTotals();
 
-                Map<String, Double> prices =
-                                portfolioService.getCurrentPrices(List.of(holding));
+                Map<String, Double> prices = portfolioService.getCurrentPrices(List.of(holding));
 
                 // Act
                 double result = portfolioService.calculatePortfolioTotals(
@@ -341,14 +336,11 @@ class PortfolioServiceTest {
                 when(marketService.getPrice("UNKNOWN"))
                                 .thenReturn(Optional.empty());
 
-                Map<String, Double> prices =
-                                portfolioService.getCurrentPrices(List.of(holding));
+                Map<String, Double> prices = portfolioService.getCurrentPrices(List.of(holding));
 
-                Map<Long, String> accountTypeMap =
-                                Map.of(10L, "ISK");
+                Map<Long, String> accountTypeMap = Map.of(10L, "ISK");
 
-                Map<String, Double> accountTypeTotals =
-                                portfolioService.initializeAccountTypeTotals();
+                Map<String, Double> accountTypeTotals = portfolioService.initializeAccountTypeTotals();
 
                 // Act
                 double result = portfolioService.calculatePortfolioTotals(
@@ -377,8 +369,7 @@ class PortfolioServiceTest {
                 prices.put("UNKNOWN", null);
 
                 // Act
-                EnrichedHoldingDTO result =
-                                portfolioService.enrichSingleHolding(holding, prices);
+                EnrichedHoldingDTO result = portfolioService.enrichSingleHolding(holding, prices);
 
                 // Assert
                 assertNull(result.currentPrice());
@@ -390,8 +381,7 @@ class PortfolioServiceTest {
         @Test
         void shouldReturnZeroForEmptyPortfolio() {
                 // Arrange
-                Map<String, Double> accountTypeTotals =
-                                portfolioService.initializeAccountTypeTotals();
+                Map<String, Double> accountTypeTotals = portfolioService.initializeAccountTypeTotals();
 
                 // Act
                 double result = portfolioService.calculatePortfolioTotals(
@@ -437,10 +427,30 @@ class PortfolioServiceTest {
         }
 
         @Test
+        void shouldPreserveAllocationPrecisionSoActualsSumToOneHundred() {
+                Map<String, Double> totals = Map.of(
+                                "ISK", 1.0,
+                                "KF", 1.0,
+                                "Depa", 1.0,
+                                "Pension", 0.0);
+
+                List<AllocationRowDTO> result = portfolioService.detectDrift(
+                                totals,
+                                List.of(),
+                                3.0);
+
+                double actualSum = result.stream()
+                                .mapToDouble(AllocationRowDTO::actual)
+                                .sum();
+
+                assertEquals(100.0, actualSum, 1e-10);
+                assertEquals(100.0 / 3.0, result.get(0).actual(), 1e-10);
+        }
+
+        @Test
         void shouldHandleDriftWhenPortfolioIsEmpty() {
                 // Arrange
-                Map<String, Double> totals =
-                                portfolioService.initializeAccountTypeTotals();
+                Map<String, Double> totals = portfolioService.initializeAccountTypeTotals();
 
                 // Act
                 List<AllocationRowDTO> result = portfolioService.detectDrift(
@@ -531,8 +541,7 @@ class PortfolioServiceTest {
                                 "SEK",
                                 account);
 
-                Map<String, Double> accountTypeTotals =
-                                portfolioService.initializeAccountTypeTotals();
+                Map<String, Double> accountTypeTotals = portfolioService.initializeAccountTypeTotals();
 
                 // Act
                 double result = portfolioService.calculatePortfolioTotals(

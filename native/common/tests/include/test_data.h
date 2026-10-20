@@ -4,6 +4,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /** Generates a sample array with _n amount of randomized doubles
  * *_arr must be allocated beforehand */
@@ -36,5 +39,9 @@ void test_gen_sample_arr_int8(int8_t *_arr,
   const int8_t _base_start,        // Base value
   const int8_t _base_step,         // Deviation from base value each increment
   const int8_t _noise_magnitude);  // Fluctuation 
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // __RISK_TESTS_H__

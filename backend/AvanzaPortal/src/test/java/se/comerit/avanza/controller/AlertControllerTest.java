@@ -121,4 +121,18 @@ class AlertControllerTest {
                                 "Alert dismissed successfully",
                                 response.getBody().get("message"));
         }
+
+        @Test
+        void shouldReturnUnauthorizedForDismissAlert() {
+                // Arrange
+                Long alertId = 1L;
+                when(authentication.getName())
+                                .thenReturn(null);
+
+                // Act
+                ResponseEntity<Map<String, Object>> response = alertController.dismissAlert(alertId, authentication);
+
+                // Assert
+                assertEquals(401, response.getStatusCode().value());
+        }
 }

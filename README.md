@@ -36,26 +36,26 @@ JWT_SECRET=change_me_to_a_random_32_char_min_string
 MARKETSTACK_API_KEY=your_marketstack_api_key
 ```
 
-4. Öppna **Terminal 1** och följande kommando för att starta docker:
+4. Öppna **Terminal** och använd följande kommando för att starta docker(frontend, backend, native samt databas är samlade i en docker fil):
 
 ```bash
 cd infra
 docker compose --env-file .env up --build
 ```
 
-5. Öppna **Terminal 2** och följande kommando för att starta frontend:
+vid behöv av omstart
 
 ```bash
-cd frontend
-npm install
-npm run dev
+cd infra
+docker compose down -v
+docker compose --env-file .env up --build
 ```
 
-6.  Öppna din lokala websida på denna porten och använd följande test användare:
+5.  Öppna din lokala websida på denna porten och använd följande test användare:
 
 **Port**
 
-- `http://localhost:5173`
+- `http://localhost:8082`
 
 **Testanvändare:**
 
@@ -69,7 +69,7 @@ npm run dev
 | Backend  | Spring Boot 3.2.12, Java 21, Maven          |
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS    |
 | Native   | C, C++                                      |
-| Databas  | PostgreSQL 12 (seedas via `infra/seed.sql`) |
+| Databas  | PostgreSQL 15 (seedas via `infra/seed.sql`) |
 | Deploy   | Docker Compose                              |
 
 ## Utveckling
@@ -96,13 +96,17 @@ Databasuppkoppling (`SPRING_DATASOURCE_*`) sätts i [infra/docker-compose.yml](i
 Lokal portmappning ändras i [infra/docker-compose.override.yml](infra/docker-compose.override.yml) —
 rör aldrig `docker-compose.yml`, se [DRIFT.md](DRIFT.md) för plattformskontraktet.
 
-## Dokumentation
+## Alla dokumentations filer
 
 - [docs/architecture.md](docs/architecture.md) — systembeskrivning för v1
 - [docs/known-bugs.md](docs/known-bugs.md) — kända fel/antipatterns (uppgiftslista)
 - [docs/README-pain-points.md](docs/README-pain-points.md) — vad som spricker vid skala
 - [docs/v2-targets.md](docs/v2-targets.md) — målarkitektur för v2
 - [DRIFT.md](DRIFT.md) — drift och deploy
-- [backend/AvanzaPortal/Backend-ReadMe.md](backend/AvanzaPortal/Backend-ReadMe.md) — startguide, arkitektur, API och testning för Java-backenden
+- [backend/AvanzaPortal/DEVELOPMENT.md](backend/AvanzaPortal/DEVELOPMENT.md) — startguide, arkitektur, API och testning för Java-backenden
+- [frontend/DEVELOPMENT.md](frontend/DEVELOPMENT.md) — utveckling, struktur, API och byggning av frontend
+- [native/README.md](native/README.md) — översikt över native-modulerna och JNA-integrationen
+- [native/fx/README.md](native/fx/README.md) — FX-pipeline: ECB-kurser, cache och C-API för JNA
+- [native/risk/README.md](native/risk/README.md) — riskmodulen
 - [native/docs/BUILD.md](native/docs/BUILD.md) — native-dokumentation
 - [native/docs/CONTRIBUTE.md](native/docs/CONTRIBUTE.md) — information om kodstilen

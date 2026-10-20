@@ -6,9 +6,5 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 
 public record UpdateTargetAllocationsRequestDTO(
-    
-    @NotEmpty
-    List<@Valid TargetAllocationRequestDTO> allocations
-) {
-    
+        @NotEmpty List<@Valid TargetAllocationRequestDTO> allocations) {
 }

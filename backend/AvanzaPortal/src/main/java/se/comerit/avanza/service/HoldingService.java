@@ -18,6 +18,7 @@ import se.comerit.avanza.dto.holdings.HoldingResponseDTO;
 import se.comerit.avanza.entity.Account;
 import se.comerit.avanza.entity.Holdings;
 import se.comerit.avanza.entity.User;
+import se.comerit.avanza.exception.ResourceNotFoundException;
 import se.comerit.avanza.repository.AccountRepository;
 import se.comerit.avanza.repository.HoldingsRepository;
 import se.comerit.avanza.repository.UserRepository;
@@ -88,8 +89,9 @@ public class HoldingService {
             double currentPrice = price.get().doubleValue();
             double quantity = ((BigDecimal) holding.get("quantity")).doubleValue();
             double averageBuyPrice = ((BigDecimal) holding.get("avg_buy_price")).doubleValue();
-            double marketValue = quantity * currentPrice;
-            double costBasis = quantity * averageBuyPrice;
+            double conversionRate = getSekConversionRate((String) holding.get("currency"));
+            double marketValue = toSek(quantity * currentPrice, conversionRate);
+            double costBasis = toSek(quantity * averageBuyPrice, conversionRate);
 
             holding.put("currentPrice", currentPrice);
             holding.put("marketValue", roundToTwoDecimals(marketValue));
@@ -103,6 +105,16 @@ public class HoldingService {
         return Math.round(value * 100.0) / 100.0;
     }
 
+    private double getSekConversionRate(String currency) {
+        return "USD".equalsIgnoreCase(currency)
+                ? marketService.getFx("USD", "SEK").rate()
+                : 1.0;
+    }
+
+    private double toSek(double amount, double conversionRate) {
+        return amount * conversionRate;
+    }
+
     private void addHolding(Integer accountId, String ticker, String instrumentName, String quantity,
             String avgBuyPrice, String currency) {
 
@@ -110,7 +122,7 @@ public class HoldingService {
         BigDecimal parsedAvgBuyPrice = new BigDecimal(avgBuyPrice);
 
         Account account = accountRepository.findById(accountId.longValue())
-                .orElseThrow(() -> new IllegalArgumentException("Account not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
 
         Holdings holding = new Holdings(ticker.toUpperCase(), instrumentName, parsedQuantity, parsedAvgBuyPrice,
                 currency, account);
@@ -148,8 +160,9 @@ public class HoldingService {
                     .orElseThrow(() -> new RuntimeException("Failed to retrieve current price for ticker: " + ticker));
             double quantity = ((BigDecimal) holding.get("quantity")).doubleValue();
             double averageBuyPrice = ((BigDecimal) holding.get("avg_buy_price")).doubleValue();
-            double marketValue = quantity * currentPrice;
-            double costBasis = quantity * averageBuyPrice;
+            double conversionRate = getSekConversionRate((String) holding.get("currency"));
+            double marketValue = toSek(quantity * currentPrice, conversionRate);
+            double costBasis = toSek(quantity * averageBuyPrice, conversionRate);
 
             holding.put("currentPrice", currentPrice);
             holding.put("marketValue", roundToTwoDecimals(marketValue));

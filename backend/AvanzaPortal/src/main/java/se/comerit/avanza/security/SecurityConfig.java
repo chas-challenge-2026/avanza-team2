@@ -15,6 +15,14 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+/**
+ * SecurityConfig is a Spring Security configuration class.
+ * It defines the security filter chain, password encoder, and CORS
+ * configuration for the application.
+ * 
+ * Provides configuration for securing the application, including JWT
+ * authentication and CORS settings.
+ */
 @Configuration
 public class SecurityConfig {
 

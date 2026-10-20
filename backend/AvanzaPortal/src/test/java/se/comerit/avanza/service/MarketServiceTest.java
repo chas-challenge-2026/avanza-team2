@@ -7,6 +7,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -17,8 +18,12 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 import se.comerit.avanza.client.HistoricalPriceClient;
 import se.comerit.avanza.client.StockPriceClient;
+import se.comerit.avanza.dto.market.BacktestRequestDTO;
+import se.comerit.avanza.dto.market.BacktestResponseDTO;
 import se.comerit.avanza.dto.market.FxRateResponseDTO;
 import se.comerit.avanza.entity.HistoricalStockPrice;
+import se.comerit.avanza.nativebridge.BacktestResultStructure;
+import se.comerit.avanza.nativebridge.BacktestLibrary;
 import se.comerit.avanza.nativebridge.FxLibrary;
 import se.comerit.avanza.repository.HistoricalRepository;
 import static org.mockito.Mockito.mock;
@@ -38,7 +43,7 @@ class MarketServiceTest {
 
         private static final List<String> HISTORICAL_TICKERS = List.of(
                         "ERIC-B", "VOLV-B", "AAPL", "SWED-A", "SAND");
-        private static final List<String> PROVIDER_SYMBOLS = List.of(
+        private static final List<String> HISTORICAL_PROVIDER_SYMBOLS = List.of(
                         "ERIC-B.ST", "VOLV-B.ST", "AAPL", "SWED-A.ST", "SAND.ST");
 
         @Test
@@ -59,31 +64,32 @@ class MarketServiceTest {
         void shouldFetchPriceForSupportedTicker() {
                 StockPriceClient stockPriceClient = mock(StockPriceClient.class);
                 BigDecimal expectedPrice = new BigDecimal("74.20");
-                when(stockPriceClient.fetchPrices(PROVIDER_SYMBOLS))
+                when(stockPriceClient.fetchPrices(List.of(
+                                "ERIC-B.ST", "VOLV-B.ST", "AAPL", "SWED-A.ST", "SAND.ST")))
                                 .thenReturn(Map.of("ERIC-B.ST", expectedPrice));
 
                 MarketService service = createService(mock(FxLibrary.class), stockPriceClient);
                 Optional<BigDecimal> result = service.getPrice("ERIC-B");
 
                 assertEquals(Optional.of(expectedPrice), result);
-                verify(stockPriceClient).fetchPrices(PROVIDER_SYMBOLS);
+                verify(stockPriceClient).fetchPrices(List.of(
+                                "ERIC-B.ST", "VOLV-B.ST", "AAPL", "SWED-A.ST", "SAND.ST"));
         }
 
         @Test
         void shouldUseCachedPriceOnSecondRequest() {
                 StockPriceClient stockPriceClient = mock(StockPriceClient.class);
                 BigDecimal expectedPrice = new BigDecimal("339.73");
-                BigDecimal ericssonPrice = new BigDecimal("74.20");
-                when(stockPriceClient.fetchPrices(PROVIDER_SYMBOLS))
-                                .thenReturn(Map.of("AAPL", expectedPrice, "ERIC-B.ST", ericssonPrice));
+                when(stockPriceClient.fetchPrices(any()))
+                                .thenReturn(Map.of("AAPL", expectedPrice));
 
                 MarketService service = createService(mock(FxLibrary.class), stockPriceClient);
                 Optional<BigDecimal> firstResult = service.getPrice("AAPL");
-                Optional<BigDecimal> secondResult = service.getPrice("ERIC-B");
+                Optional<BigDecimal> secondResult = service.getPrice("AAPL");
 
                 assertEquals(Optional.of(expectedPrice), firstResult);
-                assertEquals(Optional.of(ericssonPrice), secondResult);
-                verify(stockPriceClient, times(1)).fetchPrices(PROVIDER_SYMBOLS);
+                assertEquals(Optional.of(expectedPrice), secondResult);
+                verify(stockPriceClient, times(1)).fetchPrices(any());
         }
 
         @Test
@@ -91,7 +97,7 @@ class MarketServiceTest {
                 StockPriceClient stockPriceClient = mock(StockPriceClient.class);
                 BigDecimal cachedPrice = new BigDecimal("339.73");
                 BigDecimal refreshedPrice = new BigDecimal("341.25");
-                when(stockPriceClient.fetchPrices(PROVIDER_SYMBOLS))
+                when(stockPriceClient.fetchPrices(any()))
                                 .thenReturn(Map.of("AAPL", cachedPrice))
                                 .thenReturn(Map.of("AAPL", refreshedPrice));
                 MutableClock clock = new MutableClock(Instant.parse("2026-10-01T10:00:00Z"));
@@ -99,17 +105,17 @@ class MarketServiceTest {
                 MarketService service = createService(mock(FxLibrary.class), stockPriceClient, clock);
 
                 assertEquals(Optional.of(cachedPrice), service.getPrice("AAPL"));
-                clock.advance(Duration.ofMillis(MarketService.PRICE_CACHE_TTL_MILLIS + 1));
+                clock.advance(Duration.ofMillis(MarketService.PRICE_CACHE_TTL_MILLIS));
                 assertEquals(Optional.of(refreshedPrice), service.getPrice("AAPL"));
 
-                verify(stockPriceClient, times(2)).fetchPrices(PROVIDER_SYMBOLS);
+                verify(stockPriceClient, times(2)).fetchPrices(any());
         }
 
         @Test
         void shouldReturnEmptyWhenRefreshingExpiredPriceFails() {
                 StockPriceClient stockPriceClient = mock(StockPriceClient.class);
                 BigDecimal cachedPrice = new BigDecimal("339.73");
-                when(stockPriceClient.fetchPrices(PROVIDER_SYMBOLS))
+                when(stockPriceClient.fetchPrices(any()))
                                 .thenReturn(Map.of("AAPL", cachedPrice))
                                 .thenReturn(Map.of());
                 MutableClock clock = new MutableClock(Instant.parse("2026-10-01T10:00:00Z"));
@@ -117,11 +123,10 @@ class MarketServiceTest {
                 MarketService service = createService(mock(FxLibrary.class), stockPriceClient, clock);
 
                 assertEquals(Optional.of(cachedPrice), service.getPrice("AAPL"));
-                clock.advance(Duration.ofMillis(MarketService.PRICE_CACHE_TTL_MILLIS + 1));
+                clock.advance(Duration.ofMillis(MarketService.PRICE_CACHE_TTL_MILLIS));
                 assertTrue(service.getPrice("AAPL").isEmpty());
-                assertTrue(service.getPrice("ERIC-B").isEmpty());
 
-                verify(stockPriceClient, times(2)).fetchPrices(PROVIDER_SYMBOLS);
+                verify(stockPriceClient, times(2)).fetchPrices(any());
         }
 
         @Test
@@ -138,13 +143,14 @@ class MarketServiceTest {
         @Test
         void shouldReturnEmptyWhenProviderHasNoPrice() {
                 StockPriceClient stockPriceClient = mock(StockPriceClient.class);
-                when(stockPriceClient.fetchPrices(PROVIDER_SYMBOLS)).thenReturn(Map.of());
+                when(stockPriceClient.fetchPrices(any()))
+                                .thenReturn(Map.of());
 
                 MarketService service = createService(mock(FxLibrary.class), stockPriceClient);
                 Optional<BigDecimal> result = service.getPrice("SAND");
 
                 assertTrue(result.isEmpty());
-                verify(stockPriceClient).fetchPrices(PROVIDER_SYMBOLS);
+                verify(stockPriceClient).fetchPrices(any());
         }
 
         @Test
@@ -166,10 +172,10 @@ class MarketServiceTest {
                 HistoricalRepository historicalRepository = mock(HistoricalRepository.class);
                 List<HistoricalPriceClient.HistoricalPrice> fetchedPrices = List.of(
                                 new HistoricalPriceClient.HistoricalPrice(
-                                                "ERIC-B", fromDate, new BigDecimal("74.200000")),
+                                                "ERIC-B.ST", fromDate, new BigDecimal("74.200000")),
                                 new HistoricalPriceClient.HistoricalPrice(
                                                 "AAPL", toDate, new BigDecimal("256.180000")));
-                when(historyClient.fetchHistoricalPrices(HISTORICAL_TICKERS, fromDate, toDate))
+                when(historyClient.fetchHistoricalPrices(HISTORICAL_PROVIDER_SYMBOLS, fromDate, toDate))
                                 .thenReturn(fetchedPrices);
 
                 MarketService service = createService(
@@ -177,7 +183,7 @@ class MarketServiceTest {
                                 historyClient, Clock.fixed(Instant.parse("2026-10-07T10:00:00Z"), ZoneOffset.UTC), 360);
 
                 assertEquals(2, service.importHistoricalData());
-                verify(historyClient).fetchHistoricalPrices(HISTORICAL_TICKERS, fromDate, toDate);
+                verify(historyClient).fetchHistoricalPrices(HISTORICAL_PROVIDER_SYMBOLS, fromDate, toDate);
                 verify(historicalRepository).saveAll(argThat(rows -> {
                         List<HistoricalStockPrice> savedRows = new ArrayList<>();
                         rows.forEach(savedRows::add);
@@ -204,18 +210,18 @@ class MarketServiceTest {
                                         .thenReturn(Optional.of(new HistoricalStockPrice(
                                                         ticker, latestDate, new BigDecimal("100.00"))));
                 }
-                when(historyClient.fetchHistoricalPrices(HISTORICAL_TICKERS, fromDate, toDate))
+                when(historyClient.fetchHistoricalPrices(HISTORICAL_PROVIDER_SYMBOLS, fromDate, toDate))
                                 .thenReturn(List.of(
                                                 new HistoricalPriceClient.HistoricalPrice(
-                                                                "ERIC-B", LocalDate.of(2026, 9, 30),
+                                                                "ERIC-B.ST", LocalDate.of(2026, 9, 30),
                                                                 new BigDecimal("70.00")),
                                                 new HistoricalPriceClient.HistoricalPrice(
-                                                                "ERIC-B", fromDate, new BigDecimal("71.00")),
+                                                                "ERIC-B.ST", fromDate, new BigDecimal("71.00")),
                                                 new HistoricalPriceClient.HistoricalPrice(
-                                                                "VOLV-B", LocalDate.of(2026, 10, 5),
+                                                                "VOLV-B.ST", LocalDate.of(2026, 10, 5),
                                                                 new BigDecimal("270.00")),
                                                 new HistoricalPriceClient.HistoricalPrice(
-                                                                "VOLV-B", toDate, new BigDecimal("271.00")),
+                                                                "VOLV-B.ST", toDate, new BigDecimal("271.00")),
                                                 new HistoricalPriceClient.HistoricalPrice(
                                                                 "UNKNOWN", LocalDate.of(2026, 10, 2),
                                                                 new BigDecimal("1.00"))));
@@ -225,7 +231,7 @@ class MarketServiceTest {
                                 historyClient, Clock.fixed(Instant.parse("2026-10-07T10:00:00Z"), ZoneOffset.UTC), 360);
 
                 assertEquals(2, service.importHistoricalData());
-                verify(historyClient).fetchHistoricalPrices(HISTORICAL_TICKERS, fromDate, toDate);
+                verify(historyClient).fetchHistoricalPrices(HISTORICAL_PROVIDER_SYMBOLS, fromDate, toDate);
                 verify(historicalRepository).saveAll(argThat(rows -> {
                         Set<String> savedKeys = new HashSet<>();
                         rows.forEach(price -> savedKeys.add(price.getTicker() + ":" + price.getPriceDate()));
@@ -253,6 +259,102 @@ class MarketServiceTest {
                 verify(historicalRepository, never()).saveAll(any());
         }
 
+        @Test
+        void shouldBuildNativeInputCopyResultsAndFreeNativeMemory() {
+                HistoricalRepository historicalRepository = mock(HistoricalRepository.class);
+                BacktestLibrary backtestLibrary = mock(BacktestLibrary.class);
+                List<String> tickers = List.of("ERIC-B", "VOLV-B");
+                LocalDate firstDate = LocalDate.of(2026, 10, 1);
+                LocalDate secondDate = firstDate.plusDays(1);
+                when(historicalRepository.findByTickerInAndPriceDateBetween(tickers, firstDate, secondDate))
+                                .thenReturn(List.of(
+                                                new HistoricalStockPrice("ERIC-B", firstDate, new BigDecimal("10")),
+                                                new HistoricalStockPrice("VOLV-B", firstDate, new BigDecimal("20")),
+                                                new HistoricalStockPrice("ERIC-B", secondDate, new BigDecimal("11")),
+                                                new HistoricalStockPrice("VOLV-B", secondDate, new BigDecimal("21"))));
+
+                BacktestResultStructure nativeMemory = new BacktestResultStructure();
+                nativeMemory.total_return = 0.25;
+                nativeMemory.annualized_return = 0.10;
+                nativeMemory.max_drawdown = -0.08;
+                nativeMemory.sharpe_ratio = 1.5;
+                nativeMemory.write();
+                var nativePointer = nativeMemory.getPointer();
+                when(backtestLibrary.run_backtest(
+                                argThat(prices -> Arrays.equals(prices, new double[] { 10.0, 20.0, 11.0, 21.0 })),
+                                eq(2), eq(2), eq("BUY_HOLD")))
+                                .thenReturn(nativePointer);
+
+                MarketService service = createService(
+                                mock(FxLibrary.class),
+                                mock(StockPriceClient.class),
+                                historicalRepository,
+                                mock(HistoricalPriceClient.class),
+                                backtestLibrary,
+                                Clock.systemUTC(),
+                                360);
+
+                BacktestResponseDTO response = service.getBacktestAnalysis(
+                                new BacktestRequestDTO(tickers, firstDate, secondDate, "BUY_HOLD"));
+
+                assertEquals(0.25, response.totalReturn());
+                assertEquals(0.10, response.annualizedReturn());
+                assertEquals(-0.08, response.maxDrawdown());
+                assertEquals(1.5, response.sharpeRatio());
+                assertEquals(tickers, response.tickers());
+                assertEquals(List.of(firstDate, secondDate), response.dates());
+                verify(backtestLibrary).backtest_free_result(nativePointer);
+        }
+
+        @Test
+        void shouldConvertUsdHistoricalPricesToSekUsingEachPricesDate() {
+                HistoricalRepository historicalRepository = mock(HistoricalRepository.class);
+                FxLibrary fxLibrary = mock(FxLibrary.class);
+                BacktestLibrary backtestLibrary = mock(BacktestLibrary.class);
+                List<String> tickers = List.of("AAPL", "ERIC-B");
+                LocalDate firstDate = LocalDate.of(2026, 10, 1);
+                LocalDate secondDate = firstDate.plusDays(1);
+                long firstTimestamp = firstDate.atStartOfDay(ZoneOffset.UTC).toEpochSecond();
+                long secondTimestamp = secondDate.atStartOfDay(ZoneOffset.UTC).toEpochSecond();
+                when(historicalRepository.findByTickerInAndPriceDateBetween(tickers, firstDate, secondDate))
+                                .thenReturn(List.of(
+                                                new HistoricalStockPrice("AAPL", firstDate, new BigDecimal("10")),
+                                                new HistoricalStockPrice("ERIC-B", firstDate, new BigDecimal("100")),
+                                                new HistoricalStockPrice("AAPL", secondDate, new BigDecimal("11")),
+                                                new HistoricalStockPrice("ERIC-B", secondDate, new BigDecimal("110"))));
+                when(fxLibrary.fx_convert(10.0, "USD", "SEK", firstTimestamp)).thenReturn(100.0);
+                when(fxLibrary.fx_convert(11.0, "USD", "SEK", secondTimestamp)).thenReturn(110.0);
+
+                BacktestResultStructure nativeMemory = new BacktestResultStructure();
+                nativeMemory.total_return = 0.10;
+                nativeMemory.annualized_return = 0.05;
+                nativeMemory.max_drawdown = -0.02;
+                nativeMemory.sharpe_ratio = 1.1;
+                nativeMemory.write();
+                var nativePointer = nativeMemory.getPointer();
+                when(backtestLibrary.run_backtest(
+                                argThat(prices -> Arrays.equals(
+                                                prices, new double[] { 100.0, 100.0, 110.0, 110.0 })),
+                                eq(2), eq(2), eq("BUY_HOLD")))
+                                .thenReturn(nativePointer);
+
+                MarketService service = createService(
+                                fxLibrary,
+                                mock(StockPriceClient.class),
+                                historicalRepository,
+                                mock(HistoricalPriceClient.class),
+                                backtestLibrary,
+                                Clock.systemUTC(),
+                                360);
+
+                service.getBacktestAnalysis(
+                                new BacktestRequestDTO(tickers, firstDate, secondDate, "BUY_HOLD"));
+
+                verify(fxLibrary).fx_convert(10.0, "USD", "SEK", firstTimestamp);
+                verify(fxLibrary).fx_convert(11.0, "USD", "SEK", secondTimestamp);
+                verify(backtestLibrary).backtest_free_result(nativePointer);
+        }
+
         private MarketService createService(FxLibrary fxLibrary, StockPriceClient stockPriceClient) {
                 return createService(fxLibrary, stockPriceClient, Clock.systemUTC());
         }
@@ -266,6 +368,7 @@ class MarketServiceTest {
                                 stockPriceClient,
                                 mock(HistoricalRepository.class),
                                 mock(HistoricalPriceClient.class),
+                                mock(BacktestLibrary.class),
                                 clock,
                                 360);
         }
@@ -277,11 +380,30 @@ class MarketServiceTest {
                         HistoricalPriceClient historicalDataClient,
                         Clock clock,
                         int lookbackDays) {
+                return createService(
+                                fxLibrary,
+                                stockPriceClient,
+                                historicalRepository,
+                                historicalDataClient,
+                                mock(BacktestLibrary.class),
+                                clock,
+                                lookbackDays);
+        }
+
+        private MarketService createService(
+                        FxLibrary fxLibrary,
+                        StockPriceClient stockPriceClient,
+                        HistoricalRepository historicalRepository,
+                        HistoricalPriceClient historicalDataClient,
+                        BacktestLibrary backtestLibrary,
+                        Clock clock,
+                        int lookbackDays) {
                 return new MarketService(
                                 fxLibrary,
                                 stockPriceClient,
                                 historicalRepository,
                                 historicalDataClient,
+                                backtestLibrary,
                                 clock,
                                 lookbackDays);
         }

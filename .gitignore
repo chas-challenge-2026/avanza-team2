@@ -1,5 +1,8 @@
 ### General repo stuff ###
 
+# local development files
+infra/seed-historical-prices.sql
+
 # No environment files (can still add templates)
 .env.local
 .env
