@@ -20,7 +20,6 @@ import {
 const currencyOptions = [
   { label: "SEK", value: "SEK" },
   { label: "USD", value: "USD" },
-  { label: "EUR", value: "EUR" },
 ];
 
 export const Settings = () => {
