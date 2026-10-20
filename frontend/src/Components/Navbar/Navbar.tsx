@@ -24,19 +24,42 @@ const navLinkClassName = ({ isActive }: { isActive: boolean }) =>
       : 'text-neutral-600 hover:bg-neutral-50'
   }`;
 
-export const Navbar = () => {
-  return (
-    <nav className="flex h-full w-56 flex-shrink-0 flex-col justify-between overflow-y-auto border-r border-neutral-200 bg-white px-3 py-6">
-      <div className="flex flex-col gap-1">
-        {mainNavItems.map((item) => (
-          <NavLink key={item.to} to={item.to} end={item.to === '/'} className={navLinkClassName}>
-            <i className={`fa-solid ${item.icon} w-4 text-center`} />
-            {item.label}
-          </NavLink>
-        ))}
-      </div>
+interface NavbarProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
 
-      
-    </nav>
+export const Navbar = ({ isOpen, onClose }: NavbarProps) => {
+  return (
+    <>
+      {isOpen && (
+        <div
+          className="absolute inset-0 z-30 bg-black/30 md:hidden"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
+
+      <nav
+        className={`absolute inset-y-0 left-0 z-40 flex h-full w-56 flex-shrink-0 flex-col justify-between overflow-y-auto border-r border-neutral-200 bg-white px-3 py-6 transition-transform duration-200 ease-in-out md:static md:z-auto md:translate-x-0 ${
+          isOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <div className="flex flex-col gap-1">
+          {mainNavItems.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.to === '/'}
+              className={navLinkClassName}
+              onClick={onClose}
+            >
+              <i className={`fa-solid ${item.icon} w-4 text-center`} />
+              {item.label}
+            </NavLink>
+          ))}
+        </div>
+      </nav>
+    </>
   );
 };
