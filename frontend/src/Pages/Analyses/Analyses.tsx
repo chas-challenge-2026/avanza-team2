@@ -5,22 +5,25 @@ import { RebalanceCard } from '../../Components/RebalanceCard/RebalanceCard.tsx'
 import { RiskMetricsCard } from '../../Components/RiskMetricsCard/RiskMetricsCard.tsx'
 import { SummaryList } from '../../Components/SummaryList/SummaryList.tsx'
 import {
-  formatDecimal,
   formatSek,
   formatSignedPercent,
   formatSignedSek,
 } from '../../utils/format.ts'
 
-import {
-  defaultPeriodId,
-  performancePeriods,
-  type PeriodId,
-} from './analysesSampleData.ts'
-
 // Use the same API configuration as the rest of the frontend.
 const API_URL = import.meta.env.VITE_API_URL ?? ''
 const HISTORY_IMPORT_INTERVAL_MS = 24 * 60 * 60 * 1000
 const HISTORY_IMPORT_LAST_ATTEMPT_KEY = 'avanza.historical-import.last-attempt'
+
+type PeriodId = '1m' | '3m' | '1y'
+
+const performancePeriods: { id: PeriodId; label: string; days: number }[] = [
+  { id: '1m', label: 'Senaste månaden', days: 30 },
+  { id: '3m', label: 'Senaste 3 månaderna', days: 90 },
+  { id: '1y', label: 'Senaste året', days: 365 },
+]
+
+const defaultPeriodId: PeriodId = '1y'
 
 interface BacktestResponse {
   totalReturn: number
@@ -106,6 +109,9 @@ const periodOptions = performancePeriods.map(({ id, label }) => ({
   label,
   value: id,
 }))
+
+const selectedPeriodLabel = (periodId: PeriodId) =>
+  performancePeriods.find((period) => period.id === periodId)?.label ?? ''
 
 // Convert backend account types into readable Swedish labels.
 const formatAccountType = (accountType: string) => {
@@ -213,10 +219,12 @@ export const Analyses = () => {
 
     const controller = new AbortController()
     const tickers = [...new Set(portfolio.enrichedHoldings.map((holding) => holding.ticker))]
+    const selectedPeriod = performancePeriods.find((period) => period.id === periodId)
+    const periodDays = selectedPeriod?.days ?? 365
     const end = new Date()
+    end.setUTCDate(end.getUTCDate() - 1)
     const start = new Date(end.getTime())
-    const periodDays: Record<PeriodId, number> = { '1m': 30, '3m': 90, '1y': 365 }
-    start.setUTCDate(start.getUTCDate() - periodDays[periodId])
+    start.setUTCDate(start.getUTCDate() - periodDays + 1)
     const endDate = end.toISOString().slice(0, 10)
     const startDate = start.toISOString().slice(0, 10)
 
@@ -331,20 +339,67 @@ export const Analyses = () => {
           className="self-start"
         />
 
-        <PerformanceCard points={period.points} startValue={period.startValue} />
+        {error && (
+          <p className="text-sm text-red-700" role="alert">
+            {error}
+          </p>
+        )}
 
-        <RiskMetricsCard
-          volatility={14.2}
-          maxDrawdown={-18.5}
-          sharpeRatio={1.25}
-          periodLabel={period.label}
-        />
+        {historyImportError && (
+          <p className="text-sm text-amber-700" role="status">
+            {historyImportError}
+          </p>
+        )}
+
+        {isBacktestLoading ? (
+          <div className="rounded-2xl border border-neutral-200 bg-white p-5" role="status">
+            <p className="text-sm text-neutral-600">Hämtar backtestresultat...</p>
+          </div>
+        ) : backtestError ? (
+          <p className="text-sm text-red-700" role="alert">{backtestError}</p>
+        ) : backtest ? (
+          <>
+            <SummaryList
+              title={`Backtestresultat · ${selectedPeriodLabel(periodId)}`}
+              rows={[
+                {
+                  label: 'Total avkastning',
+                  value: formatSignedPercent(backtest.totalReturn * 100),
+                  tone: backtest.totalReturn >= 0 ? 'positive' : 'negative',
+                },
+                {
+                  label: 'Annualiserad avkastning',
+                  value: formatSignedPercent(backtest.annualizedReturn * 100),
+                  tone: backtest.annualizedReturn >= 0 ? 'positive' : 'negative',
+                },
+              ]}
+            />
+            <RiskMetricsCard
+              volatility={null}
+              maxDrawdown={-Math.abs(backtest.maxDrawdown * 100)}
+              sharpeRatio={backtest.sharpeRatio}
+              periodLabel={selectedPeriodLabel(periodId)}
+            />
+            <p className="text-sm text-neutral-600">
+              Tickers: {backtest.tickers.join(', ')}. Period:{' '}
+              {backtest.dates[0]}–{backtest.dates[backtest.dates.length - 1]}.
+            </p>
+            <p className="text-sm text-amber-700" role="note">
+              Historiska priser har konverterats till SEK med ECB-kursen för respektive handelsdag.
+            </p>
+          </>
+        ) : (
+          <p className="text-sm text-neutral-500" role="status">
+            Inga backtestresultat tillgängliga för perioden.
+          </p>
+        )}
 
         <RebalanceCard current={currentAllocation} target={targetAllocation} />
 
         <SummaryList
+          title="Portfölj just nu"
           rows={[
-            { label: 'Värde totalt', value: formatSek(holdingsSummary.totalValue) },
+            { label: 'Värde totalt', value: formatSek(portfolio?.totalPortfolioValue ?? 0) },
             {
               label: 'Avkastning (SEK)',
               value: formatSignedSek(gainSek),

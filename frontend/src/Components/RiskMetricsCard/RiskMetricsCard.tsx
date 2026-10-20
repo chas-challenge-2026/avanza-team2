@@ -47,7 +47,7 @@ const RiskMetricItem = ({ label, sublabel, value, explanation }: RiskMetricItemP
 }
 
 interface RiskMetricsCardProps {
-  volatility: number
+  volatility: number | null
   maxDrawdown: number
   sharpeRatio: number
   periodLabel?: string
@@ -69,8 +69,10 @@ export const RiskMetricsCard = ({
         <RiskMetricItem
           label="Svängningar"
           sublabel="Volatilitet"
-          value={`${volatility.toString().replace('.', ',')}%`}
-          explanation="Visar hur mycket din portfölj brukar svänga upp och ner i värde. Högre siffra innebär mer svängningar."
+          value={volatility === null ? 'Ej tillgänglig' : `${volatility.toString().replace('.', ',')}%`}
+          explanation={volatility === null
+            ? 'Backtestmotorn returnerar inte volatilitet ännu.'
+            : 'Visar hur mycket din portfölj brukar svänga upp och ner i värde. Högre siffra innebär mer svängningar.'}
         />
         <RiskMetricItem
           label="Största fall"
