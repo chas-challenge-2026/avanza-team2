@@ -122,8 +122,7 @@ public class PortfolioService {
 
             prices.put(
                     ticker,
-                    livePrice.map(BigDecimal::doubleValue).orElse(null)
-            );
+                    livePrice.map(BigDecimal::doubleValue).orElse(null));
         }
 
         return prices;
@@ -227,8 +226,7 @@ public class PortfolioService {
                     null,
                     null,
                     0.0,
-                    "USD".equals(currency) ? "USD→SEK" : "SEK"
-            );
+                    "USD".equals(currency) ? "USD→SEK" : "SEK");
         }
 
         // Calculate market value in SEK (convert USD if needed)
@@ -267,8 +265,7 @@ public class PortfolioService {
                 Math.round(unrealizedReturn * 100.0) / 100.0,
                 Math.round(unrealizedReturnPct * 100.0) / 100.0,
                 Math.round(sharpe * 100.0) / 100.0,
-                "USD".equals(currency) ? "USD→SEK" : "SEK"
-        );
+                "USD".equals(currency) ? "USD→SEK" : "SEK");
     }
 
     /**
@@ -281,43 +278,42 @@ public class PortfolioService {
      * @return The total portfolio value across all holdings.
      */
     public double calculatePortfolioTotals(
-        List<Holdings> holdings,
-        Map<String, Double> prices,
-        Map<Long, String> accountTypeMap,
-        Map<String, Double> accountTypeTotals) {
+            List<Holdings> holdings,
+            Map<String, Double> prices,
+            Map<Long, String> accountTypeMap,
+            Map<String, Double> accountTypeTotals) {
 
-    double totalPortfolioValue = 0.0;
+        double totalPortfolioValue = 0.0;
 
-    for (Holdings h : holdings) {
+        for (Holdings h : holdings) {
 
-        EnrichedHoldingDTO enriched = enrichSingleHolding(h, prices);
+            EnrichedHoldingDTO enriched = enrichSingleHolding(h, prices);
 
-        Double valueSek = enriched.valueSek();
+            Double valueSek = enriched.valueSek();
 
-        // Ignore holdings where the current market price is unavailable.
-        if (valueSek == null) {
-            continue;
+            // Ignore holdings where the current market price is unavailable.
+            if (valueSek == null) {
+                continue;
+            }
+
+            // Add to grand total
+            totalPortfolioValue += valueSek;
+
+            // Add to account type bucket
+            Long accountId = h.getAccount().getId();
+            String accType = accountTypeMap.get(accountId);
+
+            if (accType == null) {
+                continue;
+            }
+
+            accountTypeTotals.put(
+                    accType,
+                    accountTypeTotals.getOrDefault(accType, 0.0) + valueSek);
         }
 
-        // Add to grand total
-        totalPortfolioValue += valueSek;
-
-        // Add to account type bucket
-        Long accountId = h.getAccount().getId();
-        String accType = accountTypeMap.get(accountId);
-
-        if (accType == null) {
-            continue;
-        }
-
-        accountTypeTotals.put(
-                accType,
-                accountTypeTotals.getOrDefault(accType, 0.0) + valueSek
-        );
+        return totalPortfolioValue;
     }
-
-    return totalPortfolioValue;
-}
 
     /**
      * @return Current threshold configuration 5%.

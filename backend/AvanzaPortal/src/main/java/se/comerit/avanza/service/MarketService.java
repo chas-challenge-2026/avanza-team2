@@ -10,6 +10,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -35,17 +37,28 @@ import com.sun.jna.Pointer;
 @Service
 public class MarketService {
 
+    private static final Logger logger = LoggerFactory.getLogger(MarketService.class);
+
     static final long PRICE_CACHE_TTL_MILLIS = 24 * 60 * 60 * 1000L;
 
     private static final Map<String, MarketSymbol> MARKET_SYMBOLS = Map.of(
-            "ERIC-B", new MarketSymbol("ERIC-B.ST", "XSTO"),
-            "VOLV-B", new MarketSymbol("VOLV-B.ST", "XSTO"),
-            "AAPL", new MarketSymbol("AAPL", "XNAS"),
-            "SWED-A", new MarketSymbol("SWED-A.ST", "XSTO"),
-            "SAND", new MarketSymbol("SAND.ST", "XSTO"));
+            "ERIC-B", new MarketSymbol("ERIC-B.ST", "XSTO", "SEK"),
+            "VOLV-B", new MarketSymbol("VOLV-B.ST", "XSTO", "SEK"),
+            "AAPL", new MarketSymbol("AAPL", "XNAS", "USD"),
+            "SWED-A", new MarketSymbol("SWED-A.ST", "XSTO", "SEK"),
+            "SAND", new MarketSymbol("SAND.ST", "XSTO", "SEK"));
 
     private static final List<String> HISTORICAL_TICKERS = List.of(
             "ERIC-B", "VOLV-B", "AAPL", "SWED-A", "SAND");
+    private static final Map<String, String> HISTORICAL_TICKER_BY_PROVIDER_SYMBOL = Map.of(
+            "ERIC-B.ST", "ERIC-B",
+            "VOLV-B.ST", "VOLV-B",
+            "AAPL", "AAPL",
+            "SWED-A.ST", "SWED-A",
+            "SAND.ST", "SAND");
+    private static final List<String> HISTORICAL_PROVIDER_SYMBOLS = HISTORICAL_TICKERS.stream()
+            .map(ticker -> MARKET_SYMBOLS.get(ticker).symbol())
+            .toList();
     private static final Set<String> BACKTEST_STRATEGIES = Set.of("BUY_HOLD", "REBALANCE_MONTHLY");
 
     // The FX library used to fetch foreign exchange rates.
@@ -174,7 +187,7 @@ public class MarketService {
         }
     }
 
-    private record MarketSymbol(String symbol, String exchange) {
+    private record MarketSymbol(String symbol, String exchange, String currency) {
     }
 
     /**
@@ -210,20 +223,33 @@ public class MarketService {
             return 0;
         }
 
-        List<HistoricalStockPrice> pricesToSave = historicalDataClient
-                .fetchHistoricalPrices(HISTORICAL_TICKERS, fromDate, toDate)
+        List<HistoricalPriceClient.HistoricalPrice> fetchedPrices = historicalDataClient
+                .fetchHistoricalPrices(HISTORICAL_PROVIDER_SYMBOLS, fromDate, toDate);
+        List<String> returnedSymbols = fetchedPrices.stream()
+                .map(HistoricalPriceClient.HistoricalPrice::symbol)
+                .distinct()
+                .sorted()
+                .toList();
+        logger.info("Historical import requested tickers={} range={}..{}; received rows={} symbols={}",
+                HISTORICAL_TICKERS, fromDate, toDate, fetchedPrices.size(), returnedSymbols);
+
+        List<HistoricalStockPrice> pricesToSave = fetchedPrices
                 .stream()
                 .filter(price -> {
-                    LocalDate nextDate = nextDateByTicker.get(price.symbol());
+                    String ticker = HISTORICAL_TICKER_BY_PROVIDER_SYMBOL.get(price.symbol());
+                    LocalDate nextDate = ticker == null ? null : nextDateByTicker.get(ticker);
                     return nextDate != null
                             && !price.date().isBefore(nextDate)
                             && !price.date().isAfter(toDate);
                 })
                 .map(price -> new HistoricalStockPrice(
-                        price.symbol(), price.date(), price.close()))
+                        HISTORICAL_TICKER_BY_PROVIDER_SYMBOL.get(price.symbol()),
+                        price.date(),
+                        price.close()))
                 .toList();
 
         historicalRepository.saveAll(pricesToSave);
+        logger.info("Historical import saved {} rows", pricesToSave.size());
         return pricesToSave.size();
     }
 
@@ -239,8 +265,9 @@ public class MarketService {
 
         BacktestInputBuilder.BacktestInput input = backtestInputBuilder.build(
                 request.tickers(), request.startDate(), request.endDate());
+        double[] pricesInSek = convertBacktestPricesToSek(input);
         Pointer nativeResult = backtestLibrary.run_backtest(
-                input.prices(), input.instrumentCount(), input.dayCount(), request.strategy());
+                pricesInSek, input.instrumentCount(), input.dayCount(), request.strategy());
         if (nativeResult == null) {
             throw new IllegalStateException("Native backtest could not calculate a result");
         }
@@ -257,5 +284,42 @@ public class MarketService {
         } finally {
             backtestLibrary.backtest_free_result(nativeResult);
         }
+    }
+
+    /**
+     * Converts backtest prices to SEK using historical FX rates.
+     * 
+     * @param input The backtest input containing prices, tickers, and dates.
+     * @return An array of prices converted to SEK.
+     */
+    private double[] convertBacktestPricesToSek(BacktestInputBuilder.BacktestInput input) {
+        double[] prices = input.prices();
+        for (int dayIndex = 0; dayIndex < input.dayCount(); dayIndex++) {
+            long date = input.dates().get(dayIndex)
+                    .atStartOfDay(ZoneOffset.UTC)
+                    .toEpochSecond();
+
+            for (int instrumentIndex = 0; instrumentIndex < input.instrumentCount(); instrumentIndex++) {
+                String ticker = input.tickers().get(instrumentIndex);
+                MarketSymbol marketSymbol = MARKET_SYMBOLS.get(ticker);
+                if (marketSymbol == null) {
+                    throw new IllegalArgumentException("Unsupported backtest ticker: " + ticker);
+                }
+                if ("SEK".equals(marketSymbol.currency())) {
+                    continue;
+                }
+
+                int priceIndex = dayIndex * input.instrumentCount() + instrumentIndex;
+                double convertedPrice = fxLibrary.fx_convert(
+                        prices[priceIndex], marketSymbol.currency(), "SEK", date);
+                if (convertedPrice <= 0 || !Double.isFinite(convertedPrice)) {
+                    throw new IllegalStateException(
+                            "No historical " + marketSymbol.currency() + "/SEK rate for "
+                                    + input.dates().get(dayIndex));
+                }
+                prices[priceIndex] = convertedPrice;
+            }
+        }
+        return prices;
     }
 }
