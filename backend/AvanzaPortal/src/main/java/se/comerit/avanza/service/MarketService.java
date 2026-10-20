@@ -187,6 +187,13 @@ public class MarketService {
         }
     }
 
+    /**
+     * Represents a market symbol with its associated exchange and currency.
+     *
+     * @param symbol   the symbol of the market instrument
+     * @param exchange the exchange where the instrument is listed
+     * @param currency the currency of the instrument
+     */
     private record MarketSymbol(String symbol, String exchange, String currency) {
     }
 

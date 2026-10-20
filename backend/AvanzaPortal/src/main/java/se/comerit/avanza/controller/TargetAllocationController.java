@@ -15,6 +15,9 @@ import se.comerit.avanza.dto.targetallocation.TargetAllocationResponseDTO;
 import se.comerit.avanza.dto.targetallocation.UpdateTargetAllocationsRequestDTO;
 import se.comerit.avanza.service.TargetAllocationService;
 
+/**
+ * Controller for managing target allocations.
+ */
 @RestController
 @RequestMapping("/api/target-allocations")
 public class TargetAllocationController {
@@ -25,6 +28,12 @@ public class TargetAllocationController {
         this.targetAllocationService = targetAllocationService;
     }
 
+    /**
+     * Retrieves the target allocations for the authenticated user.
+     *
+     * @param authentication the authentication object containing the user's details
+     * @return a response entity containing the list of target allocations
+     */
     @GetMapping
     public ResponseEntity<List<TargetAllocationResponseDTO>> getTargetAllocations(Authentication authentication) {
 
@@ -36,6 +45,13 @@ public class TargetAllocationController {
         return ResponseEntity.ok(allocations);
     }
 
+    /**
+     * Updates the target allocations for the authenticated user.
+     *
+     * @param request        the request containing the updated target allocations
+     * @param authentication the authentication object containing the user's details
+     * @return a response entity containing the updated list of target allocations
+     */
     @PutMapping
     public ResponseEntity<List<TargetAllocationResponseDTO>> updateTargetAllocations(
             @Valid @RequestBody UpdateTargetAllocationsRequestDTO request,
