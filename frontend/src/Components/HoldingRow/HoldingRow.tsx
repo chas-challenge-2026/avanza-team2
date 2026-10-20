@@ -1,4 +1,5 @@
 import React from 'react';
+import './HoldingRow.css';
 
 export type HoldingItem = {
     id: string;
@@ -17,18 +18,18 @@ type HoldingRowProps = {
 const HoldingRow = ({ item, onClick }: HoldingRowProps) => {
     return (
         <div style={styles.row} onClick={() => onClick && onClick(item.id)}>
-            <div style={styles.leftContent}>
+            <div style={styles.leftContent} className="holding-row-left">
                 <div style={styles.iconContainer}>
                     <span>📈</span>
                 </div>
-                <div>
-                    <h4 style={styles.symbol}>{item.symbol}</h4>
-                    <p style={styles.name}>{item.name}</p>
+                <div className="holding-row-text">
+                    <h4 style={styles.symbol} className="holding-row-symbol">{item.symbol}</h4>
+                    <p style={styles.name} className="holding-row-name">{item.name}</p>
                 </div>
             </div>
 
-            <div style={styles.rightContent}>
-                <span style={styles.text}>{item.shares}</span>
+            <div style={styles.rightContent} className="holding-row-right">
+                <span style={styles.text} className="holding-row-shares">{item.shares}</span>
                 <span style={styles.text}>{item.value.toLocaleString('sv-SE')} SEK</span>
                 <span style={{ 
                     ...styles.return, 

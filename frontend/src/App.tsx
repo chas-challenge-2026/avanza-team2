@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Navbar } from './Components/Navbar/Navbar.tsx'
 import { TopBar } from './Components/TopBar/TopBar.tsx'
 import { Footer } from './Components/Footer/Footer.tsx'
@@ -13,6 +14,7 @@ import { ForgotPassword } from './Pages/ForgotPassword/ForgotPassword.tsx'
 import { ResetPassword } from './Pages/ResetPassword/ResetPassword.tsx'
 import { ProtectedRoute } from './Components/ProtectedRoute/ProtectedRoute.tsx'
 import { useAuth } from './context/useAuth';
+import { getInitials } from './utils/format.ts';
 
 const LOGIN_PATH = '/Loggain'
 const PUBLIC_PATHS = [LOGIN_PATH, '/glomt-losenord', '/aterstall-losenord']
@@ -21,6 +23,11 @@ function App() {
   const location = useLocation()
   const navigate = useNavigate()
   const auth = useAuth()
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+
+  useEffect(() => {
+    setIsSidebarOpen(false)
+  }, [location.pathname])
 
   const handleLogin = async (email: string, password: string) => {
   await auth.login(email, password);
@@ -56,10 +63,14 @@ function App() {
 
 
     <div className="flex h-screen flex-col">
-      <TopBar title={currentTitle} />
+      <TopBar
+        title={currentTitle}
+        onMenuClick={() => setIsSidebarOpen((prev) => !prev)}
+        userInitials={auth.user ? getInitials(auth.user.name) : undefined}
+      />
 
-      <div className="flex flex-1 overflow-hidden">
-        <Navbar />
+      <div className="relative flex flex-1 overflow-hidden">
+        <Navbar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
         <div className="flex-1 overflow-y-auto">
           <Routes>

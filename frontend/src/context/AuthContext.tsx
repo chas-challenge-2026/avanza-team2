@@ -1,11 +1,12 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { AuthContext } from './auth-context';
+import { AuthContext, type AuthUser } from './auth-context';
 
 const API_URL = import.meta.env.VITE_API_URL ?? '';
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<AuthUser | null>(null);
 
   /**
    * Checks with the backend whether the current HttpOnly JWT cookie
@@ -22,8 +23,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         });
 
         setIsAuthenticated(response.ok);
+
+        // /api/auth/me returns no body, so the user's name/email can't be
+        // restored here — it's only known right after a fresh login below.
+        if (!response.ok) {
+          setUser(null);
+        }
       } catch {
         setIsAuthenticated(false);
+        setUser(null);
       } finally {
         setIsLoading(false);
       }
@@ -59,6 +67,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       throw new Error('Login failed');
     }
 
+    const data = (await response.json()) as { name: string; email: string };
+    setUser({ name: data.name, email: data.email });
     setIsAuthenticated(true);
   };
 
@@ -77,6 +87,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
     } finally {
       setIsAuthenticated(false);
+      setUser(null);
     }
   };
 
@@ -85,6 +96,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       value={{
         isAuthenticated,
         isLoading,
+        user,
         login,
         logout,
       }}
