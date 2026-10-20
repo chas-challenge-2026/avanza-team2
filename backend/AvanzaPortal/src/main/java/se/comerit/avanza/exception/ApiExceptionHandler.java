@@ -47,6 +47,11 @@ public class ApiExceptionHandler {
         return problem(HttpStatus.BAD_REQUEST, "Bad Request", exception.getMessage());
     }
 
+    @ExceptionHandler(FxDataUnavailableException.class)
+    public ResponseEntity<ProblemDetail> handleFxDataUnavailable(FxDataUnavailableException exception) {
+        return problem(HttpStatus.SERVICE_UNAVAILABLE, "Service Unavailable", exception.getMessage());
+    }
+
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ProblemDetail> handleNotFound(ResourceNotFoundException exception) {
         return problem(HttpStatus.NOT_FOUND, "Not Found", exception.getMessage());
