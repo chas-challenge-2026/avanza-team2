@@ -96,7 +96,7 @@ const Notiser = () => {
                             subtitle: 'Varning',
                             timestamp: formatDate(alert.createdAt),
                             category: 'Övrigt',
-                            icon: '⚠️',
+                            icon: 'fa-bell',
                         }));
 
                 const liveNotifications: Notification[] =
@@ -108,7 +108,7 @@ const Notiser = () => {
                             subtitle: 'Live-varning',
                             timestamp: alert.createdAt,
                             category: 'Värdepapper',
-                            icon: '⚠️',
+                            icon: 'fa-bell',
                         }));
 
                 setNotifications([
