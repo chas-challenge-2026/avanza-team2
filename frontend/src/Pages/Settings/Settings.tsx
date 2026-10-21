@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Title } from "../../Components/Title/Title.tsx";
 import { SettingsSection } from "../../Components/SettingsSection/SettingsSection.tsx";
 import { SettingsRow } from "../../Components/SettingsRow/SettingsRow.tsx";
@@ -19,6 +20,7 @@ import {
   areDriftNotificationsEnabled,
   setDriftNotificationsEnabled,
 } from "../../utils/driftNotificationPreference.ts";
+import { useAuth } from "../../context/useAuth.ts";
 
 const currencyOptions = [
   { label: "SEK", value: "SEK" },
@@ -26,6 +28,10 @@ const currencyOptions = [
 ];
 
 export const Settings = () => {
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+  const [loggingOut, setLoggingOut] = useState(false);
+
   // General settings
   const [currency, setCurrency] = useState<CurrencyCode>(defaultCurrency);
 
@@ -178,6 +184,16 @@ export const Settings = () => {
       );
     } finally {
       setSavingAllocations(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+
+    try {
+      await logout();
+    } finally {
+      navigate("/Loggain");
     }
   };
 
@@ -345,9 +361,11 @@ export const Settings = () => {
         {/* Logout */}
         <button
           type="button"
+          onClick={() => void handleLogout()}
+          disabled={loggingOut}
           className="self-start px-1 text-left text-sm font-medium text-red-600 hover:text-red-700"
         >
-          Logga ut
+          {loggingOut ? "Loggar ut..." : "Logga ut"}
         </button>
 
         {/* Display loading errors and save confirmations outside the editor. */}
