@@ -26,31 +26,17 @@ Källkoden finns i:
 backend/AvanzaPortal/src/main/java/se/comerit/avanza
 ```
 
-<<<<<<< HEAD:backend/AvanzaPortal/DEVELOPMENT.md
-| Paket | Ansvar |
-| -------------- | -------------------------------------------------------- |
-| `controller` | Tar emot HTTP-anrop och returnerar HTTP-svar. |
-| `service` | Innehåller affärslogik och samordnar repositories. |
-| `repository` | Läser och sparar data med Spring Data JPA. |
-| `entity` | Representerar databastabeller och relationer. |
-| `dto` | Definierar typade request- och responseobjekt för API:t. |
-| `security` | Hanterar JWT, autentisering och åtkomstregler. |
-| `exception` | Gemensam hantering av fel och HTTP-statuskoder. |
-| `nativebridge` | Kopplar Java-backenden till native kod genom JNA. |
-=======
-| Paket | Ansvar |
-| --- | --- |
-| `client` | Kommunikation med externa tjänster som Marketstack. |
-| `controller` | Tar emot HTTP-anrop och returnerar HTTP-svar. |
-| `service` | Innehåller affärslogik och samordnar repositories och externa tjänster. |
-| `repository` | Läser och sparar data med Spring Data JPA. |
-| `entity` | Representerar databastabeller och relationer. |
-| `dto` | Definierar request- och responseobjekt för API:t. |
-| `security` | Hanterar JWT, autentisering och åtkomstregler. |
-| `exception` | Hanterar applikationsfel och HTTP-statuskoder. |
-| `nativebridge` | Kopplar Java-backenden till native C/C++-kod genom JNA. |
-
-> develop:backend/AvanzaPortal/Backend-ReadMe.md
+| Paket          | Ansvar                                                                  |
+| -------------- | ----------------------------------------------------------------------- |
+| `client`       | Kommunikation med externa tjänster som Marketstack.                     |
+| `controller`   | Tar emot HTTP-anrop och returnerar HTTP-svar.                           |
+| `service`      | Innehåller affärslogik och samordnar repositories och externa tjänster. |
+| `repository`   | Läser och sparar data med Spring Data JPA.                              |
+| `entity`       | Representerar databastabeller och relationer.                           |
+| `dto`          | Definierar request- och responseobjekt för API:t.                       |
+| `security`     | Hanterar JWT, autentisering och åtkomstregler.                          |
+| `exception`    | Hanterar applikationsfel och HTTP-statuskoder.                          |
+| `nativebridge` | Kopplar Java-backenden till native C/C++-kod genom JNA.                 |
 
 Det huvudsakliga flödet är:
 
@@ -189,10 +175,10 @@ erik@example.com / password123
 
 ### Alerts
 
-| Metod | Endpoint                     | Beskrivning                                                      |
-| ----- | ---------------------------- | ---------------------------------------------------------------- |
-| `GET` | `/api/alerts?page=0&size=10` | Hämtar lagrade alerts, live drift-alerts och aktuell driftgräns. |
-| `PUT` | `/api/alerts/{id}/dismiss`   | Markerar en alert som hanterad.                                  |
+| Metod | Endpoint                     | Beskrivning                                                                                       |
+| ----- | ---------------------------- | ------------------------------------------------------------------------------------------------- |
+| `GET` | `/api/alerts?page=0&size=10` | Hämtar lagrade aviseringar, dynamiskt beräknade live-driftaviseringar och aktuell driftgräns.     |
+| `PUT` | `/api/alerts/{id}/dismiss`   | Avfärdar en lagrad avisering via dess ID. Live-driftaviseringar kan inte avfärdas via endpointen. |
 
 ### Målallokering
 
@@ -208,8 +194,17 @@ erik@example.com / password123
 | `GET`  | `/api/market/price/{ticker}` | Hämtar senaste tillgängliga aktiekurs.     |
 | `GET`  | `/api/market/fx/{from}/{to}` | Hämtar växlingskurs mellan två valutor.    |
 | `POST` | `/api/market/backtest`       | Kör en backtest med lagrad historisk data. |
+| `POST` | `/api/market/history/import` | Importerar historiska priser för backtest. |
 
 Alla endpoints förutom login och logout kräver en autentiserad användare.
+
+## Aviseringsinställning i frontend
+
+Inställningen **Notis vid avvikelse** sparas i webbläsarens `localStorage` under nyckeln `avanza.settings.drift-notifications-enabled`. Den är aktiverad som standard.
+
+När inställningen stängs av döljs aviseringar på sidan Notiser, senaste aviseringsaktivitet och varningsmeddelanden på Översikt samt avvikelsemeddelandet i Analyser. Fördelningsdiagram och avvikelsevärden visas fortfarande som analysdata. Inställningen påverkar endast visningen i den aktuella webbläsaren; backend fortsätter att beräkna och returnera driftaviseringar.
+
+Övriga platshållarinställningar för generella notiser, utdelningar och kvartalsrapporter finns inte längre i gränssnittet eftersom de saknar kopplad funktionalitet.
 
 ## Autentisering och säkerhet
 
@@ -365,26 +360,23 @@ Testerna täcker bland annat:
 
 ## Kända begränsningar
 
-<<<<<<< HEAD:backend/AvanzaPortal/DEVELOPMENT.md
 [`docs/known-bugs.md`](../../docs/known-bugs.md) listan har tagits bort eftersom den blandade äldre v1-problem med
 pågående v2-arbete och inte längre gav en tillförlitlig bild av backendens
 aktuella status. Nya begränsningar kan upptäckas när systemet vidareutvecklas;
 dokumentera dem som GitHub-issues och uppdatera den här guiden när de påverkar
 hur backend körs eller används.
 
-=======
-
 - Marketstack ger end-of-day-priser och inte realtidskurser.
 - Endast ett begränsat antal tickers stöds av den nuvarande marknadskonfigurationen.
 - Backtest kräver historiska priser i databasen.
-- Automatisk import av historisk data är ännu inte kopplad till ett schemalagt jobb eller en publik endpoint.
+- Historisk import startas från sidan Analyser, högst en gång per 24 timmar och webbläsare. Importen körs inte schemalagt, och endpointen kräver autentisering.
+- Live-driftaviseringar beräknas vid API-anrop och sparas inte i databasen. Endast lagrade aviseringar kan avfärdas via `PUT /api/alerts/{id}/dismiss`.
+- Inställningen för driftaviseringar är webbläsarlokal och styr bara vad som visas i frontend; den ändrar inte backendens beräkning eller API-svar.
 - Portföljöversikten är en aggregerad vy och hämtar därför samtliga innehav utan pagination.
 - JWT-cookiens produktionsinställningar behöver konfigureras separat, exempelvis `Secure=true` över HTTPS.
 - Fler integrations-, säkerhets- och lasttester behövs innan systemet är produktionsredo.
 
 ## Arbetsflöde
-
-> develop:backend/AvanzaPortal/Backend-ReadMe.md
 
 1. Välj eller skapa ett GitHub-issue.
 2. Uppdatera den lokala `develop`-branchen.
