@@ -316,17 +316,21 @@ export const Analyses = () => {
 
   // Map the actual account allocation returned by the backend.
   const currentAllocation: AllocationSlice[] =
-    portfolio?.allocationRows.map((row) => ({
-      label: formatAccountType(row.accountType),
-      percent: row.actual,
-    })) ?? []
+    portfolio?.allocationRows
+      .filter((row) => row.accountType !== 'Pension')
+      .map((row) => ({
+        label: formatAccountType(row.accountType),
+        percent: row.actual,
+      })) ?? []
 
   // Map the user's target allocation returned by the backend.
   const targetAllocation: AllocationSlice[] =
-    portfolio?.allocationRows.map((row) => ({
-      label: formatAccountType(row.accountType),
-      percent: row.target,
-    })) ?? []
+    portfolio?.allocationRows
+      .filter((row) => row.accountType !== 'Pension')
+      .map((row) => ({
+        label: formatAccountType(row.accountType),
+        percent: row.target,
+      })) ?? []
 
   return (
     <div className="p-6">
@@ -385,7 +389,7 @@ export const Analyses = () => {
               Tickers: {backtest.tickers.join(', ')}. Period:{' '}
               {backtest.dates[0]}–{backtest.dates[backtest.dates.length - 1]}.
             </p>
-            <p className="text-sm text-amber-700" role="note">
+            <p className="text-sm text-orange-400" role="note">
               Historiska priser har konverterats till SEK med ECB-kursen för respektive handelsdag.
             </p>
           </>

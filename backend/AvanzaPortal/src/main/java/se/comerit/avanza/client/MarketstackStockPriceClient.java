@@ -48,6 +48,13 @@ public class MarketstackStockPriceClient implements StockPriceClient {
         return Optional.ofNullable(fetchPrices(List.of(symbol)).get(symbol));
     }
 
+    /**
+     * (non-Javadoc)
+     * Fetches and validates the latest end-of-day closing prices for multiple
+     * symbols.
+     * 
+     * @see se.comerit.avanza.client.StockPriceClient#fetchPrices(java.util.List)
+     */
     @Override
     public Map<String, BigDecimal> fetchPrices(List<String> symbols) {
         if (symbols == null || symbols.isEmpty() || apiKey == null || apiKey.isBlank()) {

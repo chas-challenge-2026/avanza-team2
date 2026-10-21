@@ -1,4 +1,5 @@
 import React from 'react';
+import './HoldingRow.css';
 
 export type HoldingItem = {
     id: string;
@@ -24,57 +25,42 @@ const formatSek = (value: number): string =>
         maximumFractionDigits: 0,
     });
 
-// Formats percentage returns with two decimal places and the correct sign.
 const formatReturn = (value: number): string => {
     const formattedValue = value.toLocaleString('sv-SE', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
     });
 
-    return value >= 0
-        ? `+${formattedValue}%`
-        : `${formattedValue}%`;
+    return value >= 0 ? `+${formattedValue}%` : `${formattedValue}%`;
 };
 
 const HoldingRow = ({ item, onClick }: HoldingRowProps) => {
-    // Use green for positive returns and red for negative returns.
-    const returnColor =
-        item.returnPercent >= 0 ? '#16A34A' : '#DC2626';
+    const returnColor = item.returnPercent >= 0 ? '#16A34A' : '#DC2626';
 
     return (
-        <div
-            style={styles.row}
-            onClick={() => onClick && onClick(item.id)}
-        >
-            <div style={styles.leftContent}>
+        <div style={styles.row} onClick={() => onClick?.(item.id)}>
+            <div style={styles.leftContent} className="holding-row-left">
                 <div style={styles.iconContainer}>
                     <span>📈</span>
                 </div>
-
-                <div style={styles.stockInfo}>
-                    <h4 style={styles.symbol}>{item.symbol}</h4>
-                    <p style={styles.name}>{item.name}</p>
+                <div style={styles.stockInfo} className="holding-row-text">
+                    <h4 style={styles.symbol} className="holding-row-symbol">
+                        {item.symbol}
+                    </h4>
+                    <p style={styles.name} className="holding-row-name">
+                        {item.name}
+                    </p>
                 </div>
             </div>
 
-            <div style={styles.rightContent}>
-                <span style={styles.text}>
+            <div style={styles.rightContent} className="holding-row-right">
+                <span style={styles.text} className="holding-row-shares">
                     {formatShares(item.shares)} st.
                 </span>
-
-                <span style={styles.text}>
-                    {formatSek(item.value)} SEK
-                </span>
-
-                <span
-                    style={{
-                        ...styles.return,
-                        color: returnColor,
-                    }}
-                >
+                <span style={styles.text}>{formatSek(item.value)} SEK</span>
+                <span style={{ ...styles.return, color: returnColor }}>
                     {formatReturn(item.returnPercent)}
                 </span>
-
                 <span style={styles.arrow}>›</span>
             </div>
         </div>

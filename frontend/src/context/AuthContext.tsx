@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { AuthContext } from './auth-context';
+import { AuthContext, type AuthUser } from './auth-context';
 
 const API_URL = import.meta.env.VITE_API_URL ?? '';
 const AUTH_CHECK_INTERVAL = 30 * 1000;
@@ -7,17 +7,14 @@ const AUTH_CHECK_INTERVAL = 30 * 1000;
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<AuthUser | null>(null);
 
-  /**
-   * Checks whether the current JWT cookie represents an authenticated user.
-   */
   useEffect(() => {
     let isMounted = true;
     let isChecking = false;
 
     const checkAuthentication = async () => {
       if (isChecking) return;
-
       isChecking = true;
 
       try {
@@ -32,31 +29,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setIsAuthenticated(true);
         } else if (response.status === 401 || response.status === 403) {
           setIsAuthenticated(false);
+          setUser(null);
         }
       } catch {
-        // Keep the current authentication state if the server is temporarily unavailable.
+        // Keep the current authentication state during temporary network failures.
       } finally {
         isChecking = false;
-
         if (isMounted) {
           setIsLoading(false);
         }
       }
     };
 
-    // Check the session when the application starts.
-    checkAuthentication();
+    void checkAuthentication();
 
-    // Periodically check whether the session is still valid.
     const intervalId = window.setInterval(
-      checkAuthentication,
-      AUTH_CHECK_INTERVAL
+      () => void checkAuthentication(),
+      AUTH_CHECK_INTERVAL,
     );
-
-    // Recheck the session when the user returns to the application.
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        checkAuthentication();
+        void checkAuthentication();
       }
     };
 
@@ -65,17 +58,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       isMounted = false;
       window.clearInterval(intervalId);
-      document.removeEventListener(
-        'visibilitychange',
-        handleVisibilityChange
-      );
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 
-  /**
-   * Logs the user in through the backend.
-   * The backend stores the JWT in an HttpOnly cookie.
-   */
   const login = async (email: string, password: string) => {
     const response = await fetch(`${API_URL}/api/auth/login`, {
       method: 'POST',
@@ -90,13 +76,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       throw new Error('Login failed');
     }
 
+    const data = (await response.json()) as { name: string; email: string };
+    setUser({ name: data.name, email: data.email });
     setIsAuthenticated(true);
   };
 
-  /**
-   * Logs the user out through the backend.
-   * The backend clears the HttpOnly JWT cookie.
-   */
   const logout = async () => {
     try {
       await fetch(`${API_URL}/api/auth/logout`, {
@@ -105,6 +89,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
     } finally {
       setIsAuthenticated(false);
+      setUser(null);
     }
   };
 
@@ -113,6 +98,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       value={{
         isAuthenticated,
         isLoading,
+        user,
         login,
         logout,
       }}
