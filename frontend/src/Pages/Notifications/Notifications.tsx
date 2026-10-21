@@ -99,7 +99,8 @@ const Notiser = () => {
                             timestamp: formatDate(alert.createdAt),
                             category: 'Övrigt',
                             icon: 'fa-bell',
-                        }));
+                        }))
+                    : [];
 
                 const liveNotifications: Notification[] = driftNotificationsEnabled
                     ? data.liveAlerts
@@ -111,7 +112,8 @@ const Notiser = () => {
                             timestamp: alert.createdAt,
                             category: 'Värdepapper',
                             icon: 'fa-bell',
-                        }));
+                        }))
+                    : [];
 
                 setNotifications([
                     ...liveNotifications,
