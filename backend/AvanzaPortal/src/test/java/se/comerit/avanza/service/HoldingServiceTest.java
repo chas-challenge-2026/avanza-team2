@@ -26,6 +26,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 
 import se.comerit.avanza.dto.holdings.CreateHoldingRequestDTO;
 import se.comerit.avanza.dto.holdings.HoldingResponseDTO;
+import se.comerit.avanza.dto.market.FxRateResponseDTO;
 import se.comerit.avanza.entity.Account;
 import se.comerit.avanza.entity.Holdings;
 import se.comerit.avanza.entity.User;
@@ -112,6 +113,29 @@ class HoldingServiceTest {
                 assertEquals(300.0, enrichedHolding.get("pnl"));
                 verify(holdingsRepository).findHoldingsForUser(userId.longValue());
                 verify(marketService).getPrice("ERIC-B");
+        }
+
+        @Test
+        void shouldConvertUsdMarketValueAndPnlToSekForEnrichedHoldings() {
+                Holdings holding = new Holdings(
+                                "AAPL",
+                                "Apple",
+                                new BigDecimal("2"),
+                                new BigDecimal("150"),
+                                "USD",
+                                new Account());
+
+                when(holdingsRepository.findHoldingsForUser(1L)).thenReturn(List.of(holding));
+                when(marketService.getPrice("AAPL")).thenReturn(Optional.of(new BigDecimal("200")));
+                when(marketService.getFx("USD", "SEK"))
+                                .thenReturn(new FxRateResponseDTO("2026-10-15", "USD", "SEK", 10.0));
+
+                Map<String, Object> result = holdingService.getEnrichedHoldingsForUser(1).get(0);
+
+                assertEquals(200.0, result.get("currentPrice"));
+                assertEquals(4000.0, result.get("marketValue"));
+                assertEquals(1000.0, result.get("pnl"));
+                verify(marketService).getFx("USD", "SEK");
         }
 
         @Test
@@ -239,6 +263,42 @@ class HoldingServiceTest {
                 verify(userRepository).findByEmail(email);
                 verify(holdingsRepository).findAllByUserId(7L, pageable);
                 verify(accountRepository).findByUserId(7L);
+        }
+
+        @Test
+        void shouldConvertUsdMarketValueAndPnlToSekForAuthenticatedHoldings() {
+                String email = "anna@example.com";
+                User user = new User();
+                user.setId(7L);
+                user.setName("Anna");
+
+                Account account = new Account();
+                account.setId(3L);
+                account.setAccount_type("ISK");
+                account.setAccount_name("Annas ISK");
+
+                Holdings holding = new Holdings(
+                                "AAPL",
+                                "Apple",
+                                new BigDecimal("2"),
+                                new BigDecimal("150"),
+                                "USD",
+                                account);
+                when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+                when(holdingsRepository.findAllByUserId(7L, Pageable.unpaged()))
+                                .thenReturn(new PageImpl<>(List.of(holding)));
+                when(accountRepository.findByUserId(7L)).thenReturn(List.of(account));
+                when(marketService.getPrice("AAPL")).thenReturn(Optional.of(new BigDecimal("200")));
+                when(marketService.getFx("USD", "SEK"))
+                                .thenReturn(new FxRateResponseDTO("2026-10-15", "USD", "SEK", 10.0));
+
+                HoldingResponseDTO result =
+                                holdingService.getHoldingsForAuthenticatedUser(email, Pageable.unpaged());
+
+                assertEquals(4000.0, result.holdings().get(0).marketValue());
+                assertEquals(1000.0, result.holdings().get(0).pnl());
+                assertEquals("USD", result.holdings().get(0).currency());
+                verify(marketService).getFx("USD", "SEK");
         }
 
         @Test

@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.servlet.http.HttpServletRequest;
 import se.comerit.avanza.dto.auth.LoginRequestDTO;
 import se.comerit.avanza.dto.auth.LoginResponseDTO;
 import se.comerit.avanza.service.AuthService;
@@ -47,7 +48,7 @@ public class AuthController {
      */
     @PostMapping("/login")
     public ResponseEntity<LoginResponseDTO> login(
-            @RequestBody LoginRequestDTO loginRequest) {
+            @RequestBody LoginRequestDTO loginRequest, HttpServletRequest request) {
 
         LoginResponseDTO response = authService.authenticate(loginRequest);
 
@@ -55,7 +56,7 @@ public class AuthController {
         ResponseCookie cookie = ResponseCookie.from("jwt", response.token())
                 .httpOnly(true)
                 // HTTPS is required for Secure cookies in production.
-                .secure(false)
+                .secure(request.isSecure())
                 .path("/")
                 .sameSite("Lax")
                 .maxAge(30 * 60)
@@ -86,12 +87,12 @@ public class AuthController {
      * @return a ResponseEntity with 204 No Content status
      */
     @DeleteMapping("/logout")
-    public ResponseEntity<Void> logout() {
+    public ResponseEntity<Void> logout(HttpServletRequest request) {
 
         // Clear the JWT cookie by setting its max age to zero.
         ResponseCookie cookie = ResponseCookie.from("jwt", "")
                 .httpOnly(true)
-                .secure(false)
+                .secure(request.isSecure())
                 .path("/")
                 .sameSite("Lax")
                 .maxAge(0)

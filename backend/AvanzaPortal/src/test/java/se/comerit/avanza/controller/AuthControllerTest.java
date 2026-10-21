@@ -4,8 +4,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+
+import jakarta.servlet.http.HttpServletRequest;
+
 import static org.junit.jupiter.api.Assertions.*;
 import se.comerit.avanza.dto.auth.LoginRequestDTO;
 import se.comerit.avanza.dto.auth.LoginResponseDTO;
@@ -23,6 +28,12 @@ public class AuthControllerTest {
     @Mock
     private AuthService authService;
 
+    @Mock
+    private Authentication authentication;
+
+    @Mock
+    private HttpServletRequest request;
+
     private AuthController authController;
 
     @BeforeEach
@@ -33,12 +44,12 @@ public class AuthControllerTest {
     @Test
     @DisplayName("Login success - Returns 200 with token")
     void login_Success() {
-        LoginRequestDTO request = new LoginRequestDTO("john@example.com", "password123");
+        LoginRequestDTO loginRequest = new LoginRequestDTO("john@example.com", "password123");
         LoginResponseDTO response = new LoginResponseDTO("john_token", "John Doe", "john@example.com");
 
-        when(authService.authenticate(request)).thenReturn(response);
+        when(authService.authenticate(loginRequest)).thenReturn(response);
 
-        ResponseEntity<LoginResponseDTO> result = authController.login(request);
+        ResponseEntity<LoginResponseDTO> result = authController.login(loginRequest, request);
 
         assertEquals(HttpStatus.OK, result.getStatusCode());
         assertNotNull(result.getBody());
@@ -46,26 +57,66 @@ public class AuthControllerTest {
         assertEquals("John Doe", result.getBody().name());
         assertEquals("john@example.com", result.getBody().email());
 
-        verify(authService).authenticate(request);
+        String cookie = result.getHeaders().getFirst(HttpHeaders.SET_COOKIE);
+        assertNotNull(cookie);
+        assertTrue(cookie.contains("jwt=john_token"));
+        assertTrue(cookie.contains("HttpOnly"));
+        assertTrue(cookie.contains("SameSite=Lax"));
+        assertFalse(cookie.contains("Secure"));
+
+        verify(authService).authenticate(loginRequest);
     }
 
     @Test
     @DisplayName("Login failure - Invalid credentials")
     void login_Failure_InvalidCredentials() {
-        LoginRequestDTO request = new LoginRequestDTO("john@example.com", "wrongpassword");
+        LoginRequestDTO loginRequest = new LoginRequestDTO("john@example.com", "wrongpassword");
 
-        when(authService.authenticate(request))
+        when(authService.authenticate(loginRequest))
                 .thenThrow(new IllegalArgumentException("Invalid credentials"));
 
-        assertThrows(IllegalArgumentException.class, () -> authController.login(request));
+        assertThrows(IllegalArgumentException.class, () -> authController.login(loginRequest, request));
+    }
+
+    @Test
+    @DisplayName("Login over HTTPS - Sets a secure JWT cookie")
+    void login_OverHttps_SetsSecureCookie() {
+        LoginRequestDTO loginRequest = new LoginRequestDTO("john@example.com", "password123");
+        LoginResponseDTO response = new LoginResponseDTO("john_token", "John Doe", "john@example.com");
+
+        when(request.isSecure()).thenReturn(true);
+        when(authService.authenticate(loginRequest)).thenReturn(response);
+
+        ResponseEntity<LoginResponseDTO> result = authController.login(loginRequest, request);
+
+        String cookie = result.getHeaders().getFirst(HttpHeaders.SET_COOKIE);
+        assertNotNull(cookie);
+        assertTrue(cookie.contains("Secure"));
+        assertTrue(cookie.contains("HttpOnly"));
+        assertTrue(cookie.contains("SameSite=Lax"));
+    }
+
+    @Test
+    @DisplayName("Me endpoint - Returns 204 No Content")
+    void meEndpoint_ReturnsNoContent() {
+        ResponseEntity<Void> result = authController.me(authentication);
+
+        assertEquals(HttpStatus.NO_CONTENT, result.getStatusCode());
+        assertNull(result.getBody());
     }
 
     @Test
     @DisplayName("Logout - Returns 204 No Content")
     void logout_Success() {
-        ResponseEntity<Void> result = authController.logout();
+        ResponseEntity<Void> result = authController.logout(request);
 
         assertEquals(HttpStatus.NO_CONTENT, result.getStatusCode());
         assertNull(result.getBody());
+
+        String cookie = result.getHeaders().getFirst(HttpHeaders.SET_COOKIE);
+        assertNotNull(cookie);
+        assertTrue(cookie.contains("jwt="));
+        assertTrue(cookie.contains("Max-Age=0"));
+        assertTrue(cookie.contains("HttpOnly"));
     }
 }

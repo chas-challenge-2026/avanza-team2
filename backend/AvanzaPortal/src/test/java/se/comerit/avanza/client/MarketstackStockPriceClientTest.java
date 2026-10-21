@@ -2,6 +2,7 @@ package se.comerit.avanza.client;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.queryParam;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
@@ -11,6 +12,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
@@ -27,7 +29,7 @@ class MarketstackStockPriceClientTest {
     void fetchesLatestPriceForSymbol() {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        server.expect(requestTo(org.hamcrest.Matchers.containsString("/v2/eod/latest?")))
+        server.expect(requestTo(containsString("/v2/eod/latest?")))
                 .andExpect(method(HttpMethod.GET))
                 .andExpect(queryParam("access_key", "test-key"))
                 .andExpect(queryParam("symbols", "ERIC-B.ST"))
@@ -38,6 +40,34 @@ class MarketstackStockPriceClientTest {
         MarketstackStockPriceClient client = new MarketstackStockPriceClient(builder, BASE_URL, "test-key");
 
         assertEquals(Optional.of(new BigDecimal("92.34")), client.fetchPrice("ERIC-B.ST", "XSTO"));
+        server.verify();
+    }
+
+    @Test
+    void fetchesMultiplePricesInOneRequest() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        List<String> symbols = List.of("ERIC-B.ST", "AAPL");
+        server.expect(requestTo(containsString("/v2/eod/latest?")))
+                .andExpect(method(HttpMethod.GET))
+                .andExpect(queryParam("access_key", "test-key"))
+                .andExpect(queryParam("symbols", "ERIC-B.ST,AAPL"))
+                .andRespond(withSuccess("""
+                        {
+                            "data": [
+                                { "symbol": "AAPL", "close": 256.18 },
+                                { "symbol": "ERIC-B.ST", "close": 92.34 },
+                                { "symbol": "UNKNOWN", "close": 1.00 },
+                                { "symbol": "AAPL", "close": 0 }
+                            ]
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        MarketstackStockPriceClient client = new MarketstackStockPriceClient(builder, BASE_URL, "test-key");
+
+        assertEquals(Map.of(
+                "ERIC-B.ST", new BigDecimal("92.34"),
+                "AAPL", new BigDecimal("256.18")), client.fetchPrices(symbols));
         server.verify();
     }
 

@@ -54,6 +54,7 @@ public class AuthService {
 
         // Handle Legacy MD5 Password Migration
         if (user.getPassword_md5() != null) {
+            // Verify the provided password against the legacy MD5 hash
             if (!md5Hash(loginRequest.password()).equals(user.getPassword_md5())) {
                 throw new BadCredentialsException("Invalid credentials");
             }

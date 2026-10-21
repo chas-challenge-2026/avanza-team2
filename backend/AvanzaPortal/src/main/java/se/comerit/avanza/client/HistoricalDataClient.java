@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -21,6 +23,8 @@ import se.comerit.avanza.dto.market.MarketstackPriceResponseDTO;
  */
 @Component
 public class HistoricalDataClient implements HistoricalPriceClient {
+
+    private static final Logger logger = LoggerFactory.getLogger(HistoricalDataClient.class);
 
     private final RestClient restClient;
     private final String apiKey;
@@ -152,6 +156,8 @@ public class HistoricalDataClient implements HistoricalPriceClient {
             prices.sort(Comparator.comparing(HistoricalPrice::date).thenComparing(HistoricalPrice::symbol));
             return prices;
         } catch (RestClientException exception) {
+            logger.warn("Marketstack historical request failed for symbols={} range={}..{} offset={}",
+                    requestedSymbols, fromDate, toDate, offset, exception);
             return List.of();
         }
     }

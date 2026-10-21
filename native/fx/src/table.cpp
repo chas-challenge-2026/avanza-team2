@@ -1,5 +1,7 @@
 #include "table.hpp"
 
+#include <cmath>
+
 FxTable::FxTable()
 {
   rates_.emplace("EUR", 1.0);
@@ -7,7 +9,8 @@ FxTable::FxTable()
 
 void FxTable::set(std::string_view _currency, double _per_eur)
 {
-  if (_currency.empty() || _per_eur <= 0.0)
+  // from_chars accepts "nan" and "inf", so a rate must also be finite.
+  if (_currency.empty() || !std::isfinite(_per_eur) || _per_eur <= 0.0)
     return;
 
   rates_[std::string(_currency)] = _per_eur;
@@ -15,7 +18,7 @@ void FxTable::set(std::string_view _currency, double _per_eur)
 
 std::optional<double> FxTable::per_eur(std::string_view _currency) const
 {
-  auto it = rates_.find(std::string(_currency));
+  auto it = rates_.find(_currency);
   if (it == rates_.end())
     return std::nullopt;
 

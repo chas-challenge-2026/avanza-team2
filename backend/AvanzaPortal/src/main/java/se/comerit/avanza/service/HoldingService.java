@@ -18,10 +18,16 @@ import se.comerit.avanza.dto.holdings.HoldingResponseDTO;
 import se.comerit.avanza.entity.Account;
 import se.comerit.avanza.entity.Holdings;
 import se.comerit.avanza.entity.User;
+import se.comerit.avanza.exception.ResourceNotFoundException;
 import se.comerit.avanza.repository.AccountRepository;
 import se.comerit.avanza.repository.HoldingsRepository;
 import se.comerit.avanza.repository.UserRepository;
 
+/**
+ * Service class for managing user holdings and accounts.
+ * Provides methods to retrieve holdings, enriched holdings with market data,
+ * and accounts for a given user.
+ */
 @Service
 public class HoldingService {
 
@@ -39,6 +45,12 @@ public class HoldingService {
         this.marketService = marketService;
     }
 
+    /**
+     * Retrieves the holdings for a given user ID.
+     *
+     * @param userId the ID of the user
+     * @return a list of holdings represented as maps
+     */
     public List<Map<String, Object>> getHoldingsForUser(Integer userId) {
         return holdingsRepository.findHoldingsForUser(userId.longValue())
                 .stream()
@@ -60,7 +72,12 @@ public class HoldingService {
                 .toList();
     }
 
-    // This method retrieves the accounts for a given user ID.
+    /**
+     * Retrieves the accounts for a given user ID.
+     *
+     * @param userId the ID of the user
+     * @return a list of holding account DTOs
+     */
     public List<HoldingAccountDTO> getAccountsForUser(Long userId) {
         return accountRepository.findByUserId(userId).stream()
                 .map(account -> new HoldingAccountDTO(
@@ -70,6 +87,14 @@ public class HoldingService {
                 .toList();
     }
 
+    /**
+     * Retrieves the enriched holdings for a given user ID, including current market
+     * price,
+     * market value in SEK, and profit and loss (PnL).
+     *
+     * @param userId the ID of the user
+     * @return a list of enriched holdings represented as maps
+     */
     public List<Map<String, Object>> getEnrichedHoldingsForUser(Integer userId) {
         List<Map<String, Object>> holdings = getHoldingsForUser(userId);
 
@@ -88,8 +113,9 @@ public class HoldingService {
             double currentPrice = price.get().doubleValue();
             double quantity = ((BigDecimal) holding.get("quantity")).doubleValue();
             double averageBuyPrice = ((BigDecimal) holding.get("avg_buy_price")).doubleValue();
-            double marketValue = quantity * currentPrice;
-            double costBasis = quantity * averageBuyPrice;
+            double conversionRate = getSekConversionRate((String) holding.get("currency"));
+            double marketValue = toSek(quantity * currentPrice, conversionRate);
+            double costBasis = toSek(quantity * averageBuyPrice, conversionRate);
 
             holding.put("currentPrice", currentPrice);
             holding.put("marketValue", roundToTwoDecimals(marketValue));
@@ -99,10 +125,49 @@ public class HoldingService {
         return holdings;
     }
 
+    /**
+     * Rounds a given value to two decimal places.
+     *
+     * @param value the value to round
+     * @return the rounded value
+     */
     private double roundToTwoDecimals(double value) {
         return Math.round(value * 100.0) / 100.0;
     }
 
+    /**
+     * Retrieves the conversion rate from the given currency to SEK.
+     *
+     * @param currency the currency code (e.g., "USD")
+     * @return the conversion rate to SEK
+     */
+    private double getSekConversionRate(String currency) {
+        return "USD".equalsIgnoreCase(currency)
+                ? marketService.getFx("USD", "SEK").rate()
+                : 1.0;
+    }
+
+    /**
+     * Converts the given amount to SEK using the provided conversion rate.
+     *
+     * @param amount         the amount in the original currency
+     * @param conversionRate the conversion rate to SEK
+     * @return the amount converted to SEK
+     */
+    private double toSek(double amount, double conversionRate) {
+        return amount * conversionRate;
+    }
+
+    /**
+     * Adds a new holding for the specified account.
+     *
+     * @param accountId      the ID of the account
+     * @param ticker         the ticker symbol of the holding
+     * @param instrumentName the name of the instrument
+     * @param quantity       the quantity of the holding
+     * @param avgBuyPrice    the average buy price of the holding
+     * @param currency       the currency of the holding
+     */
     private void addHolding(Integer accountId, String ticker, String instrumentName, String quantity,
             String avgBuyPrice, String currency) {
 
@@ -110,7 +175,7 @@ public class HoldingService {
         BigDecimal parsedAvgBuyPrice = new BigDecimal(avgBuyPrice);
 
         Account account = accountRepository.findById(accountId.longValue())
-                .orElseThrow(() -> new IllegalArgumentException("Account not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
 
         Holdings holding = new Holdings(ticker.toUpperCase(), instrumentName, parsedQuantity, parsedAvgBuyPrice,
                 currency, account);
@@ -119,8 +184,14 @@ public class HoldingService {
 
     }
 
-    // This method retrieves the holdings and accounts for the authenticated user
-    // based on their email.
+    /**
+     * Retrieves the holdings and accounts for the authenticated user based on their
+     * email.
+     *
+     * @param email    the email of the authenticated user
+     * @param pageable the pagination information
+     * @return a HoldingResponseDTO containing the user's holdings
+     */
     public HoldingResponseDTO getHoldingsForAuthenticatedUser(String email, Pageable pageable) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new BadCredentialsException("Autentication failed: User not found"));
@@ -148,8 +219,9 @@ public class HoldingService {
                     .orElseThrow(() -> new RuntimeException("Failed to retrieve current price for ticker: " + ticker));
             double quantity = ((BigDecimal) holding.get("quantity")).doubleValue();
             double averageBuyPrice = ((BigDecimal) holding.get("avg_buy_price")).doubleValue();
-            double marketValue = quantity * currentPrice;
-            double costBasis = quantity * averageBuyPrice;
+            double conversionRate = getSekConversionRate((String) holding.get("currency"));
+            double marketValue = toSek(quantity * currentPrice, conversionRate);
+            double costBasis = toSek(quantity * averageBuyPrice, conversionRate);
 
             holding.put("currentPrice", currentPrice);
             holding.put("marketValue", roundToTwoDecimals(marketValue));
@@ -168,6 +240,12 @@ public class HoldingService {
                 holdingsPage.getTotalPages());
     }
 
+    /**
+     * Adds a new holding for the authenticated user.
+     *
+     * @param email      the email of the authenticated user
+     * @param requestDTO the request DTO containing holding details
+     */
     public void addHoldingForAuthenticatedUser(String email, CreateHoldingRequestDTO requestDTO) {
 
         User user = userRepository.findByEmail(email)
@@ -188,6 +266,12 @@ public class HoldingService {
                 requestDTO.currency());
     }
 
+    /**
+     * Deletes a holding for the authenticated user.
+     *
+     * @param email     the email of the authenticated user
+     * @param holdingId the ID of the holding to delete
+     */
     public void deleteHoldingForAuthenticatedUser(String email, Integer holdingId) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new BadCredentialsException("Autentication failed: User not found"));
@@ -199,6 +283,12 @@ public class HoldingService {
         }
     }
 
+    /**
+     * Converts a database row into a HoldingItemDTO.
+     *
+     * @param row the database row as a map
+     * @return the corresponding HoldingItemDTO
+     */
     private HoldingItemDTO toHoldingDTO(Map<String, Object> row) {
         return new HoldingItemDTO(
                 toLong(row.get("id")),
@@ -214,10 +304,22 @@ public class HoldingService {
                 toDouble(row.get("pnl")));
     }
 
+    /**
+     * Converts an object to a Double.
+     *
+     * @param value the object to convert
+     * @return the corresponding Double value, or null if the input is null
+     */
     private Double toDouble(Object value) {
         return value == null ? null : ((Number) value).doubleValue();
     }
 
+    /**
+     * Converts an object to a Long.
+     *
+     * @param value the object to convert
+     * @return the corresponding Long value, or null if the input is null
+     */
     private Long toLong(Object value) {
         return value == null ? null : ((Number) value).longValue();
     }

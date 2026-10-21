@@ -6,13 +6,14 @@ interface TopBarProps {
   title: string;
   userInitials?: string;
   className?: string;
+  onMenuClick?: () => void;
 }
 
-export const TopBar = ({ title, userInitials = 'JL', className }: TopBarProps) => {
+export const TopBar = ({ title, userInitials = 'JL', className, onMenuClick }: TopBarProps) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -33,11 +34,21 @@ export const TopBar = ({ title, userInitials = 'JL', className }: TopBarProps) =
 
   return (
     <header
-      className={`flex items-center justify-between border-b border-neutral-200 bg-white px-6 py-4${
+      className={`relative z-50 flex items-center justify-between border-b border-neutral-200 bg-white px-6 py-4${
         className ? ` ${className}` : ''
       }`}
     >
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3">
+        {onMenuClick && (
+          <button
+            type="button"
+            onClick={onMenuClick}
+            aria-label="Öppna meny"
+            className="-ml-1 flex h-9 w-9 items-center justify-center rounded-full text-neutral-600 hover:bg-neutral-50 md:hidden"
+          >
+            <i className="fa-solid fa-bars text-lg" />
+          </button>
+        )}
         <i className="fa-solid fa-arrow-trend-up text-xl text-[#00c281]" />
         <span className="text-lg font-bold text-neutral-900">{title}</span>
       </div>
@@ -59,8 +70,14 @@ export const TopBar = ({ title, userInitials = 'JL', className }: TopBarProps) =
         {menuOpen && (
           <ul
             role="menu"
-            className="absolute right-0 z-10 mt-2 min-w-[160px] overflow-hidden rounded-xl border border-neutral-200 bg-white py-1 shadow-lg"
+            className="absolute right-0 z-10 mt-2 min-w-[220px] overflow-hidden rounded-xl border border-neutral-200 bg-white py-1 shadow-lg"
           >
+            {user && (
+              <li className="border-b border-neutral-100 px-4 py-2.5">
+                <p className="truncate text-sm font-semibold text-neutral-900">{user.name}</p>
+                <p className="truncate text-xs text-neutral-500">{user.email}</p>
+              </li>
+            )}
             <li>
               <button
                 type="button"

@@ -36,19 +36,16 @@ else
 	LDFLAGS := -flto -Wl,--gc-sections -lcurl
 endif
 
-# Map local .cpp → .o (the library, linked into both $(SO) and $(TEST_BIN))
+# Map local .cpp → .o (the library, linked into both $(SO) and $(TEST_BIN)).
+# CXXFLAGS already has -fPIC, so the same objects work for the shared library.
 OBJ := $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/$(SRC_DIR)/%.o,$(SRC))
-
-# Same mapping again, but under build/so so PIC objects never collide with
-# the plain ones $(TEST_BIN) uses.
-SO_OBJ := $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/so/$(SRC_DIR)/%.o,$(SRC))
 
 # Map test .cpp → .o, linked with $(OBJ) into $(TEST_BIN)
 TEST_OBJ_LOCAL := $(patsubst $(TEST_DIR)/%.cpp,$(BUILD_DIR)/$(TEST_DIR)/%.o,$(TEST_SRC))
 TEST_OBJ       := $(OBJ) $(TEST_OBJ_LOCAL)
 
 # Dependency files (.d)
-DEP := $(OBJ:.o=.d) $(SO_OBJ:.o=.d) $(TEST_OBJ_LOCAL:.o=.d)
+DEP := $(OBJ:.o=.d) $(TEST_OBJ_LOCAL:.o=.d)
 
 # ==================== Recipes ====================
 
@@ -60,10 +57,13 @@ all: $(SO)
 so: $(SO)
 	@echo "Shared library build complete."
 
-$(SO): $(SO_OBJ)
+# The backend Dockerfile builds with `make -C fx solib`, same alias as in risk/
+solib: so
+
+$(SO): $(OBJ)
 	@echo "Linking shared library..."
 	@mkdir -p $(dir $@)
-	@$(CXX) -shared $(SO_OBJ) $(LDFLAGS) -o $@
+	@$(CXX) -shared $(OBJ) $(LDFLAGS) -o $@
 
 test: $(TEST_BIN)
 	@echo "Test build complete."
@@ -82,7 +82,7 @@ profile: clean
 	@echo "Building profiling test binary..."
 	@$(MAKE) \
 		CXXFLAGS="$(CXXFLAGS) -pg -O0 -g" \
-		LDFLAGS="-Wl,--gc-sections -pg -lcurl" \
+		LDFLAGS="$(filter-out -flto,$(LDFLAGS)) -pg" \
 		test
 
 # Rule for local C++ library source files
@@ -96,12 +96,6 @@ $(BUILD_DIR)/$(TEST_DIR)/%.o: $(TEST_DIR)/%.cpp
 	@echo "Compiling test $<..."
 	@mkdir -p $(dir $@)
 	@$(CXX) $(CXXFLAGS) -c $< -o $@
-
-# Position-independent variants for the $(SO) target
-$(BUILD_DIR)/so/$(SRC_DIR)/%.o: $(SRC_DIR)/%.cpp
-	@echo "Compiling (PIC) $<..."
-	@mkdir -p $(dir $@)
-	@$(CXX) $(CXXFLAGS) -fPIC -c $< -o $@
 
 run: $(TEST_BIN)
 	@echo "Running $(TEST_BIN)..."
@@ -127,20 +121,9 @@ gdb: $(TEST_BIN)
 print:
 	@echo "Local Source files: $(SRC)"
 	@echo "Test source files: $(TEST_SRC)"
-	@echo "Total Object files: $(OBJ) $(SO_OBJ) $(TEST_OBJ_LOCAL)"
+	@echo "Total Object files: $(OBJ) $(TEST_OBJ_LOCAL)"
 	@echo "Dependency files: $(DEP)"
 
 -include $(DEP)
 
-.PHONY: all so test run run-live clean print gdb valgrind asan profile
-
-# Rule for building the shared library libfx.so
-SOLIB := $(BUILD_DIR)/libfx.so
-
-# Target for building the shared library libfx.so
-solib: $(OBJ)
-	@echo "Linking $(SOLIB)"
-	@mkdir -p $(dir $(SOLIB))
-	@$(CXX) -shared $(OBJ) $(LDFLAGS) -o $(SOLIB)
-
-.PHONY: solib
+.PHONY: all so solib test run run-live clean print gdb valgrind asan profile

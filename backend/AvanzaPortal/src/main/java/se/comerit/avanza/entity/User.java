@@ -34,7 +34,6 @@ public class User {
 
     private String name;
     private String email;
-    // TODO: Password hashing should be migrated to bcrypt along with the
     private String password_md5;
     private String password_bcrypt;
 

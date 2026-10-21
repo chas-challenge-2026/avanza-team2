@@ -6,18 +6,24 @@ type NotificationCardProps = {
     timestamp: string;
     category: NotificationCategory;
     icon: string;
+    onDismiss?: () => void;
+    isDismissing?: boolean;
 };
 
 const NotificationCard = ({
     title,
     subtitle,
     timestamp,
-    icon
+    icon,
+    onDismiss,
+    isDismissing = false,
 }: NotificationCardProps) => {
 
     return (
         <div style={styles.card}>
-            <span style={styles.icon}>{icon}</span>
+            <span style={styles.icon} aria-hidden="true">
+                <i className={`fa-solid ${icon}`} />
+            </span>
 
             <div style={styles.content}>
                 <h4 style={styles.title}>{title}</h4>
@@ -25,6 +31,19 @@ const NotificationCard = ({
             </div>
 
             <span style={styles.time}>{timestamp}</span>
+
+            {onDismiss && (
+                <button
+                    type="button"
+                    style={styles.dismissButton}
+                    onClick={onDismiss}
+                    disabled={isDismissing}
+                    aria-label={`Avvisa notis: ${title}`}
+                    title="Avvisa notis"
+                >
+                    Avvisa
+                </button>
+            )}
         </div>
     );
 };
@@ -47,8 +66,16 @@ const styles: Record<string, React.CSSProperties> = {
         boxSizing: 'border-box',
     },
     icon: {
-        fontSize: '18px',
-        lineHeight: 1,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flex: '0 0 32px',
+        width: '32px',
+        height: '32px',
+        borderRadius: '50%',
+        backgroundColor: '#d9770626',
+        color: '#d97706',
+        fontSize: '12px',
     },
     content: {
         flex: 1,
@@ -75,5 +102,15 @@ const styles: Record<string, React.CSSProperties> = {
         fontSize: '11px',
         color: '#94A3B8',
         whiteSpace: 'nowrap',
+    },
+    dismissButton: {
+        border: 0,
+        background: 'transparent',
+        color: '#475569',
+        font: 'inherit',
+        fontSize: '12px',
+        padding: '6px 8px',
+        whiteSpace: 'nowrap',
+        cursor: 'pointer',
     },
 };

@@ -1,0 +1,26 @@
+.holding-row-left {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.holding-row-text {
+    min-width: 0;
+    overflow: hidden;
+}
+
+.holding-row-symbol,
+.holding-row-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+    .holding-row-right {
+        gap: 12px !important;
+    }
+
+    .holding-row-shares {
+        display: none;
+    }
+}

@@ -55,6 +55,8 @@ const styles: Record<string, React.CSSProperties> = {
         display: 'flex',
         alignItems: 'center',
         gap: '14px',
+        minWidth: 0,
+        flex: '1 1 auto',
     },
     iconContainer: {
         width: '40px',
@@ -91,5 +93,7 @@ const styles: Record<string, React.CSSProperties> = {
         fontWeight: 500,
         cursor: 'pointer',
         transition: 'background-color 0.2s ease',
+        flexShrink: 0,
+        whiteSpace: 'nowrap',
     },
 };
