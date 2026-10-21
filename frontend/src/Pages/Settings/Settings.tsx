@@ -4,12 +4,9 @@ import { Title } from "../../Components/Title/Title.tsx";
 import { SettingsSection } from "../../Components/SettingsSection/SettingsSection.tsx";
 import { SettingsRow } from "../../Components/SettingsRow/SettingsRow.tsx";
 import { Toggle } from "../../Components/Toggle/Toggle.tsx";
-import { DropdownBtn } from "../../Components/DropdownBtn/DropdownBtn.tsx";
 import {
   portfolioName,
-  defaultCurrency,
   deviationAlert,
-  type CurrencyCode,
 } from "./settingsSampleData.ts";
 import {
   getTargetAllocations,
@@ -22,18 +19,10 @@ import {
 } from "../../utils/driftNotificationPreference.ts";
 import { useAuth } from "../../context/useAuth.ts";
 
-const currencyOptions = [
-  { label: "SEK", value: "SEK" },
-  { label: "USD", value: "USD" },
-];
-
 export const Settings = () => {
   const navigate = useNavigate();
   const { logout } = useAuth();
   const [loggingOut, setLoggingOut] = useState(false);
-
-  // General settings
-  const [currency, setCurrency] = useState<CurrencyCode>(defaultCurrency);
 
   // Notification settings
   const [deviationEnabled, setDeviationEnabled] = useState(
@@ -216,19 +205,18 @@ export const Settings = () => {
 
           <SettingsRow
             label="Standardvaluta"
+            subtext="Valutakonvertering är inte tillgänglig ännu."
             control={
-              <DropdownBtn
-                options={currencyOptions}
-                value={currency}
-                onChange={(value) => setCurrency(value as CurrencyCode)}
-              />
+              <span className="rounded-md bg-neutral-100 px-3 py-1.5 text-sm text-neutral-500">
+                SEK · Ej tillgänglig
+              </span>
             }
           />
         </SettingsSection>
 
         {/* Target allocation editor */}
         {/* Portfolio goals */}
-        <SettingsSection title="Portföljmål (Rebalansering)">
+        <SettingsSection title="Portföljmål">
           <SettingsRow
             label="Redigera målfördelning"
             subtext={
