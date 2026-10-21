@@ -45,7 +45,7 @@ export const SettingsRow = ({
       <button
         type="button"
         onClick={onClick}
-        className={`${rowClassName} text-left hover:bg-neutral-50`}
+        className={`${rowClassName} text-left`}
       >
         {content}
       </button>
