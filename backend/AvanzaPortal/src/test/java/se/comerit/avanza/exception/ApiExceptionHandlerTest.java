@@ -41,6 +41,14 @@ class ApiExceptionHandlerTest {
     }
 
     @Test
+    void returnsServiceUnavailableWhenFxDataIsMissing() throws Exception {
+        mockMvc.perform(get("/errors/fx-unavailable"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.title").value("Service Unavailable"))
+                .andExpect(jsonPath("$.detail").value("No FX rate data is currently available"));
+    }
+
+    @Test
     void returnsGenericProblemForUnexpectedExceptions() throws Exception {
         mockMvc.perform(get("/errors/unexpected"))
                 .andExpect(status().isInternalServerError())
@@ -50,6 +58,11 @@ class ApiExceptionHandlerTest {
 
     @RestController
     static class TestController {
+
+        @GetMapping("/errors/fx-unavailable")
+        void fxUnavailable() {
+            throw new FxDataUnavailableException("No FX rate data is currently available");
+        }
 
         @GetMapping("/errors/bad-credentials")
         void badCredentials() {

@@ -18,7 +18,11 @@ import se.comerit.avanza.entity.User;
 import se.comerit.avanza.exception.InvalidRequestException;
 import se.comerit.avanza.repository.TargetRepository;
 import se.comerit.avanza.repository.UserRepository;
-@Service 
+
+/**
+ * Service for managing target allocations for authenticated users.
+ */
+@Service
 public class TargetAllocationService {
 
     private static final BigDecimal TOTAL_PERCENTAGE = new BigDecimal("100.0");
@@ -30,11 +34,15 @@ public class TargetAllocationService {
         this.targetRepository = targetRepository;
         this.userRepository = userRepository;
     }
-    
-    // Get target allocations for the authenticated user
+
+    /**
+     * Retrieves the target allocations for the authenticated user.
+     *
+     * @param email the email of the authenticated user
+     * @return a list of target allocation response DTOs
+     */
     @Transactional(readOnly = true)
-    public List<TargetAllocationResponseDTO> getTargetAllocationsForAuthenticatedUser (String email)
-    {
+    public List<TargetAllocationResponseDTO> getTargetAllocationsForAuthenticatedUser(String email) {
         User user = findAuthenticatedUser(email);
 
         return targetRepository.findByUser_Id(user.getId())
@@ -43,9 +51,16 @@ public class TargetAllocationService {
                 .toList();
     }
 
-    // Update target allocations for the authenticated user
+    /**
+     * Updates the target allocations for the authenticated user.
+     *
+     * @param email   the email of the authenticated user
+     * @param request the request containing the updated target allocations
+     * @return a list of target allocation response DTOs
+     */
     @Transactional
-    public List<TargetAllocationResponseDTO> updateTargetAllocationsForAuthenticatedUser( String email, UpdateTargetAllocationsRequestDTO request) {
+    public List<TargetAllocationResponseDTO> updateTargetAllocationsForAuthenticatedUser(String email,
+            UpdateTargetAllocationsRequestDTO request) {
 
         // Validate the request
         validateAllocations(request.allocations());
@@ -57,13 +72,13 @@ public class TargetAllocationService {
 
         // Create new allocations based on the request
         List<TargetAllocations> updatedAllocations = request.allocations()
-            .stream()
-            .map(allocation -> new TargetAllocations(
-                    normalizeAccountType(allocation.accountType()),
-                    allocation.targetPercentage().doubleValue(),
-                    user))
-            .toList();
-        
+                .stream()
+                .map(allocation -> new TargetAllocations(
+                        normalizeAccountType(allocation.accountType()),
+                        allocation.targetPercentage().doubleValue(),
+                        user))
+                .toList();
+
         // Save the new allocations and return the response DTOs
         return targetRepository.saveAll(updatedAllocations)
                 .stream()
@@ -72,24 +87,39 @@ public class TargetAllocationService {
 
     }
 
-    // Helper method
+    /**
+     * Converts a TargetAllocations entity to a TargetAllocationResponseDTO.
+     *
+     * @param allocation the target allocation entity
+     * @return the corresponding response DTO
+     */
     private TargetAllocationResponseDTO toResponseDTO(TargetAllocations allocation) {
-    return new TargetAllocationResponseDTO(
-            allocation.getId(),
-            allocation.getAccount_type(),
-            BigDecimal.valueOf(allocation.getTarget_pct()));
+        return new TargetAllocationResponseDTO(
+                allocation.getId(),
+                allocation.getAccount_type(),
+                BigDecimal.valueOf(allocation.getTarget_pct()));
     }
 
-
-    // Helper method
+    /**
+     * Finds the authenticated user by email.
+     *
+     * @param email the email of the authenticated user
+     * @return the authenticated user entity
+     * @throws BadCredentialsException if the user is not found
+     */
     private User findAuthenticatedUser(String email) {
-    return userRepository.findByEmail(email)
-            .orElseThrow(() ->
-                    new BadCredentialsException(
-                            "Authentication failed: User not found"));
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new BadCredentialsException(
+                        "Authentication failed: User not found"));
     }
-    
-    // Helper method
+
+    /**
+     * Normalizes the account type to a standard format.
+     *
+     * @param accountType the account type to normalize
+     * @return the normalized account type
+     * @throws InvalidRequestException if the account type is unsupported
+     */
     private String normalizeAccountType(String accountType) {
         return switch (accountType.trim().toUpperCase(Locale.ROOT)) {
             case "ISK" -> "ISK";
@@ -101,31 +131,34 @@ public class TargetAllocationService {
         };
     }
 
-
-    // Helper method
+    /**
+     * Validates the target allocations to ensure they meet the required criteria.
+     *
+     * @param allocations the list of target allocation request DTOs
+     * @throws InvalidRequestException if the allocations are invalid
+     */
     private void validateAllocations(
-        List<TargetAllocationRequestDTO> allocations) {
+            List<TargetAllocationRequestDTO> allocations) {
 
-    BigDecimal total = allocations.stream()
-            .map(TargetAllocationRequestDTO::targetPercentage)
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal total = allocations.stream()
+                .map(TargetAllocationRequestDTO::targetPercentage)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-    if (total.compareTo(TOTAL_PERCENTAGE) != 0) {
-        throw new InvalidRequestException(
-                "Target allocation percentages must total 100");
-    }
-
-    Set<String> accountTypes = new HashSet<>();
-
-    for (TargetAllocationRequestDTO allocation : allocations) {
-        String normalizedType = normalizeAccountType(allocation.accountType())
-                .toLowerCase(Locale.ROOT);
-
-        if (!accountTypes.add(normalizedType)) {
+        if (total.compareTo(TOTAL_PERCENTAGE) != 0) {
             throw new InvalidRequestException(
-                    "Duplicate account type: " + allocation.accountType());
+                    "Target allocation percentages must total 100");
+        }
+
+        Set<String> accountTypes = new HashSet<>();
+
+        for (TargetAllocationRequestDTO allocation : allocations) {
+            String normalizedType = normalizeAccountType(allocation.accountType())
+                    .toLowerCase(Locale.ROOT);
+
+            if (!accountTypes.add(normalizedType)) {
+                throw new InvalidRequestException(
+                        "Duplicate account type: " + allocation.accountType());
+            }
         }
     }
-    }
-
 }

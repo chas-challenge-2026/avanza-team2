@@ -2,6 +2,7 @@ package se.comerit.avanza.service;
 
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.HashMap;
@@ -23,6 +24,7 @@ import se.comerit.avanza.dto.market.BacktestRequestDTO;
 import se.comerit.avanza.dto.market.BacktestResponseDTO;
 import se.comerit.avanza.dto.market.FxRateResponseDTO;
 import se.comerit.avanza.entity.HistoricalStockPrice;
+import se.comerit.avanza.exception.FxDataUnavailableException;
 import se.comerit.avanza.exception.UnsupportedCurrencyPairException;
 import se.comerit.avanza.nativebridge.BacktestInputBuilder;
 import se.comerit.avanza.nativebridge.BacktestLibrary;
@@ -113,23 +115,22 @@ public class MarketService {
      * @throws UnsupportedCurrencyPairException if the currency pair is unknown
      */
     public FxRateResponseDTO getFx(String from, String to) {
-        // Get the current date in epoch seconds at the start of the day (UTC)
-        long today = LocalDate.now()
-                .atStartOfDay(ZoneOffset.UTC)
-                .toEpochSecond();
+        long rateTimestamp = fxLibrary.fx_rate_date(0L);
+        if (rateTimestamp < 0) {
+            throw new FxDataUnavailableException("No FX rate data is currently available");
+        }
 
-        // Fetch the FX rate for the given currency pair and date.
-        double rate = fxLibrary.fx_rate(from.toUpperCase(), to.toUpperCase(), today);
+        double rate = fxLibrary.fx_rate(from.toUpperCase(), to.toUpperCase(), 0L);
 
-        // If the rate is negative, it indicates an unknown currency pair.
         if (rate < 0) {
             throw new UnsupportedCurrencyPairException("Unknown currency pair: " + from + "/" + to);
         }
 
-        // Return the FX rate response DTO with the current date, base currency, quote
-        // currency, and rate.
+        LocalDate rateDate = Instant.ofEpochSecond(rateTimestamp)
+                .atZone(ZoneOffset.UTC)
+                .toLocalDate();
         return new FxRateResponseDTO(
-                LocalDate.now().toString(),
+                rateDate.toString(),
                 from.toUpperCase(),
                 to.toUpperCase(),
                 rate);
@@ -187,6 +188,13 @@ public class MarketService {
         }
     }
 
+    /**
+     * Represents a market symbol with its associated exchange and currency.
+     *
+     * @param symbol   the symbol of the market instrument
+     * @param exchange the exchange where the instrument is listed
+     * @param currency the currency of the instrument
+     */
     private record MarketSymbol(String symbol, String exchange, String currency) {
     }
 
