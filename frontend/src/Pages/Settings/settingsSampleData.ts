@@ -1,7 +1,5 @@
 import type { AllocationSlice } from '../Analyses/analysesSampleData.ts';
 
-export const portfolioName: string = 'Min portfölj';
-
 export const targetDistribution: AllocationSlice[] = [
   { label: 'Aktier', percent: 50 },
   { label: 'Räntor', percent: 35 },

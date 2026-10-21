@@ -5,7 +5,6 @@ import { SettingsSection } from "../../Components/SettingsSection/SettingsSectio
 import { SettingsRow } from "../../Components/SettingsRow/SettingsRow.tsx";
 import { Toggle } from "../../Components/Toggle/Toggle.tsx";
 import {
-  portfolioName,
   deviationAlert,
 } from "./settingsSampleData.ts";
 import {
@@ -194,16 +193,6 @@ export const Settings = () => {
         {/* General settings */}
         <SettingsSection title="Allmänt">
           <SettingsRow
-            label="Portföljnamn"
-            control={
-              <span className="flex items-center gap-2 text-sm text-neutral-700">
-                {portfolioName}
-                <i className="fa-solid fa-pen text-xs text-neutral-400" />
-              </span>
-            }
-          />
-
-          <SettingsRow
             label="Standardvaluta"
             subtext="Valutakonvertering är inte tillgänglig ännu."
             control={
@@ -324,25 +313,6 @@ export const Settings = () => {
                 }}
               />
             }
-          />
-        </SettingsSection>
-
-        {/* Account and security settings */}
-        <SettingsSection title="Konto & Säkerhet">
-          <SettingsRow
-            label="Kopplade konton"
-            control={
-              <i className="fa-solid fa-chevron-right text-xs text-neutral-400" />
-            }
-            onClick={() => {}}
-          />
-
-          <SettingsRow
-            label="Säkerhet"
-            control={
-              <i className="fa-solid fa-chevron-right text-xs text-neutral-400" />
-            }
-            onClick={() => {}}
           />
         </SettingsSection>
 
