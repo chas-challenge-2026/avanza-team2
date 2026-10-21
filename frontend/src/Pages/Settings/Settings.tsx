@@ -8,7 +8,6 @@ import {
   portfolioName,
   defaultCurrency,
   deviationAlert,
-  notificationPreferences,
   type CurrencyCode,
 } from "./settingsSampleData.ts";
 import {
@@ -16,6 +15,10 @@ import {
   updateTargetAllocations,
   type TargetAllocation,
 } from "../../Services/targetAllocationService";
+import {
+  areDriftNotificationsEnabled,
+  setDriftNotificationsEnabled,
+} from "../../utils/driftNotificationPreference.ts";
 
 const currencyOptions = [
   { label: "SEK", value: "SEK" },
@@ -28,16 +31,7 @@ export const Settings = () => {
 
   // Notification settings
   const [deviationEnabled, setDeviationEnabled] = useState(
-    deviationAlert.enabled,
-  );
-  const [generalNotifications, setGeneralNotifications] = useState(
-    notificationPreferences.generalNotifications,
-  );
-  const [dividendNotifications, setDividendNotifications] = useState(
-    notificationPreferences.dividendNotifications,
-  );
-  const [quarterlyReports, setQuarterlyReports] = useState(
-    notificationPreferences.quarterlyReports,
+    areDriftNotificationsEnabled,
   );
 
   // Target allocation state
@@ -320,40 +314,10 @@ export const Settings = () => {
             control={
               <Toggle
                 checked={deviationEnabled}
-                onChange={setDeviationEnabled}
-              />
-            }
-          />
-        </SettingsSection>
-
-        {/* Notification settings */}
-        <SettingsSection title="Aviseringar">
-          <SettingsRow
-            label="Generella notiser"
-            control={
-              <Toggle
-                checked={generalNotifications}
-                onChange={setGeneralNotifications}
-              />
-            }
-          />
-
-          <SettingsRow
-            label="Utdelningsnotiser"
-            control={
-              <Toggle
-                checked={dividendNotifications}
-                onChange={setDividendNotifications}
-              />
-            }
-          />
-
-          <SettingsRow
-            label="Kvartalsrapporter"
-            control={
-              <Toggle
-                checked={quarterlyReports}
-                onChange={setQuarterlyReports}
+                onChange={(enabled) => {
+                  setDeviationEnabled(enabled);
+                  setDriftNotificationsEnabled(enabled);
+                }}
               />
             }
           />

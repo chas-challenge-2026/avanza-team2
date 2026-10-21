@@ -9,6 +9,7 @@ import {
   formatSignedPercent,
   formatSignedSek,
 } from '../../utils/format.ts'
+import { areDriftNotificationsEnabled } from '../../utils/driftNotificationPreference.ts'
 
 // Use the same API configuration as the rest of the frontend.
 const API_URL = import.meta.env.VITE_API_URL ?? ''
@@ -394,7 +395,11 @@ export const Analyses = () => {
           </p>
         )}
 
-        <RebalanceCard current={currentAllocation} target={targetAllocation} />
+        <RebalanceCard
+          current={currentAllocation}
+          target={targetAllocation}
+          showDriftAlert={areDriftNotificationsEnabled()}
+        />
 
         <SummaryList
           title="Portfölj just nu"

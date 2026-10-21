@@ -11,26 +11,8 @@ export const targetDistribution: AllocationSlice[] = [
   { label: 'Övrigt', percent: 15 },
 ];
 
-export interface NotificationDeviation {
-  enabled: boolean;
-  thresholdPercent: number;
-}
-
-export const deviationAlert: NotificationDeviation = {
-  enabled: true,
+export const deviationAlert = {
   thresholdPercent: 5,
-};
-
-export interface NotificationPreferences {
-  generalNotifications: boolean;
-  dividendNotifications: boolean;
-  quarterlyReports: boolean;
-}
-
-export const notificationPreferences: NotificationPreferences = {
-  generalNotifications: true,
-  dividendNotifications: true,
-  quarterlyReports: true,
 };
 
 export interface LinkedAccountsSummary {

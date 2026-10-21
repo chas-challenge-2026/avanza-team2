@@ -11,6 +11,7 @@ interface RebalanceCardProps {
   current: AllocationSlice[];
   target: AllocationSlice[];
   thresholdPct?: number;
+  showDriftAlert?: boolean;
   onRebalance?: () => void;
   className?: string;
 }
@@ -74,6 +75,7 @@ export const RebalanceCard = ({
   current,
   target,
   thresholdPct = 5,
+  showDriftAlert = true,
   onRebalance,
   className,
 }: RebalanceCardProps) => {
@@ -133,19 +135,21 @@ export const RebalanceCard = ({
       </div>
 
       {/* 2. Alert-ruta för texten */}
-      {needsRebalance ? (
-        <div className="m-4 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-sm text-left flex items-start gap-3">
-          <span className="text-amber-600 font-bold text-base leading-none">⚠️</span>
-          <div>
-            <p className="font-bold text-amber-900 mb-0.5">Avvikelse upptäckt</p>
-            <p className="text-amber-800 leading-relaxed">{message}</p>
+      {showDriftAlert && (
+        needsRebalance ? (
+          <div className="m-4 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-sm text-left flex items-start gap-3">
+            <span className="text-amber-600 font-bold text-base leading-none">⚠️</span>
+            <div>
+              <p className="font-bold text-amber-900 mb-0.5">Avvikelse upptäckt</p>
+              <p className="text-amber-800 leading-relaxed">{message}</p>
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="m-4 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-sm text-left flex items-center gap-3">
-          <span className="text-emerald-600 font-bold text-base leading-none">✓</span>
-          <p className="text-emerald-800 font-medium">{message}</p>
-        </div>
+        ) : (
+          <div className="m-4 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-sm text-left flex items-center gap-3">
+            <span className="text-emerald-600 font-bold text-base leading-none">✓</span>
+            <p className="text-emerald-800 font-medium">{message}</p>
+          </div>
+        )
       )}
       {/* Same width and inner padding as the boxes below, so edges line up. */}
       <div className="mx-auto w-full max-w-5xl overflow-x-auto px-4">

@@ -3,6 +3,7 @@ import FilterButton from "../../Components/FilterButton/FilterButton";
 import NotificationCard, {
     type NotificationCategory
 } from "../../Components/NotificationCard/NotificationCard";
+import { areDriftNotificationsEnabled } from "../../utils/driftNotificationPreference.ts";
 import "./Notifications.css";
 
 const API_URL = import.meta.env.VITE_API_URL ?? '';
@@ -84,8 +85,9 @@ const Notiser = () => {
                     return;
                 }
 
-                const storedNotifications: Notification[] =
-                    data.storedAlerts.content
+                const driftNotificationsEnabled = areDriftNotificationsEnabled();
+                const storedNotifications: Notification[] = driftNotificationsEnabled
+                    ? data.storedAlerts.content
                         .filter((alert) => !alert.dismissed)
                         .map((alert) => ({
                             id: `stored-${alert.id}`,
@@ -94,10 +96,11 @@ const Notiser = () => {
                             timestamp: formatDate(alert.createdAt),
                             category: 'Övrigt',
                             icon: '⚠️',
-                        }));
+                        }))
+                    : [];
 
-                const liveNotifications: Notification[] =
-                    data.liveAlerts
+                const liveNotifications: Notification[] = driftNotificationsEnabled
+                    ? data.liveAlerts
                         .filter((alert) => !alert.dismissed)
                         .map((alert, index) => ({
                             id: `live-${index}-${alert.alertType}`,
@@ -106,7 +109,8 @@ const Notiser = () => {
                             timestamp: alert.createdAt,
                             category: 'Värdepapper',
                             icon: '📈',
-                        }));
+                        }))
+                    : [];
 
                 setNotifications([
                     ...liveNotifications,
