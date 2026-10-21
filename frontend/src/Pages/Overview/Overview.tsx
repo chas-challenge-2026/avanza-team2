@@ -5,6 +5,7 @@ import { WariningBanner } from '../../Components/WariningBanner/WariningBanner.t
 import { AccountsTable } from '../../Components/AccountsTable/AccountsTable.tsx'
 import { DonutChart } from '../../Components/DonutChart/DonutChart.tsx'
 import { RecentActivity } from '../../Components/RecentActivity/RecentActivity.tsx'
+import { areDriftNotificationsEnabled } from '../../utils/driftNotificationPreference.ts'
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
 const POLL_INTERVAL_MS = 24 * 60 * 60 * 1000
@@ -213,27 +214,31 @@ export const Overview = () => {
       color: allocationColors[row.accountType] ?? '#64748b',
     }))
 
-  const liveActivities =
-    alerts?.liveAlerts
-      .filter((alert) => !alert.dismissed)
-      .map((alert) => ({
-        label: alert.message,
-        date: formatDate(alert.createdAt),
-        icon: 'fa-bell',
-        color: '#d97706',
-        category: 'Övrigt' as const,
-      })) ?? []
+  const driftNotificationsEnabled = areDriftNotificationsEnabled()
 
-  const storedActivities =
-    alerts?.storedAlerts.content
-      .filter((alert) => !alert.dismissed)
-      .map((alert) => ({
-        label: alert.message,
-        date: formatDate(alert.createdAt),
-        icon: 'fa-bell',
-        color: '#d97706',
-        category: 'Övrigt' as const,
-      })) ?? []
+  const liveActivities = driftNotificationsEnabled
+    ? alerts?.liveAlerts
+        .filter((alert) => !alert.dismissed)
+        .map((alert) => ({
+          label: alert.message,
+          date: formatDate(alert.createdAt),
+          icon: 'fa-bell',
+          color: '#d97706',
+          category: 'Övrigt' as const,
+        })) ?? []
+    : []
+
+  const storedActivities = driftNotificationsEnabled
+    ? alerts?.storedAlerts.content
+        .filter((alert) => !alert.dismissed)
+        .map((alert) => ({
+          label: alert.message,
+          date: formatDate(alert.createdAt),
+          icon: 'fa-bell',
+          color: '#d97706',
+          category: 'Övrigt' as const,
+        })) ?? []
+    : []
 
   const activity = [...liveActivities, ...storedActivities].slice(0, 3)
 
@@ -259,7 +264,7 @@ export const Overview = () => {
           <StatCard title="USD/SEK" value={numberFormatter.format(portfolio.usdToSek)} />
         </div>
 
-        {portfolio.anyDrift && (
+        {portfolio.anyDrift && driftNotificationsEnabled && (
           <WariningBanner
             message={
               driftedAccountTypes.length > 0
