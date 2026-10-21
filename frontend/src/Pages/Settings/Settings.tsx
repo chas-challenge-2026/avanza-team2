@@ -105,6 +105,20 @@ export const Settings = () => {
     setEditingAllocations(true);
   };
 
+  const toggleAllocationEditor = () => {
+    if (savingAllocations) {
+      return;
+    }
+
+    if (editingAllocations) {
+      setEditingAllocations(false);
+      setAllocationError(null);
+      return;
+    }
+
+    openAllocationEditor();
+  };
+
   // Update the percentage for a specific account type.
   const updateDraftPercentage = (id: number, value: string) => {
     // Allow an empty input while the user is editing.
@@ -203,79 +217,6 @@ export const Settings = () => {
         </SettingsSection>
 
         {/* Target allocation editor */}
-        {editingAllocations && (
-          <SettingsSection title="Redigera målfördelning">
-            {draftAllocations.map((allocation) => (
-              <SettingsRow
-                key={allocation.id}
-                label={allocation.accountType}
-                control={
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="0.01"
-                      value={allocation.targetPercentage}
-                      onChange={(event) =>
-                        updateDraftPercentage(allocation.id, event.target.value)
-                      }
-                      className="w-20 rounded-md border border-neutral-300 px-2 py-1 text-right text-sm"
-                      aria-label={`Målfördelning för ${allocation.accountType}`}
-                    />
-
-                    <span className="text-sm text-neutral-500">%</span>
-                  </div>
-                }
-              />
-            ))}
-
-            <div className="px-4 py-3 text-sm">
-              <p
-                className={
-                  allocationTotal === 100 ? "text-green-700" : "text-red-600"
-                }
-              >
-                Totalt: {allocationTotal.toFixed(2)} %
-              </p>
-
-              {allocationError && (
-                <p role="alert" className="mt-2 text-red-600">
-                  {allocationError}
-                </p>
-              )}
-
-              <div className="mt-4 flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditingAllocations(false);
-                    setAllocationError(null);
-                  }}
-                  disabled={savingAllocations}
-                  className="cursor-pointer rounded-md border border-neutral-300 px-4 py-2 text-sm hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Avbryt
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => void saveAllocations()}
-                  disabled={
-                    savingAllocations ||
-                    loadingAllocations ||
-                    allocationTotal !== 100 ||
-                    draftAllocations.length === 0
-                  }
-                  className="cursor-pointer rounded-md bg-neutral-900 px-4 py-2 text-sm text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {savingAllocations ? "Sparar..." : "Spara"}
-                </button>
-              </div>
-            </div>
-          </SettingsSection>
-        )}
-
         {/* Portfolio goals */}
         <SettingsSection title="Portföljmål (Rebalansering)">
           <SettingsRow
@@ -293,10 +234,85 @@ export const Settings = () => {
                   : "Ingen målfördelning tillgänglig"
             }
             control={
-              <i className="fa-solid fa-chevron-right text-xs text-neutral-400" />
+              <i
+                className={`fa-solid ${editingAllocations ? "fa-chevron-up" : "fa-chevron-right"} text-xs text-neutral-400`}
+              />
             }
-            onClick={openAllocationEditor}
+            onClick={toggleAllocationEditor}
           />
+
+          {editingAllocations && (
+            <div className="py-2">
+              {draftAllocations.map((allocation) => (
+                <SettingsRow
+                  key={allocation.id}
+                  label={allocation.accountType}
+                  control={
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value={allocation.targetPercentage}
+                        onChange={(event) =>
+                          updateDraftPercentage(allocation.id, event.target.value)
+                        }
+                        className="w-20 rounded-md border border-neutral-300 px-2 py-1 text-right text-sm"
+                        aria-label={`Målfördelning för ${allocation.accountType}`}
+                      />
+
+                      <span className="text-sm text-neutral-500">%</span>
+                    </div>
+                  }
+                />
+              ))}
+
+              <div className="px-4 py-3 text-sm">
+                <p
+                  className={
+                    allocationTotal === 100 ? "text-green-700" : "text-red-600"
+                  }
+                >
+                  Totalt: {allocationTotal.toFixed(2)} %
+                </p>
+
+                {allocationError && (
+                  <p role="alert" className="mt-2 text-red-600">
+                    {allocationError}
+                  </p>
+                )}
+
+                <div className="mt-4 flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingAllocations(false);
+                      setAllocationError(null);
+                    }}
+                    disabled={savingAllocations}
+                    className="cursor-pointer rounded-md border border-neutral-300 px-4 py-2 text-sm hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Avbryt
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => void saveAllocations()}
+                    disabled={
+                      savingAllocations ||
+                      loadingAllocations ||
+                      allocationTotal !== 100 ||
+                      draftAllocations.length === 0
+                    }
+                    className="cursor-pointer rounded-md bg-neutral-900 px-4 py-2 text-sm text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {savingAllocations ? "Sparar..." : "Spara"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           <SettingsRow
             label="Notis vid avvikelse"
