@@ -15,7 +15,11 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration
 public class DriftTresholdConfig {
+<<<<<<< HEAD
     public DriftTresholdConfig() {
+=======
+    DriftTresholdConfig() {
+>>>>>>> 81cef4989ec7e9e61c90a023d670f216a2ed0e77
     }
 
     public static final double ALLOCATION_DRIFT_THRESHOLD = 0.05;
