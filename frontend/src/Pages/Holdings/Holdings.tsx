@@ -8,6 +8,7 @@ import {
 import HoldingRow, {
     type HoldingItem,
 } from '../../Components/HoldingRow/HoldingRow';
+import { AllocationRing } from '../../Components/AllocationRing/AllocationRing';
 import './Holdings.css';
 
 // API base URL from the frontend environment configuration.
@@ -58,12 +59,16 @@ interface HoldingsResponse {
     totalPages: number;
 }
 
+// Categories used to group investments in the allocation chart.
+type InstrumentType = 'stock' | 'fund' | 'etf' | 'unknown';
+
 // Extends the existing frontend model with additional backend properties.
 interface HoldingViewItem extends HoldingItem {
     accountType: string;
     accountName: string;
     currency: string;
     pnl: number | null;
+    instrumentType: InstrumentType;
 }
 
 // Safely converts numeric values returned by the backend.
@@ -90,17 +95,93 @@ const formatCurrency = (value: number): string =>
         maximumFractionDigits: 2,
     })} SEK`;
 
+// Classifies instruments using known ticker symbols and name indicators.
+const classifyInstrument = (
+    name: string,
+    ticker: string,
+): InstrumentType => {
+    const normalizedName = normalize(name);
+    const normalizedTicker = normalize(ticker).toUpperCase();
+
+    // Recognize common ETF indicators first.
+    const etfIndicators = [
+        /\betf\b/i,
+        /\bexchange traded fund\b/i,
+        /\bucits etf\b/i,
+    ];
+
+    if (etfIndicators.some((pattern) => pattern.test(normalizedName))) {
+        return 'etf';
+    }
+
+    // Recognize common fund-related indicators.
+    const fundIndicators = [
+        /\bfond\b/i,
+        /\bfunds\b/i,
+        /\bfund\b/i,
+        /\bindexfond\b/i,
+        /\bindex fund\b/i,
+        /\bmutual fund\b/i,
+        /\baktiefond\b/i,
+        /\bblandfond\b/i,
+        /\bräntefond\b/i,
+        /\bhedgefond\b/i,
+    ];
+
+    if (fundIndicators.some((pattern) => pattern.test(normalizedName))) {
+        return 'fund';
+    }
+
+    // Recognize the stock tickers currently present in the portfolio.
+    const knownStockTickers = new Set([
+        'ERIC-B',
+        'VOLV-B',
+        'AAPL',
+        'SWED-A',
+        'SAND',
+    ]);
+
+    if (knownStockTickers.has(normalizedTicker)) {
+        return 'stock';
+    }
+
+    // Recognize common stock-related name indicators.
+    const stockIndicators = [
+        /\baktie\b/i,
+        /\bstock\b/i,
+        /\bshares\b/i,
+        /\bcommon stock\b/i,
+        /\bclass [ab]\b/i,
+    ];
+
+    if (stockIndicators.some((pattern) => pattern.test(normalizedName))) {
+        return 'stock';
+    }
+
+    // Keep unrecognized instruments separate instead of guessing their type.
+    return 'unknown';
+};
+
+// Human-readable labels for the allocation chart.
+const INSTRUMENT_LABELS: Record<InstrumentType, string> = {
+    stock: 'Aktier',
+    fund: 'Fonder',
+    etf: 'ETF:er',
+    unknown: 'Okänd typ',
+};
+
 const Holdings = () => {
     const [searchParams] = useSearchParams();
-    
+
     // Reads the selected account from the URL when navigating from the Overview page.
     const accountFromUrl = searchParams.get('account')?.toLowerCase();
+
     const initialAccount =
-    accountFromUrl === 'isk' ||
-    accountFromUrl === 'kf' ||
-    accountFromUrl === 'depa'
-        ? accountFromUrl
-        : 'all';
+        accountFromUrl === 'isk' ||
+        accountFromUrl === 'kf' ||
+        accountFromUrl === 'depa'
+            ? accountFromUrl
+            : 'all';
 
     // Stores the holdings retrieved from the backend.
     const [holdings, setHoldings] = useState<HoldingViewItem[]>([]);
@@ -175,10 +256,13 @@ const Holdings = () => {
                                 ? (pnl / (marketValue - pnl)) * 100
                                 : 0;
 
+                        const name = holding.instrument_name ?? '';
+                        const symbol = holding.ticker ?? '';
+
                         return {
                             id: String(holding.id),
-                            symbol: holding.ticker ?? '',
-                            name: holding.instrument_name ?? '',
+                            symbol,
+                            name,
                             shares: quantity,
                             value: marketValue,
                             returnPercent,
@@ -186,6 +270,10 @@ const Holdings = () => {
                             accountName: holding.account_name ?? '',
                             currency: holding.currency ?? 'SEK',
                             pnl,
+                            instrumentType: classifyInstrument(
+                                name,
+                                symbol,
+                            ),
                         };
                     });
 
@@ -288,6 +376,77 @@ const Holdings = () => {
     const returnClass =
         totalReturn >= 0 ? 'positive' : 'negative';
 
+    // Calculate the market value for each investment category.
+    const allocationValues = useMemo(() => {
+        const values: Record<InstrumentType, number> = {
+            stock: 0,
+            fund: 0,
+            etf: 0,
+            unknown: 0,
+        };
+
+        filteredHoldings.forEach((item) => {
+            // Exclude negative and invalid market values from the allocation chart.
+            const marketValue = Math.max(0, item.value);
+
+            values[item.instrumentType] += marketValue;
+        });
+
+        return values;
+    }, [filteredHoldings]);
+
+    // Calculate the total value used to calculate allocation percentages.
+    const allocationTotal = Object.values(allocationValues).reduce(
+        (total, value) => total + value,
+        0,
+    );
+
+    // Build the slices expected by the existing AllocationRing component.
+    const allocationSlices = useMemo(() => {
+        const categories: InstrumentType[] = [
+            'stock',
+            'fund',
+            'etf',
+            'unknown',
+        ];
+
+        if (allocationTotal <= 0) {
+            return categories.map((category) => ({
+                label: INSTRUMENT_LABELS[category],
+                percent: 0,
+            }));
+        }
+
+        // Round percentages for display and keep the original market values for calculations.
+        const percentages = categories.map((category) => ({
+            label: INSTRUMENT_LABELS[category],
+            rawPercent:
+                (allocationValues[category] / allocationTotal) * 100,
+        }));
+
+        // Round the first categories and use the remainder for the last category
+        // to reduce discrepancies caused by rounding.
+        let roundedTotal = 0;
+
+        return percentages.map((slice, index) => {
+            const isLast = index === percentages.length - 1;
+
+            const percent = isLast
+                ? Math.max(
+                    0,
+                    Number((100 - roundedTotal).toFixed(2)),
+                )
+                : Number(slice.rawPercent.toFixed(2));
+
+            roundedTotal += percent;
+
+            return {
+                label: slice.label,
+                percent,
+            };
+        });
+    }, [allocationValues, allocationTotal]);
+
     return (
         <div className="holdings-container">
             <h1 className="holdings-title">Mina Innehav</h1>
@@ -354,6 +513,115 @@ const Holdings = () => {
                         {filteredHoldings.length} innehav
                     </div>
                 </div>
+            </div>
+
+            {/* Allocation chart showing the distribution of filtered holdings. */}
+            <div className="holdings-section-box">
+                <h3 className="holdings-section-title">
+                    Fördelning av innehav
+                </h3>
+
+                {loading && (
+                    <div
+                        style={{
+                            padding: '20px',
+                            textAlign: 'center',
+                            color: '#64748B',
+                            fontSize: '14px',
+                        }}
+                    >
+                        Laddar fördelning...
+                    </div>
+                )}
+
+                {!loading && error && (
+                    <div
+                        style={{
+                            padding: '20px',
+                            textAlign: 'center',
+                            color: '#DC2626',
+                            fontSize: '14px',
+                        }}
+                    >
+                        Fördelningen kunde inte hämtas.
+                    </div>
+                )}
+
+                {!loading && !error && allocationTotal <= 0 && (
+                    <div
+                        style={{
+                            padding: '20px',
+                            textAlign: 'center',
+                            color: '#64748B',
+                            fontSize: '14px',
+                        }}
+                    >
+                        Det finns inget marknadsvärde att visa för de valda innehaven.
+                    </div>
+                )}
+
+                {!loading && !error && allocationTotal > 0 && (
+                    <div className="holdings-allocation-content">
+                        <AllocationRing
+                            title="Portföljfördelning"
+                            slices={allocationSlices}
+                            className="holdings-allocation-chart"
+                            showCaption={false}
+                        />
+                        <div className="holdings-allocation-legend">
+                        {(
+                                ['stock', 'fund', 'etf', 'unknown'] as InstrumentType[]
+                            ).map((category) => {
+                                const value = allocationValues[category];
+
+                                const percent =
+                                    allocationTotal > 0
+                                        ? (value / allocationTotal) * 100
+                                        : 0;
+
+                                // Keep the legend colors consistent with the allocation chart.
+                                const categoryColors: Record<InstrumentType, string> = {
+                                    stock: '#00c281',
+                                    fund: '#e5e7eb',
+                                    etf: '#3b82f6',
+                                    unknown: '#8b5cf6',
+                                };
+
+                                return (
+                                    <div
+                                        key={category}
+                                        className="holdings-allocation-item"
+                                    >
+                                        <span
+                                            className="holdings-allocation-dot"
+                                            style={{
+                                                backgroundColor: categoryColors[category],
+                                            }}
+                                            aria-hidden="true"
+                                        />
+
+                                        <div className="holdings-allocation-details">
+                                            <span className="holdings-allocation-name">
+                                                {INSTRUMENT_LABELS[category]}
+                                            </span>
+
+                                            <span className="holdings-allocation-value">
+                                                {formatCurrency(value)}
+                                            </span>
+                                        </div>
+
+                                        <span className="holdings-allocation-percent">
+                                            {percent.toLocaleString('sv-SE', {
+                                                maximumFractionDigits: 2,
+                                            })}
+                                            %
+                                        </span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Holdings list with loading, error, and empty states. */}
