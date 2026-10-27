@@ -12,6 +12,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
+import se.comerit.avanza.config.DriftTresholdConfig;
 import se.comerit.avanza.dto.alerts.LiveDriftAlertDTO;
 import se.comerit.avanza.entity.Account;
 import se.comerit.avanza.entity.Alerts;

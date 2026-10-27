@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import se.comerit.avanza.config.DriftTresholdConfig;
 import se.comerit.avanza.dto.alerts.AlertsResponseDTO;
 import se.comerit.avanza.dto.portfolio.AccountSummaryDTO;
 import se.comerit.avanza.dto.portfolio.AllocationRowDTO;

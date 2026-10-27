@@ -24,6 +24,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
+import se.comerit.avanza.config.DriftTresholdConfig;
 import se.comerit.avanza.dto.alerts.AlertsResponseDTO;
 import se.comerit.avanza.dto.market.FxRateResponseDTO;
 import se.comerit.avanza.dto.portfolio.AccountSummaryDTO;
