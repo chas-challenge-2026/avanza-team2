@@ -1,30 +1,67 @@
 package se.comerit.avanza.entity;
 
-import jakarta.persistence.Table;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "position_snapshot")
 public class PositionSnapshot {
-    @Id
-    private Long id;
-    private Long userId;
-    private Long accountId;
-    private String ticker;
-    private String currency;
-    private Double closePrice;
-    private Double quantity;
-    private String priceDate;
-    private Double sekValue;
-    private Double currencyFx;
 
-    public PositionSnapshot() {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
+
+    @Column(name = "account_id", nullable = false)
+    private Long accountId;
+
+    @Column(nullable = false, length = 20)
+    private String ticker;
+
+    @Column(nullable = false, length = 3)
+    private String currency;
+
+    @Column(name = "close_price", nullable = false, precision = 18, scale = 6)
+    private BigDecimal closePrice;
+
+    @Column(nullable = false, precision = 18, scale = 6)
+    private BigDecimal quantity;
+
+    @Column(name = "price_date", nullable = false)
+    private LocalDate priceDate;
+
+    @Column(name = "sek_value", nullable = false, precision = 18, scale = 6)
+    private BigDecimal sekValue;
+
+    @Column(name = "currency_fx", nullable = false, precision = 18, scale = 8)
+    private BigDecimal currencyFx;
+
+    @Column(name = "target_allocation", precision = 5, scale = 2)
+    private BigDecimal targetAllocation;
+
+    protected PositionSnapshot() {
     }
 
-    public PositionSnapshot(Long id, Long userId, Long accountId, String ticker, String currency, Double closePrice,
-            Double quantity, String priceDate, Double sekValue, Double currencyFx) {
-        this.id = id;
+    public PositionSnapshot(
+            Long userId,
+            Long accountId,
+            String ticker,
+            String currency,
+            BigDecimal closePrice,
+            BigDecimal quantity,
+            LocalDate priceDate,
+            BigDecimal sekValue,
+            BigDecimal currencyFx,
+            BigDecimal targetAllocation) {
         this.userId = userId;
         this.accountId = accountId;
         this.ticker = ticker;
@@ -34,86 +71,50 @@ public class PositionSnapshot {
         this.priceDate = priceDate;
         this.sekValue = sekValue;
         this.currencyFx = currencyFx;
+        this.targetAllocation = targetAllocation;
     }
 
     public Long getId() {
         return id;
     }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
-
     public Long getUserId() {
         return userId;
-    }
-
-    public void setUserId(Long userId) {
-        this.userId = userId;
     }
 
     public Long getAccountId() {
         return accountId;
     }
 
-    public void setAccountId(Long accountId) {
-        this.accountId = accountId;
-    }
-
     public String getTicker() {
         return ticker;
-    }
-
-    public void setTicker(String ticker) {
-        this.ticker = ticker;
     }
 
     public String getCurrency() {
         return currency;
     }
 
-    public void setCurrency(String currency) {
-        this.currency = currency;
-    }
-
-    public Double getClosePrice() {
+    public BigDecimal getClosePrice() {
         return closePrice;
     }
 
-    public void setClosePrice(Double closePrice) {
-        this.closePrice = closePrice;
-    }
-
-    public Double getQuantity() {
+    public BigDecimal getQuantity() {
         return quantity;
     }
 
-    public void setQuantity(Double quantity) {
-        this.quantity = quantity;
-    }
-
-    public String getPriceDate() {
+    public LocalDate getPriceDate() {
         return priceDate;
     }
 
-    public void setPriceDate(String priceDate) {
-        this.priceDate = priceDate;
-    }
-
-    public Double getSekValue() {
+    public BigDecimal getSekValue() {
         return sekValue;
     }
 
-    public void setSekValue(Double sekValue) {
-        this.sekValue = sekValue;
-    }
-
-    public Double getCurrencyFx() {
+    public BigDecimal getCurrencyFx() {
         return currencyFx;
     }
 
-    public void setCurrencyFx(Double currencyFx) {
-        this.currencyFx = currencyFx;
+    public BigDecimal getTargetAllocation() {
+        return targetAllocation;
     }
-
 }
