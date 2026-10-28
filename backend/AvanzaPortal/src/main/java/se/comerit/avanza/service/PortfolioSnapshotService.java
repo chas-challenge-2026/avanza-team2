@@ -21,6 +21,11 @@ import se.comerit.avanza.repository.HistoricalRepository;
 import se.comerit.avanza.repository.PositionSnapshotRepository;
 import se.comerit.avanza.repository.TargetRepository;
 
+/**
+ * Captures the user's current positions using prices and FX rates for the
+ * requested date. Saved snapshots can later be used to build portfolio
+ * performance history and calculate a portfolio-level Sharpe ratio.
+ */
 @Service
 public class PortfolioSnapshotService {
     private final HoldingService holdingService;
@@ -57,6 +62,21 @@ public class PortfolioSnapshotService {
             return 0;
         }
 
+        Map<PositionKey, BigDecimal> quantitiesByPosition = groupPositions(holdings);
+        Map<String, HistoricalStockPrice> pricesByTicker = loadHistoricalPrices(quantitiesByPosition, date);
+        Map<String, BigDecimal> targetsByAccountType = loadTargetsByAccountType(userId);
+        List<PositionSnapshot> snapshots = buildSnapshots(
+                userId, date, quantitiesByPosition, pricesByTicker, targetsByAccountType);
+        return snapshotRepo.saveAll(snapshots).size();
+    }
+
+    /**
+     * Merge duplicate lots so each account/ticker is stored once per snapshot date.
+     * 
+     * @param holdings list of positions
+     * @return map of positions with summed quantities
+     */
+    private Map<PositionKey, BigDecimal> groupPositions(List<PositionSnapshotDTO> holdings) {
         Map<PositionKey, BigDecimal> quantitiesByPosition = new LinkedHashMap<>();
         for (PositionSnapshotDTO holding : holdings) {
             PositionKey key = new PositionKey(
@@ -66,16 +86,35 @@ public class PortfolioSnapshotService {
                     holding.accountType());
             quantitiesByPosition.merge(key, holding.quantity(), BigDecimal::add);
         }
+        return quantitiesByPosition;
+    }
 
-        List<String> tickers = quantitiesByPosition.keySet().stream()
+    /**
+     * Fetch all required closes in one repository call for the requested date.
+     * 
+     * @param positions positions to fetch
+     * @param date      snapshot date
+     * @return map of tickers to historical prices
+     */
+    private Map<String, HistoricalStockPrice> loadHistoricalPrices(
+            Map<PositionKey, BigDecimal> positions,
+            LocalDate date) {
+        List<String> tickers = positions.keySet().stream()
                 .map(PositionKey::ticker)
                 .distinct()
                 .toList();
-        Map<String, HistoricalStockPrice> pricesByTicker = historicalRepository
-                .findByTickerInAndPriceDateBetween(tickers, date, date)
+        return historicalRepository.findByTickerInAndPriceDateBetween(tickers, date, date)
                 .stream()
                 .collect(Collectors.toMap(HistoricalStockPrice::getTicker, price -> price));
+    }
 
+    /**
+     * Preserve each account type's target percentage on the snapshot rows.
+     * 
+     * @param userId user id
+     * @return map of account type to target pct
+     */
+    private Map<String, BigDecimal> loadTargetsByAccountType(Long userId) {
         Map<String, BigDecimal> targetsByAccountType = new HashMap<>();
         for (TargetAllocations target : targetRepository.findByUser_Id(userId)) {
             if (target.getTarget_pct() != null) {
@@ -84,39 +123,82 @@ public class PortfolioSnapshotService {
                         BigDecimal.valueOf(target.getTarget_pct()));
             }
         }
+        return targetsByAccountType;
+    }
 
+    /**
+     * Convert the prepared position data into rows ready to persist.
+     * 
+     * @param userId               user id
+     * @param date                 snapshot date
+     * @param quantitiesByPosition quantities per position
+     * @param pricesByTicker       historical prices
+     * @param targetsByAccountType target pct by account type
+     * @return list of snapshots
+     */
+    private List<PositionSnapshot> buildSnapshots(
+            Long userId,
+            LocalDate date,
+            Map<PositionKey, BigDecimal> quantitiesByPosition,
+            Map<String, HistoricalStockPrice> pricesByTicker,
+            Map<String, BigDecimal> targetsByAccountType) {
         List<PositionSnapshot> snapshots = new ArrayList<>(quantitiesByPosition.size());
         for (Map.Entry<PositionKey, BigDecimal> entry : quantitiesByPosition.entrySet()) {
-            PositionKey position = entry.getKey();
-            HistoricalStockPrice historicalPrice = pricesByTicker.get(position.ticker());
-            if (historicalPrice == null) {
-                throw new IllegalStateException(
-                        "No historical price for " + position.ticker() + " on " + date);
-            }
-
-            BigDecimal currencyFx = "SEK".equalsIgnoreCase(position.currency())
-                    ? BigDecimal.ONE
-                    : BigDecimal.valueOf(marketService.getHistoricalFxRate(position.currency(), "SEK", date));
-            BigDecimal closePrice = historicalPrice.getClosePrice();
-            BigDecimal sekValue = entry.getValue()
-                    .multiply(closePrice)
-                    .multiply(currencyFx)
-                    .setScale(6, RoundingMode.HALF_UP);
-
-            snapshots.add(new PositionSnapshot(
+            snapshots.add(createSnapshot(
                     userId,
-                    position.accountId(),
-                    position.ticker(),
-                    position.currency(),
-                    closePrice,
-                    entry.getValue(),
                     date,
-                    sekValue,
-                    currencyFx,
-                    targetsByAccountType.get(position.accountType())));
+                    entry.getKey(),
+                    entry.getValue(),
+                    pricesByTicker,
+                    targetsByAccountType));
+        }
+        return snapshots;
+    }
+
+    /**
+     * Calculate one position's SEK value and preserve the market inputs used.
+     * 
+     * @param userId               user id
+     * @param date                 snapshot date
+     * @param position             position key
+     * @param quantity             position quantity
+     * @param pricesByTicker       historical prices
+     * @param targetsByAccountType target pct by account type
+     * @return snapshot
+     */
+    private PositionSnapshot createSnapshot(
+            Long userId,
+            LocalDate date,
+            PositionKey position,
+            BigDecimal quantity,
+            Map<String, HistoricalStockPrice> pricesByTicker,
+            Map<String, BigDecimal> targetsByAccountType) {
+        HistoricalStockPrice historicalPrice = pricesByTicker.get(position.ticker());
+        if (historicalPrice == null) {
+            throw new IllegalStateException(
+                    "No historical price for " + position.ticker() + " on " + date);
         }
 
-        return snapshotRepo.saveAll(snapshots).size();
+        BigDecimal currencyFx = "SEK".equalsIgnoreCase(position.currency())
+                ? BigDecimal.ONE
+                : BigDecimal.valueOf(marketService.getHistoricalFxRate(position.currency(), "SEK", date));
+        BigDecimal closePrice = historicalPrice.getClosePrice();
+        BigDecimal sekValue = quantity
+                .multiply(closePrice)
+                .multiply(currencyFx)
+                .setScale(6, RoundingMode.HALF_UP);
+
+        return new PositionSnapshot(
+                userId,
+                position.accountId(),
+                position.ticker(),
+                position.currency(),
+                closePrice,
+                quantity,
+                date,
+                sekValue,
+                currencyFx,
+                targetsByAccountType.get(position.accountType()));
     }
 
     /**
