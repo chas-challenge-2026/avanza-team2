@@ -12,10 +12,10 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
+import se.comerit.avanza.dto.portfolio.PositionSnapshotDTO;
 import se.comerit.avanza.entity.HistoricalStockPrice;
 import se.comerit.avanza.entity.PositionSnapshot;
 import se.comerit.avanza.entity.TargetAllocations;
@@ -35,12 +35,9 @@ class PortfolioSnapshotServiceTest {
 
         LocalDate snapshotDate = LocalDate.of(2026, 10, 26);
         when(snapshotRepository.existsByUserIdAndPriceDate(1L, snapshotDate)).thenReturn(false);
-        when(holdingService.getHoldingsForUser(1)).thenReturn(List.of(Map.of(
-                "account_id", 7L,
-                "account_type", "ISK",
-                "ticker", "AAPL",
-                "currency", "USD",
-                "quantity", new BigDecimal("3.000000"))));
+        when(holdingService.getPositionSnapshotInputsForUser(1L)).thenReturn(List.of(
+                new PositionSnapshotDTO(
+                        7L, "AAPL", "USD", "ISK", new BigDecimal("3.000000"))));
         when(historicalRepository.findByTickerInAndPriceDateBetween(
                 List.of("AAPL"), snapshotDate, snapshotDate))
                 .thenReturn(List.of(new HistoricalStockPrice(
