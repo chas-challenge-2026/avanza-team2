@@ -8,6 +8,8 @@ import {
 import HoldingRow, {
     type HoldingItem,
 } from '../../Components/HoldingRow/HoldingRow';
+import AccountAllocationCard from '../../Components/AccountAllocationCard/AccountAllocationCard';
+import ExposureCard from '../../Components/ExposureCard/ExposureCard';
 import './Holdings.css';
 
 // API base URL from the frontend environment configuration.
@@ -171,8 +173,8 @@ const Holdings = () => {
                         const marketValue = toNumber(holding.marketValue);
 
                         const returnPercent =
-                            pnl !== null && marketValue - pnl > 0
-                                ? (pnl / (marketValue - pnl)) * 100
+                            pnl !== null && marketValue > 0
+                                ? (pnl / marketValue) * 100
                                 : 0;
 
                         return {
@@ -274,7 +276,7 @@ const Holdings = () => {
 
     // Estimate the invested value from the market value and reported profit or loss.
     const totalInvested = filteredHoldings.reduce(
-        (total, item) => total + item.value - (item.pnl ?? 0),
+        (total, item) => total + (item.value - (item.pnl ?? 0)),
         0,
     );
 
@@ -356,7 +358,13 @@ const Holdings = () => {
                 </div>
             </div>
 
-            {/* Holdings list with loading, error, and empty states. */}
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
+                <AccountAllocationCard onRebalance={(accountName) => console.log('Rebalansera konto:', accountName)} />
+                <ExposureCard />
+            </div>
+
+            
             <div className="holdings-section-box">
                 <h3 className="holdings-section-title">
                     Innehav
@@ -431,7 +439,7 @@ const Holdings = () => {
                 )}
             </div>
 
-            {/* Detailed summary of the filtered holdings. */}
+            
             <div className="holdings-section-box">
                 <h3 className="holdings-section-title">
                     Total innehav
