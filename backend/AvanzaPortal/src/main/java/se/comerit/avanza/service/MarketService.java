@@ -136,6 +136,16 @@ public class MarketService {
                 rate);
     }
 
+    public double getHistoricalFxRate(String from, String to, LocalDate date) {
+        long timestamp = date.atStartOfDay(ZoneOffset.UTC).toEpochSecond();
+        double rate = fxLibrary.fx_rate(from.toUpperCase(), to.toUpperCase(), timestamp);
+        if (rate < 0) {
+            throw new FxDataUnavailableException(
+                    "No historical FX rate is available for " + from + "/" + to + " on " + date);
+        }
+        return rate;
+    }
+
     /**
      * Returns a cached or externally fetched price for a supported ticker.
      *
