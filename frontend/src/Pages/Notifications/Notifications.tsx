@@ -174,8 +174,6 @@ const Notiser = () => {
 
     return (
         <div className="notiser-container">
-            <h1 className="notiser-title">Notiser</h1>
-
             <div className="filter-group">
                 {filters.map((filter) => (
                     <FilterButton

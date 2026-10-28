@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Title } from "../../Components/Title/Title.tsx";
 import { SettingsSection } from "../../Components/SettingsSection/SettingsSection.tsx";
 import { SettingsRow } from "../../Components/SettingsRow/SettingsRow.tsx";
 import { Toggle } from "../../Components/Toggle/Toggle.tsx";
@@ -187,8 +186,6 @@ export const Settings = () => {
 
   return (
     <div className="p-6">
-      <Title>Anpassa Min Portfölj</Title>
-
       <div className="mx-auto mt-6 flex max-w-2xl flex-col gap-6">
         {/* General settings */}
         <SettingsSection title="Allmänt">

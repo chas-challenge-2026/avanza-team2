@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Title } from '../../Components/Title/Title.tsx'
-import { StatCard } from '../../Components/StatCard/StatCard.tsx'
+import { PortfolioSummaryCard } from '../../Components/PortfolioSummaryCard/PortfolioSummaryCard.tsx'
 import { WariningBanner } from '../../Components/WariningBanner/WariningBanner.tsx'
 import { AccountsTable } from '../../Components/AccountsTable/AccountsTable.tsx'
-import { DonutChart } from '../../Components/DonutChart/DonutChart.tsx'
+import { DistributionSpreadCard } from '../../Components/DistributionSpreadCard/DistributionSpreadCard.tsx'
 import { RecentActivity } from '../../Components/RecentActivity/RecentActivity.tsx'
 import { areDriftNotificationsEnabled } from '../../utils/driftNotificationPreference.ts'
 
@@ -73,11 +72,16 @@ const numberFormatter = new Intl.NumberFormat('sv-SE', {
   maximumFractionDigits: 2,
 })
 
-const allocationColors: Record<string, string> = {
-  ISK: '#059669',
-  KF: '#2563eb',
-  Depa: '#d97706',
-}
+// TODO: mock data — backend holdings don't carry asset type/country/sector yet.
+const mockDistribution = [
+  { label: 'Aktier', value: 65, color: '#00a36c' },
+  { label: 'Fonder', value: 35, color: '#2e9bf0' },
+]
+
+const mockSpread = [
+  { label: 'Land: Sverige', value: 45 },
+  { label: 'Bransch: Teknik', value: 30 },
+]
 
 const formatAccountType = (accountType: string) =>
   accountType === 'Depa' ? 'Depå' : accountType
@@ -166,8 +170,7 @@ export const Overview = () => {
   if (isLoading) {
     return (
       <div className="p-6" role="status">
-        <Title>Översikt</Title>
-        <p className="mx-auto mt-6 max-w-4xl text-sm text-neutral-600">
+        <p className="mx-auto mt-2 max-w-4xl text-sm text-neutral-600">
           Hämtar portfölj...
         </p>
       </div>
@@ -177,7 +180,6 @@ export const Overview = () => {
   if (!portfolio) {
     return (
       <div className="p-6" role="alert">
-        <Title>Översikt</Title>
         <p className="mx-auto mt-6 max-w-4xl text-sm text-red-700">
           {error ?? 'Portföljdata saknas.'}
         </p>
@@ -206,13 +208,6 @@ export const Overview = () => {
     value: numberFormatter.format(account.totalValueSek),
   }))
 
-  const allocation = portfolio.allocationRows
-    .filter((row) => row.accountType !== 'Pension')
-    .map((row) => ({
-      label: formatAccountType(row.accountType),
-      value: row.actual,
-      color: allocationColors[row.accountType] ?? '#64748b',
-    }))
 
   const driftNotificationsEnabled = areDriftNotificationsEnabled()
 
@@ -243,26 +238,19 @@ export const Overview = () => {
   const activity = [...liveActivities, ...storedActivities].slice(0, 3)
 
   return (
-    <div className="p-6">
-      <Title>Översikt</Title>
-
-      <div className="mx-auto mt-6 flex max-w-4xl flex-col gap-4">
+    <div className="p-4">
+      <div className="mx-auto mt-3 flex max-w-4xl flex-col gap-3">
         {error && (
           <p className="text-sm text-red-700" role="status">
             {error} Visar senast hämtade data.
           </p>
         )}
 
-        <StatCard
-          tone="accent"
-          title="Totalt värde"
-          value={formatSek(portfolio.totalPortfolioValue)}
+        <PortfolioSummaryCard
+          totalValue={formatSek(portfolio.totalPortfolioValue)}
+          investedValue={formatSek(investedValue)}
+          currencyLabel={`USD/SEK ${numberFormatter.format(portfolio.usdToSek)}`}
         />
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <StatCard title="Totalt investerat" value={formatSek(investedValue)} />
-          <StatCard title="USD/SEK" value={numberFormatter.format(portfolio.usdToSek)} />
-        </div>
 
         {portfolio.anyDrift && driftNotificationsEnabled && (
           <WariningBanner
@@ -274,15 +262,11 @@ export const Overview = () => {
           />
         )}
 
-        <AccountsTable accounts={accounts} />
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <AccountsTable accounts={accounts} />
 
-        <DonutChart
-          title="Fördelning per kontotyp"
-          data={allocation}
-          centerLabel={`${numberFormatter.format(
-            allocation.reduce((total, slice) => total + slice.value, 0),
-          )}%`}
-        />
+          <DistributionSpreadCard allocation={mockDistribution} spread={mockSpread} />
+        </div>
 
         <RecentActivity title="Senaste aviseringar" items={activity} />
       </div>
