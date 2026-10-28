@@ -290,8 +290,6 @@ const Holdings = () => {
 
     return (
         <div className="holdings-container">
-            <h1 className="holdings-title">Mina Innehav</h1>
-
             {/* Search field and filter controls. */}
             <div className="holdings-filter-section">
                 <SearchInput

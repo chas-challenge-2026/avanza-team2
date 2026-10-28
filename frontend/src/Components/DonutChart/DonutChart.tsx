@@ -30,9 +30,9 @@ export const DonutChart = ({
         className ? ` ${className}` : ''
       }`}
     >
-      <h3 className="text-lg font-bold text-neutral-900 text-left m-4">{title}</h3>
+      <h3 className="text-lg font-bold text-neutral-900 text-left mb-4">{title}</h3>
 
-      <div className="m-4 flex items-center gap-6">
+      <div className="flex items-center gap-6">
         <div className="relative h-36 w-36 flex-shrink-0">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
