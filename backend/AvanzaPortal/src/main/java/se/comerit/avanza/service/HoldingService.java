@@ -64,6 +64,7 @@ public class HoldingService {
                     row.put("avg_buy_price", holding.getAvg_buy_price());
                     row.put("currency", holding.getCurrency());
 
+                    row.put("account_id", holding.getAccount().getId());
                     row.put("account_type", holding.getAccount().getAccount_type());
                     row.put("account_name", holding.getAccount().getAccount_name());
 
