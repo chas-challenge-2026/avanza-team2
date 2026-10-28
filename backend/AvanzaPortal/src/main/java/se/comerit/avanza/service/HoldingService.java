@@ -15,6 +15,7 @@ import se.comerit.avanza.dto.holdings.CreateHoldingRequestDTO;
 import se.comerit.avanza.dto.holdings.HoldingAccountDTO;
 import se.comerit.avanza.dto.holdings.HoldingItemDTO;
 import se.comerit.avanza.dto.holdings.HoldingResponseDTO;
+import se.comerit.avanza.dto.portfolio.PositionSnapshotDTO;
 import se.comerit.avanza.entity.Account;
 import se.comerit.avanza.entity.Holdings;
 import se.comerit.avanza.entity.User;
@@ -70,6 +71,24 @@ public class HoldingService {
 
                     return row;
                 })
+                .toList();
+    }
+
+    /**
+     * Gets position snapshot inputs for a user account
+     * Returns list of position snapshot DTOs for the user
+     * 
+     * @param userId user id
+     * @return list of position snapshot DTOs
+     */
+    public List<PositionSnapshotDTO> getPositionSnapshotInputsForUser(Long userId) {
+        return holdingsRepository.findHoldingsForUser(userId).stream()
+                .map(holding -> new PositionSnapshotDTO(
+                        holding.getAccount().getId(),
+                        holding.getTicker(),
+                        holding.getCurrency(),
+                        holding.getAccount().getAccount_type(),
+                        holding.getQuantity()))
                 .toList();
     }
 

@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import se.comerit.avanza.dto.portfolio.PositionSnapshotDTO;
 import se.comerit.avanza.entity.HistoricalStockPrice;
 import se.comerit.avanza.entity.PositionSnapshot;
 import se.comerit.avanza.entity.TargetAllocations;
@@ -51,21 +52,19 @@ public class PortfolioSnapshotService {
             return 0;
         }
 
-        List<Map<String, Object>> holdings = holdingService.getHoldingsForUser(Math.toIntExact(userId));
+        List<PositionSnapshotDTO> holdings = holdingService.getPositionSnapshotInputsForUser(userId);
         if (holdings.isEmpty()) {
             return 0;
         }
 
         Map<PositionKey, BigDecimal> quantitiesByPosition = new LinkedHashMap<>();
-        for (Map<String, Object> holding : holdings) {
-            Long accountId = ((Number) holding.get("account_id")).longValue();
-            String ticker = (String) holding.get("ticker");
-            String currency = (String) holding.get("currency");
-            String accountType = (String) holding.get("account_type");
-            BigDecimal quantity = (BigDecimal) holding.get("quantity");
-
-            PositionKey key = new PositionKey(accountId, ticker, currency, accountType);
-            quantitiesByPosition.merge(key, quantity, BigDecimal::add);
+        for (PositionSnapshotDTO holding : holdings) {
+            PositionKey key = new PositionKey(
+                    holding.accountId(),
+                    holding.ticker(),
+                    holding.currency(),
+                    holding.accountType());
+            quantitiesByPosition.merge(key, holding.quantity(), BigDecimal::add);
         }
 
         List<String> tickers = quantitiesByPosition.keySet().stream()
