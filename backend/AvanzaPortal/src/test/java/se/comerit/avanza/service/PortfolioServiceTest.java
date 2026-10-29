@@ -1,6 +1,7 @@
 package se.comerit.avanza.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -8,9 +9,11 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +22,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
@@ -33,12 +37,14 @@ import se.comerit.avanza.dto.portfolio.EnrichedHoldingDTO;
 import se.comerit.avanza.entity.Account;
 import se.comerit.avanza.entity.Alerts;
 import se.comerit.avanza.entity.Holdings;
+import se.comerit.avanza.entity.PositionSnapshot;
 import se.comerit.avanza.entity.TargetAllocations;
 import se.comerit.avanza.repository.AccountRepository;
 import se.comerit.avanza.repository.UserRepository;
 import se.comerit.avanza.repository.AlertsRepository;
 import se.comerit.avanza.repository.HoldingsRepository;
 import se.comerit.avanza.repository.TargetRepository;
+import se.comerit.avanza.repository.PositionSnapshotRepository;
 import se.comerit.avanza.nativebridge.RiskLibrary;
 import se.comerit.avanza.entity.User;
 
@@ -65,6 +71,9 @@ class PortfolioServiceTest {
 
         @Mock
         private UserRepository userRepository;
+
+        @Mock
+        private PositionSnapshotRepository snapshotRepository;
 
         @Mock
         private DriftTresholdConfig tresholdConfig;
@@ -485,6 +494,43 @@ class PortfolioServiceTest {
 
                 // Assert
                 assertEquals(1.75, result, 0.001);
+        }
+
+        @Test
+        void shouldCalculatePortfolioSharpeFromDailySnapshotTotals() {
+                LocalDate firstDate = LocalDate.of(2026, 10, 26);
+                LocalDate secondDate = firstDate.plusDays(1);
+                LocalDate thirdDate = secondDate.plusDays(1);
+                when(snapshotRepository.findByUserIdOrderByPriceDateAsc(1L)).thenReturn(List.of(
+                                snapshot(10L, "ERIC-B", firstDate, "100.000000"),
+                                snapshot(11L, "AAPL", firstDate, "200.000000"),
+                                snapshot(10L, "ERIC-B", secondDate, "330.000000"),
+                                snapshot(10L, "ERIC-B", thirdDate, "315.000000")));
+                when(riskLibrary.risk_calc_sharpe_ratio_double(
+                                any(double[].class), anyLong(), eq(0.0), eq(252L)))
+                                .thenReturn(1.25);
+
+                Double result = portfolioService.calculateSharpeFromSnapshots(1L);
+
+                assertEquals(1.25, result, 0.001);
+                ArgumentCaptor<double[]> returnsCaptor = ArgumentCaptor.forClass(double[].class);
+                verify(riskLibrary).risk_calc_sharpe_ratio_double(
+                                returnsCaptor.capture(), eq(2L), eq(0.0), eq(252L));
+                assertArrayEquals(new double[] { 0.1, (315.0 / 330.0) - 1.0 }, returnsCaptor.getValue(), 0.000001);
+        }
+
+        private PositionSnapshot snapshot(Long accountId, String ticker, LocalDate date, String sekValue) {
+                return new PositionSnapshot(
+                                1L,
+                                accountId,
+                                ticker,
+                                "SEK",
+                                new BigDecimal("100.000000"),
+                                BigDecimal.ONE,
+                                date,
+                                new BigDecimal(sekValue),
+                                BigDecimal.ONE,
+                                null);
         }
 
         @Test
