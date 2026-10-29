@@ -38,6 +38,7 @@ interface PortfolioResponse {
     overThreshold: boolean
   }[]
   totalPortfolioValue: number
+  portfolioSharpeRatio: number | null
   recentAlerts: {
     id: number
     user: number
@@ -259,9 +260,15 @@ export const Overview = () => {
           value={formatSek(portfolio.totalPortfolioValue)}
         />
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <StatCard title="Totalt investerat" value={formatSek(investedValue)} />
           <StatCard title="USD/SEK" value={numberFormatter.format(portfolio.usdToSek)} />
+          <StatCard
+            title="Sharpe-kvot (portfölj)"
+            value={portfolio.portfolioSharpeRatio === null
+              ? 'Ej tillgänglig'
+              : numberFormatter.format(portfolio.portfolioSharpeRatio)}
+          />
         </div>
 
         {portfolio.anyDrift && driftNotificationsEnabled && (
