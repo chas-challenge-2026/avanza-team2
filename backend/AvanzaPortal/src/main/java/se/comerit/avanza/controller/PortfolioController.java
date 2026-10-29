@@ -86,6 +86,7 @@ public class PortfolioController {
                 // Build account summary for display
                 List<AccountSummaryDTO> accountSummary = portfolioService.getAccountSummary(
                                 accounts, accountTypeTotals, totalPortfolioValue);
+                Double portfolioSharpeRatio = portfolioService.calculateSharpeFromSnapshots(userId);
 
                 /**
                  * creates an instance of PortfolioResponseDTO with all the necessary portfolio
@@ -98,7 +99,8 @@ public class PortfolioController {
                                 totalPortfolioValue,
                                 recentAlerts,
                                 allocationRows.stream().anyMatch(AllocationRowDTO::overThreshold),
-                                portfolioService.getUsdToSekRate());
+                                portfolioService.getUsdToSekRate(),
+                                portfolioSharpeRatio);
 
                 return ResponseEntity.ok(response);
         }
