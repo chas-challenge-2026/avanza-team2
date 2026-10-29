@@ -20,6 +20,12 @@ import se.comerit.avanza.service.MarketService;
 import se.comerit.avanza.service.PortfolioService;
 import se.comerit.avanza.service.PortfolioSnapshotService;
 
+/**
+ * We use a snapshot controller becouse snapshots is an HTTP operation initiated
+ * by the frontend.
+ * It handles requests to capture portfolio snapshots.
+ * PortfolioSnapshotController
+ */
 @RestController
 @RequestMapping("/api/portfolio")
 public class PortfolioSnapshotController {
@@ -39,6 +45,12 @@ public class PortfolioSnapshotController {
         this.marketService = marketService;
     }
 
+    /**
+     * Capture snapshot for the current user.
+     * 
+     * @param userName the current user
+     * @return number of saved rows
+     */
     @PostMapping("/snapshot")
     public ResponseEntity<Integer> captureSnapshot(@AuthenticationPrincipal String userName) {
         if (userName == null || userName.isBlank()) {
@@ -61,6 +73,12 @@ public class PortfolioSnapshotController {
         return ResponseEntity.ok(savedRows);
     }
 
+    /**
+     * Capture snapshot for a given date.
+     * 
+     * @param date the date to capture snapshot for
+     * @return number of saved rows
+     */
     @PostMapping("/snapshots")
     public ResponseEntity<Integer> captureSnapshot(
             @AuthenticationPrincipal String userName,

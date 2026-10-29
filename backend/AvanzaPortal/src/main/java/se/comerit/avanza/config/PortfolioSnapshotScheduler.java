@@ -14,6 +14,11 @@ import se.comerit.avanza.repository.UserRepository;
 import se.comerit.avanza.service.MarketService;
 import se.comerit.avanza.service.PortfolioSnapshotService;
 
+/**
+ * This is a scheduler class that is used to capture portfolio snapshots daily.
+ * It runs every day at 7 AM Stockholm time, capturing snapshot for logged in
+ * users.
+ */
 @Configuration(proxyBeanMethods = false)
 @EnableScheduling
 public class PortfolioSnapshotScheduler {
