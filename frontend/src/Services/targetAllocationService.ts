@@ -5,6 +5,21 @@ export interface TargetAllocation {
   targetPercentage: number
 }
 
+// AccountSummary som matchar backend (AccountSummaryDTO)
+export interface AccountSummary {
+  accountId: number
+  accountType: string
+  accountName?: string
+  currency: string
+  balance: number
+}
+
+// PortfolioResponse som matchar backend (PortfolioResponseDTO)
+export interface PortfolioResponse {
+  accountSummary: AccountSummary[]
+  totalPortfolioValue: number
+}
+
 // Defines the request body expected by the backend.
 interface UpdateTargetAllocationsRequest {
   allocations: {
@@ -45,6 +60,20 @@ export const updateTargetAllocations = async (
 
   if (!response.ok) {
     throw new Error('Failed to save target allocations.')
+  }
+
+  return response.json()
+}
+
+// Hämta portföljen från /api/portfolio för att få tillgång till användarens riktiga konton
+export const getPortfolio = async (): Promise<PortfolioResponse> => {
+  const response = await fetch(`${API_URL}/api/portfolio`, {
+    method: 'GET',
+    credentials: 'include',
+  })
+
+  if (!response.ok) {
+    throw new Error('Failed to load portfolio.')
   }
 
   return response.json()
