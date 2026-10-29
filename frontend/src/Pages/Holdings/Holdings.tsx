@@ -467,6 +467,7 @@ const Holdings = () => {
 
             {rebalanceAccount && (
                 <RebalanceModal
+                    key={rebalanceAccount.id}
                     accountType={rebalanceAccount.id}
                     accountLabel={rebalanceAccount.accountName}
                     actualPct={rebalanceAccount.actualPct}

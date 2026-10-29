@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { updateTargetAllocations, type TargetAllocation } from '../../Services/targetAllocationService';
 
 type AllocationSplit = {
@@ -16,8 +16,6 @@ type RebalanceModalProps = {
     onSaved: (updated: TargetAllocation[]) => void;
 };
 
-// Redistributes the remaining percentage across the other accounts,
-// proportionally to their current target weights, and corrects rounding
 // drift on the first "other" account so the total is always exactly 100.
 const redistribute = (
     allocations: TargetAllocation[],
@@ -61,10 +59,6 @@ const RebalanceModal = ({
     const [value, setValue] = useState(originalTarget);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
-
-    useEffect(() => {
-        setValue(originalTarget);
-    }, [originalTarget]);
 
     const diff = actualPct - value;
     const matchesActual = Math.abs(diff) < 0.5;
