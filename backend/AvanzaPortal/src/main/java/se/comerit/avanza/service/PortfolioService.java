@@ -165,6 +165,12 @@ public class PortfolioService {
                 .collect(Collectors.toMap(Account::getId, Account::getAccount_type));
     }
 
+    /**
+     * Calculates the Sharpe ratio from snapshots for a user.
+     * 
+     * @param userId the user ID
+     * @return the Sharpe ratio or null if not enough data
+     */
     public Double calculateSharpeFromSnapshots(Long userId) {
         List<PositionSnapshot> snapshots = snapshotRepository.findByUserIdOrderByPriceDateAsc(userId);
 
@@ -175,7 +181,7 @@ public class PortfolioService {
                         Collectors.summingDouble(
                                 snapshot -> snapshot.getSekValue().doubleValue())));
 
-        if (valueByDate.size() < 2) {
+        if (valueByDate.size() < 3) {
             return null; // Not enough daily values yet
         }
 
@@ -251,7 +257,7 @@ public class PortfolioService {
                     null,
                     null,
                     null,
-                    0.0,
+                    null,
                     "USD".equals(currency) ? "USD→SEK" : "SEK");
         }
 
@@ -274,12 +280,6 @@ public class PortfolioService {
                 ? (unrealizedReturn / costBasis) * 100
                 : 0;
 
-        /**
-         * Sharpe ratio — placeholder for now.
-         * Not meaningful for a single holding without historical returns.
-         */
-        double sharpe = 0.0;
-
         // Build output DTO with all metrics
         return new EnrichedHoldingDTO(
                 holdings.getId(),
@@ -290,7 +290,7 @@ public class PortfolioService {
                 Math.round(valueSek * 100.0) / 100.0,
                 Math.round(unrealizedReturn * 100.0) / 100.0,
                 Math.round(unrealizedReturnPct * 100.0) / 100.0,
-                Math.round(sharpe * 100.0) / 100.0,
+                null,
                 "USD".equals(currency) ? "USD→SEK" : "SEK");
     }
 
