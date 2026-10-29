@@ -4,10 +4,13 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -28,6 +31,8 @@ import se.comerit.avanza.repository.TargetRepository;
  */
 @Service
 public class PortfolioSnapshotService {
+    private static final long PRICE_DATE_LOOKBACK_DAYS = 14;
+
     private final HoldingService holdingService;
     private final MarketService marketService;
     private final PositionSnapshotRepository snapshotRepo;
@@ -56,8 +61,43 @@ public class PortfolioSnapshotService {
         if (snapshotRepo.existsByUserIdAndPriceDate(userId, date)) {
             return 0;
         }
-
         List<PositionSnapshotDTO> holdings = holdingService.getPositionSnapshotInputsForUser(userId);
+        return saveSnapshots(userId, date, holdings);
+    }
+
+    @Transactional
+    public int captureLatestSnapshotForUser(Long userId, LocalDate throughDate) {
+        List<PositionSnapshotDTO> holdings = holdingService.getPositionSnapshotInputsForUser(userId);
+        if (holdings.isEmpty()) {
+            return 0;
+        }
+
+        List<String> tickers = holdings.stream()
+                .map(PositionSnapshotDTO::ticker)
+                .distinct()
+                .toList();
+        LocalDate fromDate = throughDate.minusDays(PRICE_DATE_LOOKBACK_DAYS);
+        Map<LocalDate, Set<String>> tickersByDate = new HashMap<>();
+        for (HistoricalStockPrice price : historicalRepository
+                .findByTickerInAndPriceDateBetween(tickers, fromDate, throughDate)) {
+            tickersByDate.computeIfAbsent(price.getPriceDate(), ignored -> new HashSet<>())
+                    .add(price.getTicker());
+        }
+
+        Set<String> requiredTickers = Set.copyOf(tickers);
+        LocalDate latestCommonDate = tickersByDate.entrySet().stream()
+                .filter(entry -> entry.getValue().containsAll(requiredTickers))
+                .map(Map.Entry::getKey)
+                .max(Comparator.naturalOrder())
+                .orElse(null);
+
+        if (latestCommonDate == null || snapshotRepo.existsByUserIdAndPriceDate(userId, latestCommonDate)) {
+            return 0;
+        }
+        return saveSnapshots(userId, latestCommonDate, holdings);
+    }
+
+    private int saveSnapshots(Long userId, LocalDate date, List<PositionSnapshotDTO> holdings) {
         if (holdings.isEmpty()) {
             return 0;
         }
