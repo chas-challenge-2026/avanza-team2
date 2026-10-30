@@ -1,16 +1,19 @@
 package se.comerit.avanza.service;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import se.comerit.avanza.config.DriftTresholdConfig;
 import se.comerit.avanza.dto.alerts.AlertsResponseDTO;
 import se.comerit.avanza.dto.portfolio.AccountSummaryDTO;
 import se.comerit.avanza.dto.portfolio.AllocationRowDTO;
@@ -18,9 +21,11 @@ import se.comerit.avanza.dto.portfolio.EnrichedHoldingDTO;
 import se.comerit.avanza.entity.Account;
 import se.comerit.avanza.entity.Alerts;
 import se.comerit.avanza.entity.Holdings;
+import se.comerit.avanza.entity.PositionSnapshot;
 import se.comerit.avanza.entity.TargetAllocations;
 import se.comerit.avanza.entity.User;
 import se.comerit.avanza.nativebridge.RiskLibrary;
+import se.comerit.avanza.repository.PositionSnapshotRepository;
 import se.comerit.avanza.repository.AccountRepository;
 import se.comerit.avanza.repository.AlertsRepository;
 import se.comerit.avanza.repository.HoldingsRepository;
@@ -33,7 +38,7 @@ import se.comerit.avanza.repository.UserRepository;
  */
 @Service
 public class PortfolioService {
-
+    private PositionSnapshotRepository snapshotRepository;
     private HoldingsRepository holdingsRepository;
     private AccountRepository accountRepository;
     private TargetRepository targetRepository;
@@ -46,10 +51,12 @@ public class PortfolioService {
     public PortfolioService(AccountRepository accountRepository, HoldingsRepository holdingsRepository,
             TargetRepository targetRepository, AlertsRepository alertRepository, UserRepository userRepository,
             DriftTresholdConfig tresholdConfig,
-            MarketService marketService, RiskLibrary riskLibrary) {
-        this.accountRepository = accountRepository;
+            MarketService marketService, RiskLibrary riskLibrary,
+            PositionSnapshotRepository snapshotRepository) {
         this.holdingsRepository = holdingsRepository;
+        this.accountRepository = accountRepository;
         this.targetRepository = targetRepository;
+        this.snapshotRepository = snapshotRepository;
         this.alertRepository = alertRepository;
         this.userRepository = userRepository;
         this.tresholdConfig = tresholdConfig;
@@ -159,6 +166,31 @@ public class PortfolioService {
     }
 
     /**
+     * Calculates the Sharpe ratio from snapshots for a user.
+     * 
+     * @param userId the user ID
+     * @return the Sharpe ratio or null if not enough data
+     */
+    public Double calculateSharpeFromSnapshots(Long userId) {
+        List<PositionSnapshot> snapshots = snapshotRepository.findByUserIdOrderByPriceDateAsc(userId);
+
+        Map<LocalDate, Double> valueByDate = snapshots.stream()
+                .collect(Collectors.groupingBy(
+                        PositionSnapshot::getPriceDate,
+                        TreeMap::new,
+                        Collectors.summingDouble(
+                                snapshot -> snapshot.getSekValue().doubleValue())));
+
+        if (valueByDate.size() < 3) {
+            return null; // Not enough daily values yet
+        }
+
+        return calculatePortfolioSharpeRatio(
+                new ArrayList<>(valueByDate.values()),
+                0.0); // Assumes a zero risk-free rate for now
+    }
+
+    /**
      * Calculates the Sharpe ratio for a given set of returns.
      *
      * @param returns      an array of historical returns.
@@ -225,7 +257,7 @@ public class PortfolioService {
                     null,
                     null,
                     null,
-                    0.0,
+                    null,
                     "USD".equals(currency) ? "USD→SEK" : "SEK");
         }
 
@@ -248,12 +280,6 @@ public class PortfolioService {
                 ? (unrealizedReturn / costBasis) * 100
                 : 0;
 
-        /**
-         * Sharpe ratio — placeholder for now.
-         * Not meaningful for a single holding without historical returns.
-         */
-        double sharpe = 0.0;
-
         // Build output DTO with all metrics
         return new EnrichedHoldingDTO(
                 holdings.getId(),
@@ -264,7 +290,7 @@ public class PortfolioService {
                 Math.round(valueSek * 100.0) / 100.0,
                 Math.round(unrealizedReturn * 100.0) / 100.0,
                 Math.round(unrealizedReturnPct * 100.0) / 100.0,
-                Math.round(sharpe * 100.0) / 100.0,
+                null,
                 "USD".equals(currency) ? "USD→SEK" : "SEK");
     }
 
