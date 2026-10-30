@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { Title } from '../../Components/Title/Title.tsx'
 import { DropdownBtn } from '../../Components/DropdownBtn/DropdownBtn.tsx'
 import { RebalanceCard } from '../../Components/RebalanceCard/RebalanceCard.tsx'
 import { RiskMetricsCard } from '../../Components/RiskMetricsCard/RiskMetricsCard.tsx'
@@ -334,8 +333,6 @@ export const Analyses = () => {
 
   return (
     <div className="p-6">
-      <Title>Portföljanalys</Title>
-
       <div className="mx-auto mt-6 flex max-w-4xl flex-col gap-4">
         <DropdownBtn
           options={periodOptions}

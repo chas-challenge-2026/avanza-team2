@@ -41,7 +41,7 @@ export const Navbar = ({ isOpen, onClose }: NavbarProps) => {
       )}
 
       <nav
-        className={`absolute inset-y-0 left-0 z-40 flex h-full w-56 flex-shrink-0 flex-col justify-between overflow-y-auto border-r border-neutral-200 bg-white px-3 py-6 transition-transform duration-200 ease-in-out md:static md:z-auto md:translate-x-0 ${
+        className={`absolute inset-y-0 left-0 z-40 flex h-full w-56 flex-shrink-0 flex-col justify-between overflow-y-auto bg-white px-3 py-6 transition-transform duration-200 ease-in-out md:static md:z-auto md:translate-x-0 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >

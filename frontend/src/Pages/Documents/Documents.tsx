@@ -26,7 +26,6 @@ export const Documents = () => {
     return (
         <div style={styles.container}>
             <div style={styles.headerWrapper}>
-                <h2 style={styles.headerTitle}>Dokument & Historik</h2>
                 <p style={styles.subtitle}>Här hittar du dina personliga årsbesked, transaktioner och utdelningar.</p>
             </div>
 

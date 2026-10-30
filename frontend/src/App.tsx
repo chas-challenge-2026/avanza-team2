@@ -31,12 +31,12 @@ function App() {
 };
 
   const routes = [
-    { path: '/', title: 'Min Portfölj', element: <ProtectedRoute><Overview /></ProtectedRoute> },
+    { path: '/', title: 'Översikt', element: <ProtectedRoute><Overview /></ProtectedRoute> },
     { path: '/innehav', title: 'Mina Innehav', element: <ProtectedRoute><Holdings /></ProtectedRoute> },
     { path: '/notiser', title: 'Notiser', element: <ProtectedRoute><Notifications /></ProtectedRoute> },
-    { path: '/analyser', title: 'Analyser', element: <ProtectedRoute><Analyses /></ProtectedRoute> },
-    { path: '/documents', title: 'Dokument', element: <ProtectedRoute><Documents /></ProtectedRoute> },
-    { path: '/installningar', title: 'Inställningar', element: <ProtectedRoute><Settings /></ProtectedRoute> },
+    { path: '/analyser', title: 'Portföljanalys', element: <ProtectedRoute><Analyses /></ProtectedRoute> },
+    { path: '/documents', title: 'Dokument & Historik', element: <ProtectedRoute><Documents /></ProtectedRoute> },
+    { path: '/installningar', title: 'Anpassa Min Portfölj', element: <ProtectedRoute><Settings /></ProtectedRoute> },
     { path: LOGIN_PATH, title: 'Logga In', element: <Login onLogin={handleLogin} /> },
     { path: '/glomt-losenord', title: 'Glömt lösenord', element: <ForgotPassword /> },
     { path: '/aterstall-losenord/:token', title: 'Återställ lösenord', element: <ResetPassword /> },
@@ -68,12 +68,14 @@ function App() {
       <div className="relative flex flex-1 overflow-hidden">
         <Navbar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
-        <div className="flex-1 overflow-y-auto">
-          <Routes>
-            {routes.map((route) => (
-              <Route key={route.path} path={route.path} element={route.element} />
-            ))}
-          </Routes>
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto border-l border-neutral-200">
+            <Routes>
+              {routes.map((route) => (
+                <Route key={route.path} path={route.path} element={route.element} />
+              ))}
+            </Routes>
+          </div>
         </div>
       </div>
 
