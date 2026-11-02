@@ -11,11 +11,12 @@ import java.util.List;
  * recent alerts, any detected drift, and the USD to SEK conversion rate.
  */
 public record PortfolioResponseDTO(
-        List<AccountSummaryDTO> accountSummary,
-        List<EnrichedHoldingDTO> enrichedHoldings,
-        List<AllocationRowDTO> allocationRows,
-        double totalPortfolioValue,
-        List<AlertsResponseDTO> recentAlerts,
-        boolean anyDrift,
-        double usdToSek) {
+                List<AccountSummaryDTO> accountSummary,
+                List<EnrichedHoldingDTO> enrichedHoldings,
+                List<AllocationRowDTO> allocationRows,
+                double totalPortfolioValue,
+                List<AlertsResponseDTO> recentAlerts,
+                boolean anyDrift,
+                double usdToSek,
+                Double portfolioSharpeRatio) {
 }

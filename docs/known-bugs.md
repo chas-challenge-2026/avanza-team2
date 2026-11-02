@@ -16,7 +16,8 @@ Dessa fel är **avsiktliga** och ska hittas och åtgärdas av studenter i v2.
 
 ### SQL-injektion i AuthController
 
-~~**Fil:** `AuthController.java`, metod `doLogin`~~
+**Fil:** `AuthController.java`, metod `doLogin`
+
 ~~**Problem:** Login-queryn byggs med strängkonkatenering:~~
 
 ```java
@@ -31,14 +32,16 @@ String sql = "SELECT id, name, email FROM users WHERE email = '" + email
 
 ### MD5-lösenord
 
-~~**Fil:** `AuthController.java`, metod `md5Hash`~~
+**Fil:** `AuthController.java`, metod `md5Hash`
+
 ~~**Problem:** MD5 är kryptografiskt brutet sedan 1996. Regnbågstabeller finns för vanliga lösenord.~~
 
 **Fix:** Byt till BCrypt via Spring Security: `BCryptPasswordEncoder`.
 
 ### IDOR — Innehav (Insecure Direct Object Reference)
 
-~~**Fil:** `HoldingController.java`, metod `deleteHolding`~~
+**Fil:** `HoldingController.java`, metod `deleteHolding`
+
 ~~**Problem:** `DELETE FROM holdings WHERE id = ?` utan att verifiera att inneget tillhör inloggad användare.~~
 ~~Valfri inloggad användare kan ta bort andras innehav.~~
 ~~**Fix:** Lägg till `AND account_id IN (SELECT id FROM accounts WHERE user_id = ?)`.~~
@@ -47,7 +50,8 @@ String sql = "SELECT id, name, email FROM users WHERE email = '" + email
 
 ### IDOR — Notiser
 
-~~**Fil:** `AlertController.java`, metod `dismissAlert`~~
+**Fil:** `AlertController.java`, metod `dismissAlert`
+
 ~~**Problem:** Samma mönster som ovan — ingen ägarskapskontroll på `UPDATE alerts SET dismissed = true WHERE id = ?`.~~
 
 **Fix:** vi kollar upp i AlertService methoden dismissAlert om det är den ägare annars blockerar vi förfrågan om att updatera
@@ -56,7 +60,8 @@ String sql = "SELECT id, name, email FROM users WHERE email = '" + email
 
 ### Inkonsekvent drifttröskel
 
-~~**Filer:** `DashboardController.java` (0.05) och `AlertController.java` (0.07)~~
+**Filer:** `DashboardController.java` (0.05) och `AlertController.java` (0.07)
+
 ~~**Problem:** Dashboard varnar vid 5% avvikelse, notissidan beräknar notiser vid 7%. Användaren ser~~
 ~~olika resultat beroende på vilken sida de tittar på.~~
 
@@ -64,33 +69,37 @@ String sql = "SELECT id, name, email FROM users WHERE email = '" + email
 
 ### Hårdkodad USD/SEK-kurs
 
-~~**Fil:** `DashboardController.java`~~
+**Fil:** `DashboardController.java`
+
 ~~**Problem:** `private static final double USD_TO_SEK = 10.45;`~~
 ~~Kursen ändras kontinuerligt. Portföljvärden i SEK är alltid fel.~~
 
-**Fix:** Vi hämtar data från native Fx library.
+**Fix:** Vi hämtar data från native Fx library och koden återanvänds i PortfolioService, HoldingService, AlertService.
 
 ### Hårdkodade kurspriser
 
 **Filer:** `DashboardController.java`, `HoldingController.java`, `AlertController.java`
-**Problem:** Aktiekurser hårdkodas på tre ställen oberoende av varandra. Lägg till ett nytt innehav
-och det syns inte i beräkningarna.
 
-**Fix:** Marknadsdataservice med caching.
+~~**Problem:** Aktiekurser hårdkodas på tre ställen oberoende av varandra. Lägg till ett nytt innehav
+och det syns inte i beräkningarna.~~
+
+**Fix:** Vi har skapat client klasser som hämtar dagens priser för varje kurspris. Det klient klasser hämtar används i alltså dagens data och historis data sedan används MarketService och MarketController klasser.
 
 ### Felaktig Sharpe-beräkning
 
-~~**Fil:** `DashboardController.java`~~
+**Fil:** `DashboardController.java`
+
 ~~**Problem:** Sharpe beräknas per innehav med hårdkodad volatilitet (0.15). Det är inte meningsfullt —~~
 ~~Sharpe är ett portföljmått, inte ett per-tillgångsmått. Volatiliteten ska beräknas från historisk data.~~
 
-**Fix:** Vi hämtar data från native Risk library.
+**Fix:** Sharp bärekning händer i native modulen nu. Backend modulen hämtar data via så kallad JNA bryggan som använder Dockerfile för att komma åt delate biblioteket. Datan som vi får används vidare i PortfolioService.
 
 ## Skalningsproblem
 
 ### Ingen pagination
 
 **Filer:** Alla controllers
+
 ~~**Problem:** `SELECT * FROM holdings WHERE ...` utan `LIMIT`. Med 10 000+ innehav laddas all data~~
 ~~till heapminnet varje request.~~
 
@@ -99,9 +108,13 @@ och det syns inte i beräkningarna.
 ### N+1-liknande mönster
 
 **Fil:** `DashboardController.java`
-**Problem:** 4 separata queries istället för JOIN. Ineffektivt och svårt att följa.
-**Fix:** En välskriven JOIN-query eller Spring Data JPA med relationer.
+
+~~**Problem:** 4 separata queries istället för JOIN. Ineffektivt och svårt att följa.~~
+
+**Fix:** Vi använder JPA Repositores istället för JDBC vilket erbjuder ett renare kod stit och berader skalnings möjligheter. Verje repository är kopplade mot entitet och databasen för att returnera data på säkert sätt.
 
 ### Ingen session-timeout-konfiguration
 
-**Problem:** Sessioner lever tills servern startas om. Ingen max-age konfigurerad.
+~~**Problem:** Sessioner lever tills servern startas om. Ingen max-age konfigurerad.~~
+
+**Fix:** Detta skoter frontend av sig själv. Både cookies och Jwt lever i enbart 30 minuter. Då vi gick på enklare lösning så kastar vi ut användare efter 30 minuter och man behöver logga in sig igen.

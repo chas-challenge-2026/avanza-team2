@@ -46,6 +46,7 @@ interface PortfolioResponse {
   }[]
   anyDrift: boolean
   usdToSek: number
+  portfolioSharpeRatio: number | null
 }
 
 interface AlertsResponse {
@@ -110,6 +111,22 @@ export const Overview = () => {
 
     const loadPortfolio = async () => {
       try {
+        try {
+          const snapshotResponse = await fetch(`${API_URL}/api/portfolio/snapshot`, {
+            method: 'POST',
+            credentials: 'include',
+            signal: controller.signal,
+          })
+
+          if (!snapshotResponse.ok) {
+            throw new Error(`Snapshot request failed: ${snapshotResponse.status}`)
+          }
+        } catch {
+          if (!controller.signal.aborted) {
+            console.warn('Kunde inte spara portföljens dagsvärde.')
+          }
+        }
+
         const response = await fetch(`${API_URL}/api/portfolio`, {
           credentials: 'include',
           signal: controller.signal,

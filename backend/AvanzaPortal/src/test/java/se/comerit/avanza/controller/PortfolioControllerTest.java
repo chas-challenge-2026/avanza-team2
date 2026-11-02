@@ -133,6 +133,7 @@ public class PortfolioControllerTest {
                 .thenReturn(List.of(allocationRowDTO));
         when(portfolioService.getAccountSummary(accounts, accountTypeTotals, 1000.0))
                 .thenReturn(List.of(accountSummaryDTO));
+        when(portfolioService.calculateSharpeFromSnapshots(USER_ID)).thenReturn(1.25);
 
         return new PortfolioResponseDTO(
                 List.of(accountSummaryDTO),
@@ -141,6 +142,7 @@ public class PortfolioControllerTest {
                 1000.0,
                 List.of(alertDTO),
                 true,
-                portfolioService.getUsdToSekRate());
+                portfolioService.getUsdToSekRate(),
+                1.25);
     }
 }
