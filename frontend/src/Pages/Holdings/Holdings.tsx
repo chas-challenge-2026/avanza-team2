@@ -10,6 +10,8 @@ import HoldingRow, {
 } from '../../Components/HoldingRow/HoldingRow';
 import AccountAllocationCard from '../../Components/AccountAllocationCard/AccountAllocationCard';
 import ExposureCard from '../../Components/ExposureCard/ExposureCard';
+import RebalanceModal from '../../Components/RebalanceModal/RebalanceModal';
+import { getTargetAllocations, type TargetAllocation } from '../../Services/targetAllocationService';
 import './Holdings.css';
 
 // API base URL from the frontend environment configuration.
@@ -92,6 +94,30 @@ const formatCurrency = (value: number): string =>
         maximumFractionDigits: 2,
     })} SEK`;
 
+// Converts the backend's "Depa" spelling to the Swedish "Depå" for display.
+const formatAccountTypeLabel = (accountType: string): string =>
+    accountType === 'Depa' ? 'Depå' : accountType;
+
+// Accounts that drift more than this many percentage points from their target are flagged.
+const DRIFT_WARNING_THRESHOLD = 10;
+
+// TODO: mock data — backend holdings don't carry an asset type (Aktie/Fond) yet,
+// so the Aktier/Fonder split per account can't be computed from real data.
+const MOCK_AKTIER_FONDER_SPLIT: Record<
+    string,
+    { target: { aktier: number; fonder: number }; actual: { aktier: number; fonder: number } }
+> = {
+    ISK: { target: { aktier: 70, fonder: 30 }, actual: { aktier: 82, fonder: 18 } },
+    KF: { target: { aktier: 40, fonder: 60 }, actual: { aktier: 41, fonder: 59 } },
+    Depa: { target: { aktier: 50, fonder: 50 }, actual: { aktier: 52, fonder: 48 } },
+};
+
+const getMockSplit = (accountType: string) =>
+    MOCK_AKTIER_FONDER_SPLIT[accountType] ?? {
+        target: { aktier: 50, fonder: 50 },
+        actual: { aktier: 50, fonder: 50 },
+    };
+
 const Holdings = () => {
     const [searchParams] = useSearchParams();
     
@@ -115,6 +141,10 @@ const Holdings = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedAccount, setSelectedAccount] = useState(initialAccount);
     const [selectedCurrency, setSelectedCurrency] = useState('all');
+
+    // Stores the user's target allocations and which account the rebalance modal is open for.
+    const [targetAllocations, setTargetAllocations] = useState<TargetAllocation[]>([]);
+    const [rebalanceAccountType, setRebalanceAccountType] = useState<string | null>(null);
 
     // Fetches the authenticated user's holdings when the component mounts.
     useEffect(() => {
@@ -225,6 +255,25 @@ const Holdings = () => {
         };
     }, []);
 
+    // Fetches the authenticated user's target allocations when the component mounts.
+    useEffect(() => {
+        let active = true;
+
+        getTargetAllocations()
+            .then((data) => {
+                if (active) {
+                    setTargetAllocations(data);
+                }
+            })
+            .catch((err) => {
+                console.error('Failed to fetch target allocations:', err);
+            });
+
+        return () => {
+            active = false;
+        };
+    }, []);
+
     // Filters holdings by search query, account type, and currency.
     const filteredHoldings = useMemo(() => {
         const query = normalize(searchQuery);
@@ -289,6 +338,57 @@ const Holdings = () => {
     // Select the appropriate CSS class for positive or negative returns.
     const returnClass =
         totalReturn >= 0 ? 'positive' : 'negative';
+
+    // Groups holdings by account type and compares actual vs. target allocation.
+    const accountAllocationData = useMemo(() => {
+        const totalsByAccount = new Map<string, number>();
+
+        holdings.forEach((holding) => {
+            if (!holding.accountType) {
+                return;
+            }
+
+            totalsByAccount.set(
+                holding.accountType,
+                (totalsByAccount.get(holding.accountType) ?? 0) + holding.value,
+            );
+        });
+
+        const grandTotal = Array.from(totalsByAccount.values()).reduce(
+            (total, value) => total + value,
+            0,
+        );
+
+        if (grandTotal === 0) {
+            return [];
+        }
+
+        return Array.from(totalsByAccount.entries()).map(([accountType, value]) => {
+            const actualPct = (value / grandTotal) * 100;
+            const target = targetAllocations.find((t) => t.accountType === accountType);
+            const targetPct = target?.targetPercentage ?? actualPct;
+
+            const split = getMockSplit(accountType);
+            const isWarning =
+                Math.abs(split.actual.aktier - split.target.aktier) >= DRIFT_WARNING_THRESHOLD;
+
+            return {
+                id: accountType,
+                accountName: formatAccountTypeLabel(accountType),
+                actualPct,
+                targetPct,
+                target: split.target,
+                actual: split.actual,
+                valueSek: value,
+                isWarning,
+            };
+        });
+    }, [holdings, targetAllocations]);
+
+    // Finds the account currently selected for rebalancing, if any.
+    const rebalanceAccount = accountAllocationData.find(
+        (account) => account.id === rebalanceAccountType,
+    );
 
     return (
         <div className="holdings-container">
@@ -358,11 +458,30 @@ const Holdings = () => {
 
             
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
-                <AccountAllocationCard onRebalance={(accountName) => console.log('Rebalansera konto:', accountName)} />
+                <AccountAllocationCard
+                    accounts={accountAllocationData}
+                    onRebalance={(accountId) => setRebalanceAccountType(accountId)}
+                />
                 <ExposureCard />
             </div>
 
-            
+            {rebalanceAccount && (
+                <RebalanceModal
+                    key={rebalanceAccount.id}
+                    accountType={rebalanceAccount.id}
+                    accountLabel={rebalanceAccount.accountName}
+                    actualPct={rebalanceAccount.actualPct}
+                    allocations={targetAllocations}
+                    assetSplit={{ target: rebalanceAccount.target, actual: rebalanceAccount.actual }}
+                    onClose={() => setRebalanceAccountType(null)}
+                    onSaved={(updated) => {
+                        setTargetAllocations(updated);
+                        setRebalanceAccountType(null);
+                    }}
+                />
+            )}
+
+
             <div className="holdings-section-box">
                 <h3 className="holdings-section-title">
                     Innehav
