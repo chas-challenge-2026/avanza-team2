@@ -11,5 +11,7 @@ public record RebalancePreviewDTO(
         BigDecimal targetAktierPct,
         BigDecimal targetFonderPct,
         boolean drifted,
-        List<RebalanceTradeDTO> trades) {
+        List<RebalanceTradeDTO> trades,
+        // Set when no trades can be made, for example when a category has no holdings.
+        String warning) {
 }

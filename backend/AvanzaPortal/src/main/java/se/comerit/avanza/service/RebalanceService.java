@@ -120,7 +120,11 @@ public class RebalanceService {
         BigDecimal fonderValue = sumValue(positions, false);
         BigDecimal total = aktierValue.add(fonderValue);
         if (total.signum() == 0) {
-            throw new InvalidRequestException("Account has no holdings to rebalance");
+            BigDecimal zero = BigDecimal.ZERO.setScale(MONEY_SCALE);
+            BigDecimal target = targetAktierPct.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+            return new Plan(new RebalancePreviewDTO(account.getId(), zero, zero, zero, target,
+                    HUNDRED.subtract(target), false, List.of(), "Kontot saknar innehav att rebalansera."),
+                    List.of());
         }
 
         BigDecimal currentAktierPct = aktierValue.multiply(HUNDRED).divide(total, MONEY_SCALE, RoundingMode.HALF_UP);
@@ -134,6 +138,7 @@ public class RebalanceService {
         BigDecimal amount = diff.abs();
 
         List<TradeAction> actions = new ArrayList<>();
+        String warning = null;
         if (amount.signum() > 0) {
             List<Position> sellSide = positions.stream().filter(p -> p.isAktie() != buyAktier).toList();
             List<Position> buySide = positions.stream().filter(p -> p.isAktie() == buyAktier).toList();
@@ -141,11 +146,12 @@ public class RebalanceService {
             BigDecimal buyBucket = buyAktier ? aktierValue : fonderValue;
 
             if (buyBucket.signum() == 0) {
-                throw new InvalidRequestException("Account has no " + (buyAktier ? AKTIER : FONDER)
-                        + " holdings to buy more of");
+                warning = "Kontot har inga " + (buyAktier ? AKTIER : FONDER)
+                        + "-innehav att köpa mer av. Lägg till ett innehav först.";
+            } else {
+                addActions(actions, sellSide, sellBucket, amount, true);
+                addActions(actions, buySide, buyBucket, amount, false);
             }
-            addActions(actions, sellSide, sellBucket, amount, true);
-            addActions(actions, buySide, buyBucket, amount, false);
         }
 
         List<RebalanceTradeDTO> trades = actions.stream().map(this::toTradeDTO).toList();
@@ -158,7 +164,8 @@ public class RebalanceService {
                 newAktierPct,
                 HUNDRED.subtract(newAktierPct),
                 drifted,
-                trades);
+                trades,
+                warning);
         return new Plan(preview, actions);
     }
 
