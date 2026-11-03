@@ -200,14 +200,14 @@ const char* rates_handler_get_rbapi_seriesid(RateType _Type);
 
 ## Known limitations & Bugs
 
-# Platforms 
+### Platforms 
 Minor considerations have been taken in build steps for MacOS, but it has not been tested if it actually builds and runs on MacOS yet. Only linux is guaranteed to work at the moment.
 
-# AVX Level auto-detection
+### AVX Level auto-detection
 The shell commands for finding the best supported AVX instruction set on the CPU is only tested on linux running on x86_64.
 Only x86_64 CPU architecture is guaranteed to work, ARM and/or RISC-V might compile with manual override but AVX will probably not be auto-detected. 
 lscpu also needs to be installed for auto-detection to work.
 
-# Test-build 
+### Test-build 
 The test build does not run real "tests" but rather simple cherry-picked benchmarking on the various functions. It will fail if any doesn't return 0 (or 429 in the case of rates_handler) but relatively hardcoded values are being used.
 Actual tests with proper cases should be implemented at some point
