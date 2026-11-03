@@ -226,6 +226,8 @@ public class HoldingService {
                     row.put("quantity", holding.getQuantity());
                     row.put("avg_buy_price", holding.getAvg_buy_price());
                     row.put("currency", holding.getCurrency());
+                    row.put("category", holding.getCategory());
+                    row.put("account_id", holding.getAccount().getId());
                     row.put("account_type", holding.getAccount().getAccount_type());
                     row.put("account_name", holding.getAccount().getAccount_name());
                     return row;
@@ -317,6 +319,8 @@ public class HoldingService {
                 (BigDecimal) row.get("quantity"),
                 (BigDecimal) row.get("avg_buy_price"),
                 (String) row.get("currency"),
+                (String) row.get("category"),
+                toLong(row.get("account_id")),
                 (String) row.get("account_type"),
                 (String) row.get("account_name"),
                 toDouble(row.get("currentPrice")),
