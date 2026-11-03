@@ -101,6 +101,9 @@ public class TargetAllocationService {
         List<TargetAllocations> existingAllocations = targetRepository
                 .findByAccount_IdAndUser_Id(account.getId(), user.getId());
         targetRepository.deleteAll(existingAllocations);
+        // Flush so the deletes run before the inserts; otherwise the unique
+        // (account_id, account_type) index rejects the replacement rows.
+        targetRepository.flush();
 
         // Create new allocations based on the request
         List<TargetAllocations> updatedAllocations = request.allocations()
