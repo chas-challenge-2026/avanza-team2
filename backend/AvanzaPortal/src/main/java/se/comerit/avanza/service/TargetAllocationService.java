@@ -13,9 +13,12 @@ import org.springframework.transaction.annotation.Transactional;
 import se.comerit.avanza.dto.targetallocation.TargetAllocationRequestDTO;
 import se.comerit.avanza.dto.targetallocation.TargetAllocationResponseDTO;
 import se.comerit.avanza.dto.targetallocation.UpdateTargetAllocationsRequestDTO;
+import se.comerit.avanza.entity.Account;
 import se.comerit.avanza.entity.TargetAllocations;
 import se.comerit.avanza.entity.User;
 import se.comerit.avanza.exception.InvalidRequestException;
+import se.comerit.avanza.exception.ResourceNotFoundException;
+import se.comerit.avanza.repository.AccountRepository;
 import se.comerit.avanza.repository.TargetRepository;
 import se.comerit.avanza.repository.UserRepository;
 
@@ -29,10 +32,13 @@ public class TargetAllocationService {
 
     private final TargetRepository targetRepository;
     private final UserRepository userRepository;
+    private final AccountRepository accountRepository;
 
-    public TargetAllocationService(TargetRepository targetRepository, UserRepository userRepository) {
+    public TargetAllocationService(TargetRepository targetRepository, UserRepository userRepository,
+            AccountRepository accountRepository) {
         this.targetRepository = targetRepository;
         this.userRepository = userRepository;
+        this.accountRepository = accountRepository;
     }
 
     /**
@@ -62,21 +68,48 @@ public class TargetAllocationService {
     public List<TargetAllocationResponseDTO> updateTargetAllocationsForAuthenticatedUser(String email,
             UpdateTargetAllocationsRequestDTO request) {
 
-        // Validate the request
-        validateAllocations(request.allocations());
+        validatePortfolioAllocations(request.allocations());
         User user = findAuthenticatedUser(email);
 
-        // Delete existing allocations for the user
-        List<TargetAllocations> existingAllocations = targetRepository.findByUser_Id(user.getId());
+        List<TargetAllocations> existingAllocations = targetRepository.findByUser_IdAndAccountIsNull(user.getId());
         targetRepository.deleteAll(existingAllocations);
 
-        // Create new allocations based on the request
         List<TargetAllocations> updatedAllocations = request.allocations()
                 .stream()
                 .map(allocation -> new TargetAllocations(
                         normalizeAccountType(allocation.accountType()),
                         allocation.targetPercentage().doubleValue(),
                         user))
+                .toList();
+
+        return targetRepository.saveAll(updatedAllocations)
+                .stream()
+                .map(this::toResponseDTO)
+                .toList();
+    }
+
+    @Transactional
+    public List<TargetAllocationResponseDTO> updateAccountTargetAllocationsForAuthenticatedUser(
+            String email, Long accountId, UpdateTargetAllocationsRequestDTO request) {
+
+        validateAccountAllocations(request.allocations());
+        User user = findAuthenticatedUser(email);
+        Account account = accountRepository.findByIdAndUser_Id(accountId, user.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
+
+        // Replace only the target allocations for the selected account.
+        List<TargetAllocations> existingAllocations = targetRepository
+                .findByAccount_IdAndUser_Id(account.getId(), user.getId());
+        targetRepository.deleteAll(existingAllocations);
+
+        // Create new allocations based on the request
+        List<TargetAllocations> updatedAllocations = request.allocations()
+                .stream()
+                .map(allocation -> new TargetAllocations(
+                        normalizeAssetType(allocation.accountType()),
+                        allocation.targetPercentage().doubleValue(),
+                        user,
+                        account))
                 .toList();
 
         // Save the new allocations and return the response DTOs
@@ -96,6 +129,7 @@ public class TargetAllocationService {
     private TargetAllocationResponseDTO toResponseDTO(TargetAllocations allocation) {
         return new TargetAllocationResponseDTO(
                 allocation.getId(),
+                allocation.getAccount() == null ? null : allocation.getAccount().getId(),
                 allocation.getAccount_type(),
                 BigDecimal.valueOf(allocation.getTarget_pct()));
     }
@@ -120,14 +154,22 @@ public class TargetAllocationService {
      * @return the normalized account type
      * @throws InvalidRequestException if the account type is unsupported
      */
+    private String normalizeAssetType(String accountType) {
+        return switch (accountType.trim().toUpperCase(Locale.ROOT)) {
+            case "AKTIER" -> "Aktier";
+            case "FONDER" -> "Fonder";
+            default -> throw new InvalidRequestException(
+                    "Unsupported allocation type: " + accountType);
+        };
+    }
+
     private String normalizeAccountType(String accountType) {
         return switch (accountType.trim().toUpperCase(Locale.ROOT)) {
             case "ISK" -> "ISK";
             case "KF" -> "KF";
             case "DEPA", "DEPÅ" -> "Depa";
             case "PENSION" -> "Pension";
-            default -> throw new InvalidRequestException(
-                    "Unsupported account type: " + accountType);
+            default -> throw new InvalidRequestException("Unsupported account type: " + accountType);
         };
     }
 
@@ -137,9 +179,43 @@ public class TargetAllocationService {
      * @param allocations the list of target allocation request DTOs
      * @throws InvalidRequestException if the allocations are invalid
      */
-    private void validateAllocations(
+    private void validateAccountAllocations(
             List<TargetAllocationRequestDTO> allocations) {
 
+        validateTotalPercentage(allocations);
+
+        Set<String> allocationTypes = new HashSet<>();
+
+        for (TargetAllocationRequestDTO allocation : allocations) {
+            String normalizedType = normalizeAssetType(allocation.accountType()).toLowerCase(Locale.ROOT);
+
+            if (!allocationTypes.add(normalizedType)) {
+                throw new InvalidRequestException(
+                        "Duplicate allocation type: " + allocation.accountType());
+            }
+        }
+
+        if (!allocationTypes.equals(Set.of("aktier", "fonder"))) {
+            throw new InvalidRequestException("Account allocations must include Aktier and Fonder");
+        }
+    }
+
+    private void validatePortfolioAllocations(List<TargetAllocationRequestDTO> allocations) {
+        validateTotalPercentage(allocations);
+
+        Set<String> accountTypes = new HashSet<>();
+
+        for (TargetAllocationRequestDTO allocation : allocations) {
+            String normalizedType = normalizeAccountType(allocation.accountType()).toLowerCase(Locale.ROOT);
+
+            if (!accountTypes.add(normalizedType)) {
+                throw new InvalidRequestException(
+                        "Duplicate account type: " + allocation.accountType());
+            }
+        }
+    }
+
+    private void validateTotalPercentage(List<TargetAllocationRequestDTO> allocations) {
         BigDecimal total = allocations.stream()
                 .map(TargetAllocationRequestDTO::targetPercentage)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -147,18 +223,6 @@ public class TargetAllocationService {
         if (total.compareTo(TOTAL_PERCENTAGE) != 0) {
             throw new InvalidRequestException(
                     "Target allocation percentages must total 100");
-        }
-
-        Set<String> accountTypes = new HashSet<>();
-
-        for (TargetAllocationRequestDTO allocation : allocations) {
-            String normalizedType = normalizeAccountType(allocation.accountType())
-                    .toLowerCase(Locale.ROOT);
-
-            if (!accountTypes.add(normalizedType)) {
-                throw new InvalidRequestException(
-                        "Duplicate account type: " + allocation.accountType());
-            }
         }
     }
 }

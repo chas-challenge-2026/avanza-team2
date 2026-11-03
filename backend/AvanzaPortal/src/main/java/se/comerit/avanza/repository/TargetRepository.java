@@ -15,4 +15,8 @@ public interface TargetRepository extends JpaRepository<TargetAllocations, Long>
     List<TargetAllocations> findByUserId(Long userId);
 
     List<TargetAllocations> findByUser_Id(Long userId);
+
+    List<TargetAllocations> findByAccount_IdAndUser_Id(Long accountId, Long userId);
+
+    List<TargetAllocations> findByUser_IdAndAccountIsNull(Long userId);
 }
