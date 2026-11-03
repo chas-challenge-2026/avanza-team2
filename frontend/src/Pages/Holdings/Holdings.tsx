@@ -498,7 +498,7 @@ const Holdings = () => {
                     accounts={accountAllocationData}
                     onRebalance={(accountId) => setRebalanceAccountType(accountId)}
                 />
-                <ExposureCard />
+                <ExposureCard holdings={holdings} />
             </div>
 
             {rebalanceAccount && (
