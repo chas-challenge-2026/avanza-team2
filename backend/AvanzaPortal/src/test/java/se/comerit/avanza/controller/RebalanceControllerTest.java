@@ -143,6 +143,158 @@ class RebalanceControllerTest {
     }
 
     @Test
+    void shouldAcceptBoundaryTargetsOnApply() throws Exception {
+        when(rebalanceService.applyRebalance(any(), any(), any())).thenReturn(preview());
+
+        mockMvc.perform(post("/api/rebalance/apply")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"accountId\":5,\"targetAktierPct\":0}")
+                .principal(authentication))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/rebalance/apply")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"accountId\":5,\"targetAktierPct\":100}")
+                .principal(authentication))
+                .andExpect(status().isOk());
+
+        verify(rebalanceService).applyRebalance(EMAIL, 5L, BigDecimal.ZERO);
+        verify(rebalanceService).applyRebalance(EMAIL, 5L, new BigDecimal("100"));
+    }
+
+    @Test
+    void shouldRejectApplyWithMissingTarget() throws Exception {
+        mockMvc.perform(post("/api/rebalance/apply")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"accountId\":5}")
+                .principal(authentication))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(rebalanceService);
+    }
+
+    @Test
+    void shouldRejectApplyWithMalformedJson() throws Exception {
+        mockMvc.perform(post("/api/rebalance/apply")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{not json")
+                .principal(authentication))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(rebalanceService);
+    }
+
+    @Test
+    void shouldRejectApplyWithNonNumericValues() throws Exception {
+        mockMvc.perform(post("/api/rebalance/apply")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"accountId\":\"abc\",\"targetAktierPct\":\"x\"}")
+                .principal(authentication))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(rebalanceService);
+    }
+
+    @Test
+    void shouldRejectApplyWithoutBody() throws Exception {
+        mockMvc.perform(post("/api/rebalance/apply")
+                .contentType(MediaType.APPLICATION_JSON)
+                .principal(authentication))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(rebalanceService);
+    }
+
+    @Test
+    void shouldRejectNonNumericPreviewParameters() throws Exception {
+        mockMvc.perform(get("/api/rebalance/preview")
+                .param("accountId", "abc")
+                .param("targetAktierPct", "50")
+                .principal(authentication))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(get("/api/rebalance/preview")
+                .param("accountId", "5")
+                .param("targetAktierPct", "half")
+                .principal(authentication))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(rebalanceService);
+    }
+
+    @Test
+    void shouldRejectPreviewWithoutAccountId() throws Exception {
+        mockMvc.perform(get("/api/rebalance/preview")
+                .param("targetAktierPct", "50")
+                .principal(authentication))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(rebalanceService);
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenServiceRejectsPreviewTarget() throws Exception {
+        when(rebalanceService.previewRebalance(EMAIL, 5L, new BigDecimal("150")))
+                .thenThrow(new InvalidRequestException("Target percentage must be between 0 and 100"));
+
+        mockMvc.perform(get("/api/rebalance/preview")
+                .param("accountId", "5")
+                .param("targetAktierPct", "150")
+                .principal(authentication))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void shouldReturnWarningAndEmptyTradesInPreview() throws Exception {
+        RebalancePreviewDTO empty = new RebalancePreviewDTO(
+                5L, new BigDecimal("0.00"), new BigDecimal("0.00"), new BigDecimal("0.00"),
+                new BigDecimal("50.00"), new BigDecimal("50.00"), false, List.of(),
+                "Kontot saknar innehav att rebalansera.");
+        when(rebalanceService.previewRebalance(EMAIL, 5L, new BigDecimal("50"))).thenReturn(empty);
+
+        mockMvc.perform(get("/api/rebalance/preview")
+                .param("accountId", "5")
+                .param("targetAktierPct", "50")
+                .principal(authentication))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.drifted").value(false))
+                .andExpect(jsonPath("$.trades.length()").value(0))
+                .andExpect(jsonPath("$.warning").value("Kontot saknar innehav att rebalansera."));
+    }
+
+    @Test
+    void shouldReturnAllTradeFieldsInPreview() throws Exception {
+        when(rebalanceService.previewRebalance(EMAIL, 5L, new BigDecimal("50"))).thenReturn(preview());
+
+        mockMvc.perform(get("/api/rebalance/preview")
+                .param("accountId", "5")
+                .param("targetAktierPct", "50")
+                .principal(authentication))
+                .andExpect(jsonPath("$.totalValue").value(1000.00))
+                .andExpect(jsonPath("$.currentFonderPct").value(40.00))
+                .andExpect(jsonPath("$.targetFonderPct").value(50.00))
+                .andExpect(jsonPath("$.trades[0].holdingId").value(1))
+                .andExpect(jsonPath("$.trades[0].category").value("Aktier"))
+                .andExpect(jsonPath("$.trades[0].quantity").value(1.6666))
+                .andExpect(jsonPath("$.trades[0].price").value(60))
+                .andExpect(jsonPath("$.trades[0].value").value(99.99));
+    }
+
+    @Test
+    void shouldNotAllowWrongHttpMethods() throws Exception {
+        mockMvc.perform(post("/api/rebalance/preview")
+                .param("accountId", "5")
+                .param("targetAktierPct", "50")
+                .principal(authentication))
+                .andExpect(status().isMethodNotAllowed());
+
+        mockMvc.perform(get("/api/rebalance/apply").principal(authentication))
+                .andExpect(status().isMethodNotAllowed());
+
+        verifyNoInteractions(rebalanceService);
+    }
+
+    @Test
     void shouldReturnBadRequestWhenServiceRejectsTarget() throws Exception {
         when(rebalanceService.applyRebalance(any(), any(), any()))
                 .thenThrow(new InvalidRequestException("Target percentage must be between 0 and 100"));
