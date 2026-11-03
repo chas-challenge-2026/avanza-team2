@@ -11,6 +11,9 @@ import HoldingRow, {
 import AccountAllocationCard from '../../Components/AccountAllocationCard/AccountAllocationCard';
 import ExposureCard from '../../Components/ExposureCard/ExposureCard';
 import RebalanceModal from '../../Components/RebalanceModal/RebalanceModal';
+import AccountRebalanceCard, {
+    type RebalanceAccount,
+} from '../../Components/AccountRebalanceCard/AccountRebalanceCard';
 import { getTargetAllocations, type TargetAllocation } from '../../Services/targetAllocationService';
 import './Holdings.css';
 
@@ -133,6 +136,10 @@ const Holdings = () => {
     // Stores the holdings retrieved from the backend.
     const [holdings, setHoldings] = useState<HoldingViewItem[]>([]);
 
+    // Accounts used by the rebalance card; reloadKey refetches holdings after a rebalance.
+    const [accounts, setAccounts] = useState<RebalanceAccount[]>([]);
+    const [reloadKey, setReloadKey] = useState(0);
+
     // Tracks the loading state and any API errors.
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -224,6 +231,7 @@ const Holdings = () => {
                 // Update the component state only if the request is still active.
                 if (!controller.signal.aborted) {
                     setHoldings(mappedHoldings);
+                    setAccounts(data.accounts ?? []);
                 }
             } catch (err) {
                 // Ignore errors caused by intentionally cancelled requests.
@@ -253,7 +261,7 @@ const Holdings = () => {
         return () => {
             controller.abort();
         };
-    }, []);
+    }, [reloadKey]);
 
     // Fetches the authenticated user's target allocations when the component mounts.
     useEffect(() => {
@@ -463,6 +471,13 @@ const Holdings = () => {
                     onRebalance={(accountId) => setRebalanceAccountType(accountId)}
                 />
                 <ExposureCard />
+            </div>
+
+            <div style={{ marginBottom: '24px' }}>
+                <AccountRebalanceCard
+                    accounts={accounts}
+                    onApplied={() => setReloadKey((key) => key + 1)}
+                />
             </div>
 
             {rebalanceAccount && (

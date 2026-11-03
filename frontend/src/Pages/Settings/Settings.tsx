@@ -6,7 +6,7 @@ import { Toggle } from "../../Components/Toggle/Toggle.tsx";
 import { deviationAlert } from "./settingsSampleData.ts";
 import {
   getTargetAllocations,
-  updateTargetAllocations,
+  updateAccountTargetAllocations,
   getPortfolio,
   type TargetAllocation,
 } from "../../Services/targetAllocationService";
@@ -59,13 +59,15 @@ export const Settings = () => {
           // Konton utifrån backend-svaret - begränsar till Aktier / Fonder
           const realAccounts: AccountTargetItem[] = (portfolioData.accountSummary || []).map(
             (acc, index) => {
-              // Filtrera så vi enbart har Aktier och Fonder 
+              // Enbart Aktier/Fonder som tillhör just det här kontot
               const relevantTargets = rawTargets.filter(
-                (t) => t.accountType === "Aktier" || t.accountType === "Fonder"
+                (t) =>
+                  t.accountId === acc.id &&
+                  (t.accountType === "Aktier" || t.accountType === "Fonder")
               );
 
               return {
-                accountId: acc.accountId || index + 1,
+                accountId: acc.id,
                 accountName: acc.accountName 
                   ? `${acc.accountName} (${acc.accountType})` 
                   : acc.accountType || `Konto ${index + 1}`,
@@ -172,7 +174,7 @@ const saveAccountAllocations = async (accountId: number) => {
       targetPercentage,
     }));
 
-    await updateTargetAllocations(payload);
+    await updateAccountTargetAllocations(accountId, payload);
 
     setUserAccounts((current) =>
       current.map((acc) =>
@@ -187,19 +189,7 @@ const saveAccountAllocations = async (accountId: number) => {
       `Ny målfördelning har sparats för ${targetAccount.accountName}!`,
     );
   } catch {
-    // Fallback bara för att testa i frontend
-    setUserAccounts((current) =>
-      current.map((acc) =>
-        acc.accountId === accountId
-          ? { ...acc, allocations: [...targetAccount.allocations] }
-          : acc,
-      ),
-    );
-
-    setActiveEditingAccountId(null);
-    setAllocationSuccess(
-      `Målfördelningen uppdaterades lokalt för ${targetAccount.accountName}.`,
-    );
+    setAllocationError("Kunde inte spara målfördelningen. Försök igen.");
   } finally {
     setSavingAllocations(false);
   }

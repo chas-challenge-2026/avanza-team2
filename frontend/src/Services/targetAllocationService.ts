@@ -1,17 +1,19 @@
 // Represents one account type and its target allocation.
 export interface TargetAllocation {
   id: number
+  // Null for legacy portfolio-level rows that don't belong to a single account.
+  accountId?: number | null
   accountType: string
   targetPercentage: number
 }
 
 // AccountSummary som matchar backend (AccountSummaryDTO)
 export interface AccountSummary {
-  accountId: number
+  id: number
   accountType: string
   accountName?: string
   currency: string
-  balance: number
+  totalValueSek: number
 }
 
 // PortfolioResponse som matchar backend (PortfolioResponseDTO)
@@ -60,6 +62,27 @@ export const updateTargetAllocations = async (
 
   if (!response.ok) {
     throw new Error('Failed to save target allocations.')
+  }
+
+  return response.json()
+}
+
+// Saves the Aktier/Fonder split for one account only.
+export const updateAccountTargetAllocations = async (
+  accountId: number,
+  allocations: UpdateTargetAllocationsRequest['allocations'],
+): Promise<TargetAllocation[]> => {
+  const response = await fetch(`${API_URL}/api/target-allocations/accounts/${accountId}`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ allocations }),
+  })
+
+  if (!response.ok) {
+    throw new Error('Failed to save account target allocations.')
   }
 
   return response.json()
