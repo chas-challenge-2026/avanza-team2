@@ -366,6 +366,7 @@ public class PortfolioService {
 
         // Build target map
         Map<String, Double> targetMap = targets.stream()
+                .filter(target -> target.getAccount() == null)
                 .collect(Collectors.toMap(
                         TargetAllocations::getAccount_type,
                         t -> (double) t.getTarget_pct()));

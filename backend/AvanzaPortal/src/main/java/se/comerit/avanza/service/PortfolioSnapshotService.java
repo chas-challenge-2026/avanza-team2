@@ -157,7 +157,7 @@ public class PortfolioSnapshotService {
     private Map<String, BigDecimal> loadTargetsByAccountType(Long userId) {
         Map<String, BigDecimal> targetsByAccountType = new HashMap<>();
         for (TargetAllocations target : targetRepository.findByUser_Id(userId)) {
-            if (target.getTarget_pct() != null) {
+            if (target.getAccount() == null && target.getTarget_pct() != null) {
                 targetsByAccountType.put(
                         target.getAccount_type(),
                         BigDecimal.valueOf(target.getTarget_pct()));

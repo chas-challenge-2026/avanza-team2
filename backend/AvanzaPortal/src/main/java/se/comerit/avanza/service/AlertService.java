@@ -192,6 +192,10 @@ public class AlertService {
 
         // Convert target allocations list to a map for easy lookup
         for (TargetAllocations target : targets) {
+            if (target.getAccount() != null) {
+                continue;
+            }
+
             targetMap.put(
                     target.getAccount_type(),
                     target.getTarget_pct());
