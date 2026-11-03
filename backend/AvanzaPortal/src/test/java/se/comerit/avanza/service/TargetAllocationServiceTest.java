@@ -88,7 +88,8 @@ class TargetAllocationServiceTest {
                 allocation("fonder", "40.00"));
 
         when(userRepository.findByEmail(USER_EMAIL)).thenReturn(Optional.of(user));
-        when(accountRepository.findByIdAndUser_Id(20L, USER_ID)).thenReturn(Optional.of(account));
+        when(accountRepository.findByIdAndUser_Id(20L, USER_ID))
+                .thenAnswer(invocation -> Optional.of(account));
         when(targetRepository.findByAccount_IdAndUser_Id(20L, USER_ID)).thenReturn(existingAllocations);
         when(targetRepository.saveAll(anyList()))
                 .thenAnswer(invocation -> invocation.getArgument(0));

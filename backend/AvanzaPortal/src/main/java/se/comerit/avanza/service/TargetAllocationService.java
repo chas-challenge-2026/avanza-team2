@@ -94,7 +94,8 @@ public class TargetAllocationService {
 
         validateAccountAllocations(request.allocations());
         User user = findAuthenticatedUser(email);
-        Account account = accountRepository.findByIdAndUser_Id(accountId, user.getId())
+        Account account = accountRepository.findById(accountId)
+            .filter(foundAccount -> foundAccount.getUser().getId().equals(user.getId()))
                 .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
 
         // Replace only the target allocations for the selected account.
