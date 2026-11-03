@@ -416,7 +416,9 @@ class PortfolioServiceTest {
 
                 List<TargetAllocations> targets = List.of(
                                 new TargetAllocations("ISK", 50.0, null),
-                                new TargetAllocations("KF", 50.0, null));
+                                new TargetAllocations("KF", 50.0, null),
+                                new TargetAllocations("Aktier", 60.0, null, new Account()),
+                                new TargetAllocations("Aktier", 40.0, null, new Account()));
 
                 // Act
                 List<AllocationRowDTO> result = portfolioService.detectDrift(
