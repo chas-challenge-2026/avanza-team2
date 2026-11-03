@@ -1,0 +1,47 @@
+.rebalance-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    margin: 12px 0 8px;
+    border-radius: 3px;
+    background: #E2E8F0;
+    outline: none;
+    cursor: pointer;
+}
+
+/* Only the dot is blue; the track is not filled before it. */
+.rebalance-slider::-webkit-slider-runnable-track {
+    height: 6px;
+    background: transparent;
+}
+
+.rebalance-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    margin-top: -7px;
+    border: none;
+    border-radius: 50%;
+    background: #2563EB;
+    cursor: pointer;
+}
+
+.rebalance-slider::-moz-range-track {
+    height: 6px;
+    background: transparent;
+}
+
+.rebalance-slider::-moz-range-progress {
+    background: transparent;
+}
+
+.rebalance-slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border: none;
+    border-radius: 50%;
+    background: #2563EB;
+    cursor: pointer;
+}

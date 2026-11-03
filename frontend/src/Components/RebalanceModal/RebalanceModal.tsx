@@ -1,5 +1,10 @@
-import { useState } from 'react';
-import { updateTargetAllocations, type TargetAllocation } from '../../Services/targetAllocationService';
+import { useEffect, useState } from 'react';
+import {
+    applyRebalance,
+    previewRebalance,
+    type RebalancePreview,
+} from '../../Services/rebalanceService';
+import './RebalanceModal.css';
 
 type AllocationSplit = {
     aktier: number;
@@ -7,76 +12,64 @@ type AllocationSplit = {
 };
 
 type RebalanceModalProps = {
-    accountType: string;
-    accountLabel: string;
-    actualPct: number;
-    allocations: TargetAllocation[];
-    assetSplit: { target: AllocationSplit; actual: AllocationSplit };
+    accountId: number;
+    actual: AllocationSplit;
+    target: AllocationSplit;
     onClose: () => void;
-    onSaved: (updated: TargetAllocation[]) => void;
+    onApplied: () => void;
 };
 
-// drift on the first "other" account so the total is always exactly 100.
-const redistribute = (
-    allocations: TargetAllocation[],
-    accountType: string,
-    newValue: number,
-): { accountType: string; targetPercentage: number }[] => {
-    const others = allocations.filter((a) => a.accountType !== accountType);
-    const remaining = 100 - newValue;
-    const othersTotal = others.reduce((sum, a) => sum + a.targetPercentage, 0);
+const formatSek = (value: number): string =>
+    `${value.toLocaleString('sv-SE', { maximumFractionDigits: 0 })} SEK`;
 
-    const redistributed = others.map((a) => {
-        const weight = othersTotal > 0 ? a.targetPercentage / othersTotal : 1 / others.length;
-        return {
-            accountType: a.accountType,
-            targetPercentage: Math.round(remaining * weight * 100) / 100,
-        };
-    });
-
-    const sum = newValue + redistributed.reduce((total, a) => total + a.targetPercentage, 0);
-    const drift = Math.round((100 - sum) * 100) / 100;
-
-    if (redistributed.length > 0 && drift !== 0) {
-        redistributed[0].targetPercentage = Math.round((redistributed[0].targetPercentage + drift) * 100) / 100;
-    }
-
-    return [{ accountType, targetPercentage: newValue }, ...redistributed];
-};
-
-const RebalanceModal = ({
-    accountType,
-    accountLabel,
-    actualPct,
-    allocations,
-    assetSplit,
-    onClose,
-    onSaved,
-}: RebalanceModalProps) => {
-    const originalTarget =
-        allocations.find((a) => a.accountType === accountType)?.targetPercentage ?? actualPct;
-
-    const [value, setValue] = useState(originalTarget);
-    const [saving, setSaving] = useState(false);
+const RebalanceModal = ({ accountId, actual, target, onClose, onApplied }: RebalanceModalProps) => {
+    // The slider is the Aktier share. It starts at the account's current split.
+    const [value, setValue] = useState(Math.round(actual.aktier));
+    const [preview, setPreview] = useState<RebalancePreview | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [applying, setApplying] = useState(false);
 
-    const diff = actualPct - value;
-    const matchesActual = Math.abs(diff) < 0.5;
+    // Fetches live measurements from the backend whenever the slider moves.
+    useEffect(() => {
+        const controller = new AbortController();
+        const timer = setTimeout(() => {
+            previewRebalance(accountId, value, controller.signal)
+                .then((data) => {
+                    setPreview(data);
+                    setError(null);
+                })
+                .catch((err) => {
+                    if (!controller.signal.aborted) {
+                        setPreview(null);
+                        setError(err instanceof Error ? err.message : 'Något gick fel.');
+                    }
+                });
+        }, 200);
 
-    const handleSave = async () => {
-        setSaving(true);
+        return () => {
+            clearTimeout(timer);
+            controller.abort();
+        };
+    }, [accountId, value]);
+
+    const handleApply = async () => {
+        setApplying(true);
         setError(null);
 
         try {
-            const payload = redistribute(allocations, accountType, value);
-            const updated = await updateTargetAllocations(payload);
-            onSaved(updated);
+            await applyRebalance(accountId, value);
+            onApplied();
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Kunde inte spara ny allokering.');
+            setError(err instanceof Error ? err.message : 'Kunde inte genomföra rebalanseringen.');
         } finally {
-            setSaving(false);
+            setApplying(false);
         }
     };
+
+    const trades = preview?.trades ?? [];
+    const movedValue = trades
+        .filter((trade) => trade.side === 'SELL')
+        .reduce((total, trade) => total + trade.value, 0);
 
     return (
         <div style={styles.overlay}>
@@ -89,62 +82,77 @@ const RebalanceModal = ({
                 </div>
 
                 <div style={styles.body}>
-                    <h3 style={styles.heading}>Ditt {accountLabel} avviker!</h3>
-
                     <div style={styles.assetSplitBox}>
                         <p style={styles.assetSplitRow}>
                             <strong>
-                                Mål: {assetSplit.target.aktier}% Aktier / {assetSplit.target.fonder}% Fonder
+                                Mål: {target.aktier}% Aktier / {target.fonder}% Fonder
                             </strong>
                         </p>
                         <p style={styles.assetSplitRow}>
                             <strong>
-                                Nuvarande: {assetSplit.actual.aktier}% Aktier / {assetSplit.actual.fonder}% Fonder
+                                Nuvarande: {actual.aktier}% Aktier / {actual.fonder}% Fonder
                             </strong>
                         </p>
-                    </div>
-
-                    <div style={styles.pillRow}>
-                        <div style={styles.pill}>
-                            <span style={styles.pillLabel}>Nuläge</span>
-                            <span style={styles.pillValue}>{actualPct.toFixed(1)}%</span>
-                        </div>
-                        <div style={styles.pill}>
-                            <span style={styles.pillLabel}>Ny målandel</span>
-                            <span style={styles.pillValue}>{value.toFixed(0)}%</span>
-                        </div>
                     </div>
 
                     <input
                         type="range"
+                        className="rebalance-slider"
                         min={0}
                         max={100}
                         step={1}
                         value={value}
                         onChange={(e) => setValue(Number(e.target.value))}
-                        style={styles.slider}
+                        aria-label="Andel aktier"
                     />
 
-                    <div style={styles.tickRow}>
-                        <span>0%</span>
-                        <span>50%</span>
-                        <span>100%</span>
+                    <div style={styles.sliderLabels}>
+                        <span>Aktier {value}%</span>
+                        <span>Fonder {100 - value}%</span>
                     </div>
 
-                    <div style={matchesActual ? styles.messageSuccess : styles.messageWarning}>
-                        {matchesActual
-                            ? 'Målandelen matchar nuläget.'
-                            : `Nuläge: ${actualPct.toFixed(1)}% av portföljen (Mål: ${value.toFixed(0)}%)`}
+                    <div style={styles.liveBox}>
+                        <div style={styles.liveTitle}>Live-beräkning</div>
+
+                        {trades.length > 0 ? (
+                            <>
+                                <table style={styles.table}>
+                                    <tbody>
+                                        {trades.map((trade) => (
+                                            <tr key={`${trade.holdingId}-${trade.side}`}>
+                                                <td style={trade.side === 'SELL' ? styles.sell : styles.buy}>
+                                                    {trade.side === 'SELL' ? 'Sälj' : 'Köp'}
+                                                </td>
+                                                <td>{trade.ticker}</td>
+                                                <td style={styles.right}>{trade.quantity} st</td>
+                                                <td style={styles.right}>{formatSek(trade.value)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                                <div style={styles.moved}>Flyttas: {formatSek(movedValue)}</div>
+                            </>
+                        ) : (
+                            !error && (
+                                <p style={styles.muted}>
+                                    {preview?.warning ?? 'Inga köp eller sälj behövs för detta val.'}
+                                </p>
+                            )
+                        )}
                     </div>
 
                     {error && <p style={styles.error}>{error}</p>}
 
                     <div style={styles.buttonRow}>
-                        <button style={styles.cancelBtn} onClick={onClose} disabled={saving}>
+                        <button style={styles.cancelBtn} onClick={onClose} disabled={applying}>
                             Avbryt
                         </button>
-                        <button style={styles.saveBtn} onClick={handleSave} disabled={saving}>
-                            {saving ? 'Sparar…' : 'Spara ny allokering'}
+                        <button
+                            style={styles.saveBtn}
+                            onClick={handleApply}
+                            disabled={applying || trades.length === 0}
+                        >
+                            {applying ? 'Rebalanserar…' : 'Rebalansera'}
                         </button>
                     </div>
                 </div>
@@ -180,11 +188,7 @@ const styles: Record<string, React.CSSProperties> = {
         alignItems: 'center',
         justifyContent: 'space-between',
     },
-    headerTitle: {
-        color: '#FFFFFF',
-        fontSize: '15px',
-        fontWeight: 600,
-    },
+    headerTitle: { color: '#FFFFFF', fontSize: '15px', fontWeight: 600 },
     closeBtn: {
         background: 'none',
         border: 'none',
@@ -193,15 +197,7 @@ const styles: Record<string, React.CSSProperties> = {
         cursor: 'pointer',
         lineHeight: 1,
     },
-    body: {
-        padding: '24px',
-    },
-    heading: {
-        margin: '0 0 16px 0',
-        fontSize: '16px',
-        fontWeight: 600,
-        color: '#0F172A',
-    },
+    body: { padding: '24px' },
     assetSplitBox: {
         backgroundColor: '#F8FAFC',
         border: '1px solid #E2E8F0',
@@ -209,71 +205,31 @@ const styles: Record<string, React.CSSProperties> = {
         padding: '10px 14px',
         marginBottom: '16px',
     },
-    assetSplitRow: {
-        margin: '2px 0',
-        fontSize: '13px',
-        color: '#334155',
-    },
-    pillRow: {
-        display: 'flex',
-        gap: '12px',
-        marginBottom: '16px',
-    },
-    pill: {
-        flex: 1,
-        backgroundColor: '#F1F5F9',
-        borderRadius: '10px',
-        padding: '10px 14px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '2px',
-    },
-    pillLabel: {
-        fontSize: '12px',
-        color: '#64748B',
-    },
-    pillValue: {
-        fontSize: '18px',
-        fontWeight: 700,
-        color: '#0F172A',
-    },
-    slider: {
-        width: '100%',
-        marginBottom: '4px',
-    },
-    tickRow: {
+    assetSplitRow: { margin: '2px 0', fontSize: '13px', color: '#334155' },
+    sliderLabels: {
         display: 'flex',
         justifyContent: 'space-between',
-        fontSize: '11px',
-        color: '#94A3B8',
+        fontSize: '14px',
+        fontWeight: 600,
+        color: '#0F172A',
         marginBottom: '16px',
     },
-    messageSuccess: {
-        backgroundColor: '#ECFDF5',
-        color: '#059669',
-        borderRadius: '8px',
-        padding: '10px 12px',
-        fontSize: '13px',
+    liveBox: {
+        backgroundColor: '#F8FAFC',
+        border: '1px solid #E2E8F0',
+        borderRadius: '10px',
+        padding: '12px 14px',
         marginBottom: '16px',
     },
-    messageWarning: {
-        backgroundColor: '#FFFBEB',
-        color: '#B45309',
-        borderRadius: '8px',
-        padding: '10px 12px',
-        fontSize: '13px',
-        marginBottom: '16px',
-    },
-    error: {
-        color: '#DC2626',
-        fontSize: '13px',
-        marginBottom: '12px',
-    },
-    buttonRow: {
-        display: 'flex',
-        gap: '12px',
-        justifyContent: 'flex-end',
-    },
+    liveTitle: { fontSize: '12px', fontWeight: 600, color: '#64748B', marginBottom: '8px' },
+    table: { width: '100%', fontSize: '13px', color: '#334155', borderCollapse: 'collapse' },
+    right: { textAlign: 'right' },
+    sell: { color: '#DC2626', fontWeight: 600 },
+    buy: { color: '#059669', fontWeight: 600 },
+    moved: { marginTop: '8px', fontSize: '13px', fontWeight: 600, color: '#0F172A' },
+    muted: { margin: 0, fontSize: '13px', color: '#64748B' },
+    error: { color: '#DC2626', fontSize: '13px', marginBottom: '12px' },
+    buttonRow: { display: 'flex', gap: '12px', justifyContent: 'flex-end' },
     cancelBtn: {
         padding: '10px 16px',
         borderRadius: '8px',
