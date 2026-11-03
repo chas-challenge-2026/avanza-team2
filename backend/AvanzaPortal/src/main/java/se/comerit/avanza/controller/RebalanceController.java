@@ -28,7 +28,12 @@ public class RebalanceController {
         this.rebalanceService = rebalanceService;
     }
 
-    /** Applies the user's chosen split to one account. */
+    /**
+     * Applies the user's chosen split to one account.
+     * 
+     * @param request contains account ID and target split
+     * @return preview of the rebalance
+     */
     @PostMapping("/apply")
     public ResponseEntity<RebalancePreviewDTO> applyRebalance(
             @Valid @RequestBody RebalanceRequestDTO request, Authentication authentication) {
@@ -36,7 +41,13 @@ public class RebalanceController {
                 authentication.getName(), request.accountId(), request.targetAktierPct()));
     }
 
-    /** Shows the trades a rebalance would make, without changing anything. */
+    /**
+     * Shows the trades a rebalance would make, without changing anything.
+     * 
+     * @param accountId       account ID
+     * @param targetAktierPct target percentage for aktier
+     * @return preview of the rebalance
+     */
     @GetMapping("/preview")
     public ResponseEntity<RebalancePreviewDTO> previewRebalance(
             @RequestParam Long accountId, @RequestParam BigDecimal targetAktierPct,

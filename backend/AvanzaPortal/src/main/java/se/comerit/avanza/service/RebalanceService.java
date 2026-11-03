@@ -48,7 +48,14 @@ public class RebalanceService {
         this.userRepository = userRepository;
     }
 
-    /** A holding with its current price and SEK value. */
+    /**
+     * A holding with its current price and SEK value.
+     * 
+     * @param holding the holding
+     * @param price   current price
+     * @param fx      fx rate
+     * @param value   value in SEK
+     */
     private record Position(Holdings holding, BigDecimal price, BigDecimal fx, BigDecimal value) {
         boolean isAktie() {
             return !FONDER.equalsIgnoreCase(holding.getCategory());
@@ -63,6 +70,11 @@ public class RebalanceService {
     /**
      * Calculates the trades needed to reach the target split without changing
      * anything. The result is exactly what {@link #applyRebalance} will do.
+     * 
+     * @param email           user email
+     * @param accountId       account ID
+     * @param targetAktierPct target percentage for aktier
+     * @return preview of the rebalance plan
      */
     @Transactional(readOnly = true)
     public RebalancePreviewDTO previewRebalance(String email, Long accountId, BigDecimal targetAktierPct) {
@@ -71,8 +83,10 @@ public class RebalanceService {
     }
 
     /**
-     * Moves value between Aktier and Fonder so the account matches the target
-     * split. Only calculated per account.
+     * Applies the rebalance to the account.
+     * 
+     * @param targetAktierPct target percentage for aktier
+     * @return preview of the rebalance
      */
     @Transactional
     public RebalancePreviewDTO applyRebalance(String email, Long accountId, BigDecimal targetAktierPct) {
@@ -110,6 +124,15 @@ public class RebalanceService {
     private record Plan(RebalancePreviewDTO preview, List<TradeAction> actions) {
     }
 
+    /**
+     * Builds the rebalance plan for the account.
+     * This plan is used to create actions for rebalancing. Those actions are then
+     * applied in {@link #applyRebalance}.
+     * 
+     * @param account         the account to rebalance
+     * @param targetAktierPct the target percentage for aktier
+     * @return the rebalance plan
+     */
     private Plan buildPlan(Account account, BigDecimal targetAktierPct) {
         if (targetAktierPct == null || targetAktierPct.signum() < 0 || targetAktierPct.compareTo(HUNDRED) > 0) {
             throw new InvalidRequestException("Target percentage must be between 0 and 100");
@@ -127,6 +150,7 @@ public class RebalanceService {
                     List.of());
         }
 
+        // Calculate current percentage of aktier
         BigDecimal currentAktierPct = aktierValue.multiply(HUNDRED).divide(total, MONEY_SCALE, RoundingMode.HALF_UP);
         BigDecimal targetPct = targetAktierPct.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
         boolean drifted = currentAktierPct.subtract(targetPct).abs().compareTo(DRIFT_THRESHOLD_PCT) > 0;
@@ -137,6 +161,7 @@ public class RebalanceService {
         boolean buyAktier = diff.signum() > 0;
         BigDecimal amount = diff.abs();
 
+        // Build trade actions based on diff
         List<TradeAction> actions = new ArrayList<>();
         String warning = null;
         if (amount.signum() > 0) {
@@ -154,6 +179,7 @@ public class RebalanceService {
             }
         }
 
+        // Convert actions to DTOs for preview
         List<RebalanceTradeDTO> trades = actions.stream().map(this::toTradeDTO).toList();
         BigDecimal newAktierPct = targetPct;
         RebalancePreviewDTO preview = new RebalancePreviewDTO(
@@ -169,7 +195,15 @@ public class RebalanceService {
         return new Plan(preview, actions);
     }
 
-    /** Spreads amount (SEK) over the side's positions in proportion to their value. */
+    /**
+     * Spreads amount (SEK) over the side's positions in proportion to their value.
+     * 
+     * @param actions     list to add trade actions to
+     * @param side        positions to consider
+     * @param bucketValue total value of the side
+     * @param amount      amount to spread
+     * @param sell        whether it's a sell action
+     */
     private void addActions(List<TradeAction> actions, List<Position> side, BigDecimal bucketValue,
             BigDecimal amount, boolean sell) {
         for (Position p : side) {
@@ -187,6 +221,12 @@ public class RebalanceService {
         }
     }
 
+    /**
+     * Converts a trade action to DTO.
+     * 
+     * @param a trade action
+     * @return DTO of the trade action
+     */
     private RebalanceTradeDTO toTradeDTO(TradeAction a) {
         Holdings h = a.position().holding();
         return new RebalanceTradeDTO(
@@ -199,6 +239,12 @@ public class RebalanceService {
                 a.quantity().multiply(a.position().unitValue()).setScale(MONEY_SCALE, RoundingMode.HALF_UP));
     }
 
+    /**
+     * Loads positions for an account, including current price and FX.
+     * 
+     * @param accountId account id
+     * @return positions for the account
+     */
     private List<Position> loadPositions(Long accountId) {
         List<Holdings> holdings = holdingsRepository
                 .findAllByAccountIdIn(List.of(accountId), Pageable.unpaged()).getContent();
@@ -213,6 +259,12 @@ public class RebalanceService {
         return positions;
     }
 
+    /**
+     * Gets FX rate to base currency.
+     * 
+     * @param currency currency code
+     * @return FX rate
+     */
     private BigDecimal fxToBase(String currency) {
         if (currency == null || BASE_CURRENCY.equalsIgnoreCase(currency)) {
             return BigDecimal.ONE;
@@ -220,6 +272,13 @@ public class RebalanceService {
         return BigDecimal.valueOf(marketService.getFx(currency.toUpperCase(), BASE_CURRENCY).rate());
     }
 
+    /**
+     * Sums value of positions by type.
+     * 
+     * @param aktier    true for stocks, false for others
+     * @param positions list of positions
+     * @return total value of the type
+     */
     private BigDecimal sumValue(List<Position> positions, boolean aktier) {
         return positions.stream()
                 .filter(p -> p.isAktie() == aktier)
@@ -227,6 +286,13 @@ public class RebalanceService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
+    /**
+     * Finds an account owned by the user.
+     * 
+     * @param email     user email
+     * @param accountId account id
+     * @return the account
+     */
     private Account findOwnedAccount(String email, Long accountId) {
         Long userId = userRepository.findByEmail(email)
                 .orElseThrow(() -> new BadCredentialsException("Authentication failed: User not found"))
