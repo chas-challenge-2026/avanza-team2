@@ -439,6 +439,51 @@ class PortfolioServiceTest {
         }
 
         @Test
+        void shouldBuildPerAccountAndPortfolioAllocations() {
+                when(tresholdConfig.getDriftThreshold()).thenReturn(0.05);
+
+                Account isk = new Account();
+                isk.setId(1L);
+                isk.setAccount_type("ISK");
+                isk.setAccount_name("My ISK");
+                Account kf = new Account();
+                kf.setId(2L);
+                kf.setAccount_type("KF");
+                kf.setAccount_name("My KF");
+
+                Holdings stock = new Holdings("AAA", "Stock", new BigDecimal("10"), new BigDecimal("10"), "SEK", isk);
+                stock.setCategory("Aktier");
+                Holdings fund = new Holdings("BBB", "Fund", new BigDecimal("10"), new BigDecimal("10"), "SEK", isk);
+                fund.setCategory("Fonder");
+                Holdings kfStock = new Holdings("AAA", "Stock", new BigDecimal("10"), new BigDecimal("10"), "SEK", kf);
+                kfStock.setCategory("Aktier");
+
+                Map<String, Double> prices = Map.of("AAA", 60.0, "BBB", 40.0);
+                List<TargetAllocations> targets = List.of(
+                                new TargetAllocations("Aktier", 60.0, null, isk),
+                                new TargetAllocations("Aktier", 50.0, null, kf),
+                                new TargetAllocations("ISK", 100.0, null));
+
+                List<se.comerit.avanza.dto.portfolio.AccountAllocationDTO> result = portfolioService
+                                .buildAccountAllocations(List.of(isk, kf), List.of(stock, fund, kfStock), prices,
+                                                targets);
+
+                assertEquals(60.0, result.get(0).actualAktierPct(), 0.001);
+                assertEquals(60.0, result.get(0).targetAktierPct(), 0.001);
+                assertFalse(result.get(0).overThreshold());
+                assertEquals(1000.0, result.get(0).valueSek(), 0.001);
+                assertEquals(600.0, result.get(1).valueSek(), 0.001);
+                assertEquals(100.0, result.get(1).actualAktierPct(), 0.001);
+                assertEquals(50.0, result.get(1).driftPct(), 0.001);
+                assertTrue(result.get(1).overThreshold());
+
+                se.comerit.avanza.dto.portfolio.PortfolioAllocationDTO portfolio = portfolioService
+                                .buildPortfolioAllocation(result);
+                assertEquals(75.0, portfolio.aktierPct(), 0.001);
+                assertEquals(25.0, portfolio.fonderPct(), 0.001);
+        }
+
+        @Test
         void shouldPreserveAllocationPrecisionSoActualsSumToOneHundred() {
                 Map<String, Double> totals = Map.of(
                                 "ISK", 1.0,

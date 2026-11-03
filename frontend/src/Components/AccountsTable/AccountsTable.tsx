@@ -3,13 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { DropdownBtn } from '../DropdownBtn/DropdownBtn';
 
 interface Account {
+  id?: number;
   name: string;
   type: string;
   value: string;
+  drifting?: boolean;
 }
 
 interface AccountsTableProps {
   accounts: Account[];
+  sharpeRatio?: number | null;
   className?: string;
 }
 
@@ -22,6 +25,7 @@ const typeFilterOptions = [
 
 export const AccountsTable = ({
   accounts,
+  sharpeRatio,
   className,
 }: AccountsTableProps) => {
   const [typeFilter, setTypeFilter] = useState('alla');
@@ -75,7 +79,7 @@ export const AccountsTable = ({
         <tbody>
           {visibleAccounts.map((account) => (
             <tr
-              key={account.name}
+              key={account.id ?? account.name}
               onClick={() => handleAccountClick(account)}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' || event.key === ' ') {
@@ -89,7 +93,17 @@ export const AccountsTable = ({
               className="cursor-pointer border-b border-neutral-100 text-left transition-colors last:border-0 hover:bg-neutral-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
             >
               <td className="px-4 py-2.5 font-medium text-neutral-900">
-                {account.name}
+                <span className="inline-flex items-center gap-2">
+                  {account.drifting && (
+                    <span
+                      className="h-2.5 w-2.5 flex-shrink-0 rounded-full bg-amber-500"
+                      title="Avviker från målfördelningen"
+                      role="img"
+                      aria-label="Avviker från målfördelningen"
+                    />
+                  )}
+                  {account.name}
+                </span>
               </td>
 
               <td className="px-4 py-2.5">
@@ -109,6 +123,20 @@ export const AccountsTable = ({
           ))}
         </tbody>
       </table>
+
+      {sharpeRatio !== undefined && (
+        <div className="mt-3 flex items-center justify-between border-t border-neutral-100 pt-3 text-sm">
+          <span className="text-neutral-500">Sharpe-kvot (portfölj)</span>
+          <span className="font-semibold text-neutral-900">
+            {sharpeRatio === null
+              ? 'Otillräcklig data'
+              : sharpeRatio.toLocaleString('sv-SE', {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+          </span>
+        </div>
+      )}
     </div>
   );
 };
