@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Title } from '../../Components/Title/Title.tsx'
+import { useNavigate } from 'react-router-dom'
 import { DropdownBtn } from '../../Components/DropdownBtn/DropdownBtn.tsx'
 import { RebalanceCard } from '../../Components/RebalanceCard/RebalanceCard.tsx'
 import { RiskMetricsCard } from '../../Components/RiskMetricsCard/RiskMetricsCard.tsx'
@@ -98,6 +98,17 @@ interface PortfolioResponse {
   }[]
 
   totalPortfolioValue: number
+
+  accountAllocations: {
+    accountId: number
+    accountType: string
+    accountName: string
+    valueSek: number
+    actualAktierPct: number
+    targetAktierPct: number
+    driftPct: number
+    overThreshold: boolean
+  }[]
 }
 
 // Define the allocation format expected by RebalanceCard.
@@ -128,6 +139,8 @@ const formatAccountType = (accountType: string) => {
 
 export const Analyses = () => {
   const [periodId, setPeriodId] = useState<PeriodId>(defaultPeriodId)
+  const navigate = useNavigate()
+  const [selectedAccountId, setSelectedAccountId] = useState('')
   const [historyImportReady, setHistoryImportReady] = useState(false)
   const [historyImportError, setHistoryImportError] = useState<string | null>(null)
 
@@ -314,28 +327,42 @@ export const Analyses = () => {
   const gainPercent =
     investedValue > 0 ? (gainSek / investedValue) * 100 : 0
 
-  // Map the actual account allocation returned by the backend.
-  const currentAllocation: AllocationSlice[] =
-    portfolio?.allocationRows
-      .filter((row) => row.accountType !== 'Pension')
-      .map((row) => ({
-        label: formatAccountType(row.accountType),
-        percent: row.actual,
-      })) ?? []
+  // Show the Aktier/Fonder split for the selected account against that account's own target.
+  // Default to the account that drifts most, so the page matches the warning on Overview.
+  const accountAllocations = portfolio?.accountAllocations ?? []
+  const mostDriftedAccount = accountAllocations.reduce<
+    (typeof accountAllocations)[number] | undefined
+  >((worst, a) => (!worst || a.driftPct > worst.driftPct ? a : worst), undefined)
+  const selectedAccount =
+    accountAllocations.find((a) => String(a.accountId) === selectedAccountId) ??
+    mostDriftedAccount
 
-  // Map the user's target allocation returned by the backend.
-  const targetAllocation: AllocationSlice[] =
-    portfolio?.allocationRows
-      .filter((row) => row.accountType !== 'Pension')
-      .map((row) => ({
-        label: formatAccountType(row.accountType),
-        percent: row.target,
-      })) ?? []
+  const accountOptions = accountAllocations.map((a) => ({
+    label: `${a.overThreshold ? '● ' : ''}${a.accountName || formatAccountType(a.accountType)} (${formatAccountType(a.accountType)})`,
+    value: String(a.accountId),
+  }))
+
+  const currentAllocation: AllocationSlice[] = selectedAccount
+    ? [
+        { label: 'Aktier', percent: selectedAccount.actualAktierPct },
+        { label: 'Fonder', percent: 100 - selectedAccount.actualAktierPct },
+      ]
+    : []
+
+  const targetAllocation: AllocationSlice[] = selectedAccount
+    ? [
+        { label: 'Aktier', percent: selectedAccount.targetAktierPct },
+        { label: 'Fonder', percent: 100 - selectedAccount.targetAktierPct },
+      ]
+    : []
+
+  const handleRebalance = () => {
+    const type = selectedAccount?.accountType.toLowerCase()
+    navigate(type ? `/innehav?account=${encodeURIComponent(type)}` : '/innehav')
+  }
 
   return (
     <div className="p-6">
-      <Title>Portföljanalys</Title>
-
       <div className="mx-auto mt-6 flex max-w-4xl flex-col gap-4">
         <DropdownBtn
           options={periodOptions}
@@ -399,10 +426,25 @@ export const Analyses = () => {
           </p>
         )}
 
+        {accountOptions.length > 0 && (
+          <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-green-200 bg-green-50 px-5 py-3">
+            <span className="text-sm font-semibold text-neutral-900">
+              <i className="fa-solid fa-filter mr-2 text-green-700" aria-hidden="true" />
+              Välj konto för Fördelning &amp; Mål
+            </span>
+            <DropdownBtn
+              options={accountOptions}
+              value={String(selectedAccount?.accountId ?? '')}
+              onChange={setSelectedAccountId}
+            />
+          </div>
+        )}
+
         <RebalanceCard
           current={currentAllocation}
           target={targetAllocation}
           showDriftAlert={areDriftNotificationsEnabled()}
+          onRebalance={handleRebalance}
         />
 
         <SummaryList

@@ -148,7 +148,7 @@ char* rates_handler_fetch_from_rbapi(RateType _Type)
     memcpy(response, Cd.addr, Cd.size);
     response[Cd.size] = '\0';
 
-    printf("riksbanken response: %s\n", response); // NOTE: dbg
+    // printf("riksbanken response: %s\n", response); // NOTE: dbg
   }
 
   curl_dispose(&Cd);

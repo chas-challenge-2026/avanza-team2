@@ -12,7 +12,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 import se.comerit.avanza.dto.alerts.AlertsResponseDTO;
+import se.comerit.avanza.dto.portfolio.AccountAllocationDTO;
 import se.comerit.avanza.dto.portfolio.AccountSummaryDTO;
+import se.comerit.avanza.dto.portfolio.PortfolioAllocationDTO;
 import se.comerit.avanza.dto.portfolio.AllocationRowDTO;
 import se.comerit.avanza.dto.portfolio.EnrichedHoldingDTO;
 import se.comerit.avanza.dto.portfolio.PortfolioResponseDTO;
@@ -133,6 +135,15 @@ public class PortfolioControllerTest {
                 .thenReturn(List.of(allocationRowDTO));
         when(portfolioService.getAccountSummary(accounts, accountTypeTotals, 1000.0))
                 .thenReturn(List.of(accountSummaryDTO));
+        when(portfolioService.calculateSharpeFromSnapshots(USER_ID)).thenReturn(1.25);
+
+        AccountAllocationDTO accountAllocationDTO = new AccountAllocationDTO(
+                1L, "ISK", "My ISK", 1000.0, 800.0, 200.0, 80.0, 50.0, 30.0, true);
+        PortfolioAllocationDTO portfolioAllocationDTO = new PortfolioAllocationDTO(80.0, 20.0);
+        when(portfolioService.buildAccountAllocations(accounts, holdings, prices, targets))
+                .thenReturn(List.of(accountAllocationDTO));
+        when(portfolioService.buildPortfolioAllocation(List.of(accountAllocationDTO)))
+                .thenReturn(portfolioAllocationDTO);
 
         return new PortfolioResponseDTO(
                 List.of(accountSummaryDTO),
@@ -141,6 +152,9 @@ public class PortfolioControllerTest {
                 1000.0,
                 List.of(alertDTO),
                 true,
-                portfolioService.getUsdToSekRate());
+                portfolioService.getUsdToSekRate(),
+                1.25,
+                List.of(accountAllocationDTO),
+                portfolioAllocationDTO);
     }
 }

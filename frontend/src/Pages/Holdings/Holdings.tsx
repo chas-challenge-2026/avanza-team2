@@ -8,6 +8,10 @@ import {
 import HoldingRow, {
     type HoldingItem,
 } from '../../Components/HoldingRow/HoldingRow';
+import AccountAllocationCard from '../../Components/AccountAllocationCard/AccountAllocationCard';
+import ExposureCard from '../../Components/ExposureCard/ExposureCard';
+import RebalanceModal from '../../Components/RebalanceModal/RebalanceModal';
+import { getTargetAllocations, type TargetAllocation } from '../../Services/targetAllocationService';
 import './Holdings.css';
 
 // API base URL from the frontend environment configuration.
@@ -36,6 +40,8 @@ interface ApiHolding {
     quantity: number | string;
     avg_buy_price: number | string | null;
     currency: string | null;
+    category: string | null;
+    account_id: number | null;
     account_type: string | null;
     account_name: string | null;
     currentPrice: number | null;
@@ -60,9 +66,11 @@ interface HoldingsResponse {
 
 // Extends the existing frontend model with additional backend properties.
 interface HoldingViewItem extends HoldingItem {
+    accountId: number | null;
     accountType: string;
     accountName: string;
     currency: string;
+    category: string;
     pnl: number | null;
 }
 
@@ -90,6 +98,18 @@ const formatCurrency = (value: number): string =>
         maximumFractionDigits: 2,
     })} SEK`;
 
+// Converts the backend's "Depa" spelling to the Swedish "Depå" for display.
+const formatAccountTypeLabel = (accountType: string): string =>
+    accountType === 'Depa' ? 'Depå' : accountType;
+
+// Accounts that drift more than this many percentage points from their target are flagged.
+const DRIFT_WARNING_THRESHOLD = 10;
+
+// Used when an account has no saved Aktier/Fonder target yet.
+const DEFAULT_SPLIT = { aktier: 50, fonder: 50 };
+
+const roundOneDecimal = (value: number): number => Math.round(value * 10) / 10;
+
 const Holdings = () => {
     const [searchParams] = useSearchParams();
     
@@ -105,6 +125,12 @@ const Holdings = () => {
     // Stores the holdings retrieved from the backend.
     const [holdings, setHoldings] = useState<HoldingViewItem[]>([]);
 
+    // All of the user's accounts, so accounts without holdings still appear in the allocation card.
+    const [accounts, setAccounts] = useState<HoldingsResponse['accounts']>([]);
+
+    // Bumped after a rebalance so holdings are fetched again.
+    const [reloadKey, setReloadKey] = useState(0);
+
     // Tracks the loading state and any API errors.
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -113,6 +139,10 @@ const Holdings = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedAccount, setSelectedAccount] = useState(initialAccount);
     const [selectedCurrency, setSelectedCurrency] = useState('all');
+
+    // Stores the user's target allocations and which account the rebalance modal is open for.
+    const [targetAllocations, setTargetAllocations] = useState<TargetAllocation[]>([]);
+    const [rebalanceAccountType, setRebalanceAccountType] = useState<string | null>(null);
 
     // Fetches the authenticated user's holdings when the component mounts.
     useEffect(() => {
@@ -171,8 +201,8 @@ const Holdings = () => {
                         const marketValue = toNumber(holding.marketValue);
 
                         const returnPercent =
-                            pnl !== null && marketValue - pnl > 0
-                                ? (pnl / (marketValue - pnl)) * 100
+                            pnl !== null && marketValue > 0
+                                ? (pnl / marketValue) * 100
                                 : 0;
 
                         return {
@@ -182,9 +212,11 @@ const Holdings = () => {
                             shares: quantity,
                             value: marketValue,
                             returnPercent,
+                            accountId: holding.account_id ?? null,
                             accountType: holding.account_type ?? '',
                             accountName: holding.account_name ?? '',
                             currency: holding.currency ?? 'SEK',
+                            category: holding.category ?? 'Aktier',
                             pnl,
                         };
                     });
@@ -192,6 +224,7 @@ const Holdings = () => {
                 // Update the component state only if the request is still active.
                 if (!controller.signal.aborted) {
                     setHoldings(mappedHoldings);
+                    setAccounts(data.accounts ?? []);
                 }
             } catch (err) {
                 // Ignore errors caused by intentionally cancelled requests.
@@ -220,6 +253,25 @@ const Holdings = () => {
         // Cancel the request if the component unmounts.
         return () => {
             controller.abort();
+        };
+    }, [reloadKey]);
+
+    // Fetches the authenticated user's target allocations when the component mounts.
+    useEffect(() => {
+        let active = true;
+
+        getTargetAllocations()
+            .then((data) => {
+                if (active) {
+                    setTargetAllocations(data);
+                }
+            })
+            .catch((err) => {
+                console.error('Failed to fetch target allocations:', err);
+            });
+
+        return () => {
+            active = false;
         };
     }, []);
 
@@ -274,7 +326,7 @@ const Holdings = () => {
 
     // Estimate the invested value from the market value and reported profit or loss.
     const totalInvested = filteredHoldings.reduce(
-        (total, item) => total + item.value - (item.pnl ?? 0),
+        (total, item) => total + (item.value - (item.pnl ?? 0)),
         0,
     );
 
@@ -288,10 +340,94 @@ const Holdings = () => {
     const returnClass =
         totalReturn >= 0 ? 'positive' : 'negative';
 
+    // Groups holdings per account: actual Aktier/Fonder split from the holdings' categories,
+    // target split from the account's saved allocation in Settings.
+    const accountAllocationData = useMemo(() => {
+        const byAccount = new Map<
+            number,
+            { accountType: string; accountName: string; aktier: number; fonder: number }
+        >();
+
+        // Seed from all accounts so accounts without holdings are still listed.
+        accounts.forEach((account) => {
+            byAccount.set(account.id, {
+                accountType: account.account_type,
+                accountName: account.account_name,
+                aktier: 0,
+                fonder: 0,
+            });
+        });
+
+        holdings.forEach((holding) => {
+            if (holding.accountId === null) {
+                return;
+            }
+
+            const entry = byAccount.get(holding.accountId) ?? {
+                accountType: holding.accountType,
+                accountName: holding.accountName,
+                aktier: 0,
+                fonder: 0,
+            };
+
+            if (normalize(holding.category) === 'fonder') {
+                entry.fonder += holding.value;
+            } else {
+                entry.aktier += holding.value;
+            }
+
+            byAccount.set(holding.accountId, entry);
+        });
+
+        const grandTotal = Array.from(byAccount.values()).reduce(
+            (total, entry) => total + entry.aktier + entry.fonder,
+            0,
+        );
+
+        return Array.from(byAccount.entries()).map(([accountId, entry]) => {
+            const value = entry.aktier + entry.fonder;
+            const actualPct = grandTotal > 0 ? (value / grandTotal) * 100 : 0;
+
+            const aktierShare = value > 0 ? (entry.aktier / value) * 100 : 0;
+            const actual = value > 0
+                ? {
+                    aktier: roundOneDecimal(aktierShare),
+                    fonder: roundOneDecimal(100 - aktierShare),
+                }
+                : { aktier: 0, fonder: 0 };
+
+            const accountTargets = targetAllocations.filter((t) => t.accountId === accountId);
+            const aktierTarget = accountTargets.find((t) => t.accountType === 'Aktier');
+            const fonderTarget = accountTargets.find((t) => t.accountType === 'Fonder');
+            const target = {
+                aktier: aktierTarget?.targetPercentage ?? DEFAULT_SPLIT.aktier,
+                fonder: fonderTarget?.targetPercentage ?? DEFAULT_SPLIT.fonder,
+            };
+
+            const isWarning =
+                value > 0 && Math.abs(actual.aktier - target.aktier) >= DRIFT_WARNING_THRESHOLD;
+
+            return {
+                id: String(accountId),
+                accountType: entry.accountType,
+                accountName: entry.accountName || formatAccountTypeLabel(entry.accountType),
+                subtitle: formatAccountTypeLabel(entry.accountType),
+                actualPct,
+                target,
+                actual,
+                valueSek: value,
+                isWarning,
+            };
+        });
+    }, [accounts, holdings, targetAllocations]);
+
+    // Finds the account currently selected for rebalancing, if any.
+    const rebalanceAccount = accountAllocationData.find(
+        (account) => account.id === rebalanceAccountType,
+    );
+
     return (
         <div className="holdings-container">
-            <h1 className="holdings-title">Mina Innehav</h1>
-
             {/* Search field and filter controls. */}
             <div className="holdings-filter-section">
                 <SearchInput
@@ -356,7 +492,30 @@ const Holdings = () => {
                 </div>
             </div>
 
-            {/* Holdings list with loading, error, and empty states. */}
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
+                <AccountAllocationCard
+                    accounts={accountAllocationData}
+                    onRebalance={(accountId) => setRebalanceAccountType(accountId)}
+                />
+                <ExposureCard holdings={holdings} />
+            </div>
+
+            {rebalanceAccount && (
+                <RebalanceModal
+                    key={rebalanceAccount.id}
+                    accountId={Number(rebalanceAccount.id)}
+                    actual={rebalanceAccount.actual}
+                    target={rebalanceAccount.target}
+                    onClose={() => setRebalanceAccountType(null)}
+                    onApplied={() => {
+                        setRebalanceAccountType(null);
+                        setReloadKey((key) => key + 1);
+                    }}
+                />
+            )}
+
+
             <div className="holdings-section-box">
                 <h3 className="holdings-section-title">
                     Innehav
@@ -431,7 +590,7 @@ const Holdings = () => {
                 )}
             </div>
 
-            {/* Detailed summary of the filtered holdings. */}
+            
             <div className="holdings-section-box">
                 <h3 className="holdings-section-title">
                     Total innehav

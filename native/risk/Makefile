@@ -9,7 +9,7 @@ else
 	CC := gcc
 endif
 
-BUILD_DIR := build
+BUILD_DIR ?= build
 
 # Binary names
 BIN := $(BUILD_DIR)/librisk.a

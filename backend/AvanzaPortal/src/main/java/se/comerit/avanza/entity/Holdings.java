@@ -34,6 +34,7 @@ public class Holdings {
     private BigDecimal quantity;
     private BigDecimal avg_buy_price;
     private String currency;
+    private String category = "Aktier";
 
     // Relationships
     @ManyToOne(fetch = FetchType.LAZY)
@@ -101,6 +102,14 @@ public class Holdings {
 
     public void setCurrency(String currency) {
         this.currency = currency;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    public void setCategory(String category) {
+        this.category = category;
     }
 
     public Account getAccount() {

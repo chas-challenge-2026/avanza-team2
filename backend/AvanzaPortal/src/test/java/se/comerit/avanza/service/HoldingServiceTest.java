@@ -27,6 +27,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import se.comerit.avanza.dto.holdings.CreateHoldingRequestDTO;
 import se.comerit.avanza.dto.holdings.HoldingResponseDTO;
 import se.comerit.avanza.dto.market.FxRateResponseDTO;
+import se.comerit.avanza.dto.portfolio.PositionSnapshotDTO;
 import se.comerit.avanza.entity.Account;
 import se.comerit.avanza.entity.Holdings;
 import se.comerit.avanza.entity.User;
@@ -86,6 +87,31 @@ class HoldingServiceTest {
         }
 
         @Test
+        void shouldReturnTypedPositionSnapshotInputsForUser() {
+                Account account = new Account();
+                account.setId(7L);
+                account.setAccount_type("ISK");
+
+                Holdings holding = new Holdings();
+                holding.setTicker("AAPL");
+                holding.setCurrency("USD");
+                holding.setQuantity(new BigDecimal("3.5"));
+                holding.setAccount(account);
+
+                when(holdingsRepository.findHoldingsForUser(1L)).thenReturn(List.of(holding));
+
+                List<PositionSnapshotDTO> result = holdingService.getPositionSnapshotInputsForUser(1L);
+
+                assertEquals(1, result.size());
+                assertEquals(7L, result.get(0).accountId());
+                assertEquals("AAPL", result.get(0).ticker());
+                assertEquals("USD", result.get(0).currency());
+                assertEquals("ISK", result.get(0).accountType());
+                assertEquals(new BigDecimal("3.5"), result.get(0).quantity());
+                verify(holdingsRepository).findHoldingsForUser(1L);
+        }
+
+        @Test
         void shouldCalculateMarketValueAndPnl() {
                 // Arrange
                 Integer userId = 1;
@@ -140,33 +166,32 @@ class HoldingServiceTest {
 
         @Test
         void shouldReturnNullValuesWhenMarketPriceIsUnavailable() {
-        // Arrange
-        Integer userId = 1;
+                // Arrange
+                Integer userId = 1;
 
-        Holdings holding = new Holdings();
-        holding.setTicker("ERIC-B");
-        holding.setQuantity(new BigDecimal("10"));
-        holding.setAvg_buy_price(new BigDecimal("50"));
-        holding.setAccount(new Account());
+                Holdings holding = new Holdings();
+                holding.setTicker("ERIC-B");
+                holding.setQuantity(new BigDecimal("10"));
+                holding.setAvg_buy_price(new BigDecimal("50"));
+                holding.setAccount(new Account());
 
-        when(holdingsRepository.findHoldingsForUser(userId.longValue()))
-                .thenReturn(List.of(holding));
+                when(holdingsRepository.findHoldingsForUser(userId.longValue()))
+                                .thenReturn(List.of(holding));
 
-        when(marketService.getPrice("ERIC-B"))
-                .thenReturn(Optional.empty());
+                when(marketService.getPrice("ERIC-B"))
+                                .thenReturn(Optional.empty());
 
-        // Act
-        List<Map<String, Object>> result =
-                holdingService.getEnrichedHoldingsForUser(userId);
+                // Act
+                List<Map<String, Object>> result = holdingService.getEnrichedHoldingsForUser(userId);
 
-        // Assert
-        Map<String, Object> enrichedHolding = result.get(0);
+                // Assert
+                Map<String, Object> enrichedHolding = result.get(0);
 
-        assertNull(enrichedHolding.get("currentPrice"));
-        assertNull(enrichedHolding.get("marketValue"));
-        assertNull(enrichedHolding.get("pnl"));
+                assertNull(enrichedHolding.get("currentPrice"));
+                assertNull(enrichedHolding.get("marketValue"));
+                assertNull(enrichedHolding.get("pnl"));
 
-        verify(marketService).getPrice("ERIC-B");
+                verify(marketService).getPrice("ERIC-B");
         }
 
         @Test
@@ -292,8 +317,7 @@ class HoldingServiceTest {
                 when(marketService.getFx("USD", "SEK"))
                                 .thenReturn(new FxRateResponseDTO("2026-10-15", "USD", "SEK", 10.0));
 
-                HoldingResponseDTO result =
-                                holdingService.getHoldingsForAuthenticatedUser(email, Pageable.unpaged());
+                HoldingResponseDTO result = holdingService.getHoldingsForAuthenticatedUser(email, Pageable.unpaged());
 
                 assertEquals(4000.0, result.holdings().get(0).marketValue());
                 assertEquals(1000.0, result.holdings().get(0).pnl());

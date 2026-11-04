@@ -11,7 +11,7 @@ className?: string;
 }
 
 const variantStyles: Record<TitleVariant, string> = {
-  primary: 'text-xl md:text-5xl font-bold text-[#a365d8] mt-4 py-4',
+  primary: 'text-xl md:text-5xl font-bold text-[#a365d8]',
   secondary: 'text-2xl md:text-3xl font-semibold text-neutral-800',
 };
 

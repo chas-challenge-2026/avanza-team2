@@ -99,14 +99,32 @@ rör aldrig `docker-compose.yml`, se [DRIFT.md](DRIFT.md) för plattformskontrak
 ## Alla dokumentations filer
 
 - [docs/architecture.md](docs/architecture.md) — systembeskrivning för v1
+- [docs/KvalDemoPlan.md](docs/KvalDemoPlan.md) — demo-upplägg, kärnflöde, plan B och kundfrågor
 - [docs/known-bugs.md](docs/known-bugs.md) — kända fel/antipatterns (uppgiftslista)
 - [docs/README-pain-points.md](docs/README-pain-points.md) — vad som spricker vid skala
 - [docs/v2-targets.md](docs/v2-targets.md) — målarkitektur för v2
 - [DRIFT.md](DRIFT.md) — drift och deploy
+- [docs/SQL-Diagram.png](docs/SQL-Diagram.png) — SQL-databasdiagram
+- [docs/test-status.md](docs/test-status.md) — översikt över tester och kända testluckor
+
+#### Backend-dokumentation
+
 - [backend/AvanzaPortal/DEVELOPMENT.md](backend/AvanzaPortal/DEVELOPMENT.md) — startguide, arkitektur, API och testning för Java-backenden
+
+#### Frontend-dokumentation
+
+- [frontend/README.md](frontend/README.md) — installation, körning, testning och kända begränsningar
 - [frontend/DEVELOPMENT.md](frontend/DEVELOPMENT.md) — utveckling, struktur, API och byggning av frontend
+- [frontend/DECISIONS.md](frontend/DECISIONS.md) — design-, arkitektur- och prioriteringsbeslut
+
+#### Native-dokumentation
+
 - [native/README.md](native/README.md) — översikt över native-modulerna och JNA-integrationen
+- [native/backtest/README.md](native/backtest/README.md) — backtestmotorn, byggning och testkörning
 - [native/fx/README.md](native/fx/README.md) — FX-pipeline: ECB-kurser, cache och C-API för JNA
 - [native/risk/README.md](native/risk/README.md) — riskmodulen
-- [native/docs/BUILD.md](native/docs/BUILD.md) — native-dokumentation
-- [native/docs/CONTRIBUTE.md](native/docs/CONTRIBUTE.md) — information om kodstilen
+- [native/docs/BUILD.md](native/docs/BUILD.md) — byggmiljö, Makefile-kommandon, testning och felsökning
+
+## SQL-databasdiagram
+
+![SQL-databasdiagram](docs/SQL-Diagram.png)
