@@ -1,6 +1,31 @@
-# Kända problem — v1 (pedagogiska)
+# Kända problem
 
-## Kända problem | Byt till hur vi har refaktorarat
+## Kända problem efter V2-modernisering ↓
+
+### Bcrypt migrering
+
+Efter kod modernisering vi har skapat nytt flöde av säkerhet via Spring Boot Security Filter Chain tillsammas med Bcrypt saltning av lösenord. Problem är att vi har inte hunnit utersluta helt gammla MD5 lösenord. Det innbär att processen för log-in kan fungera lite segare då processen kräver varje gång att kolla först om du har ett MD5 lösenor och om inte då används bcrypt.
+
+### Uppgradera till säkrare ID typ
+
+Idag använder vi så kallade auto-incrementing ID-s, det vi skulle kunna göra är att switcha till GUIDs. Det var utanför scope då det hade tagit mer tid.
+
+### Mockup data finns fortfarande
+
+Vi har tyvärr inte hunnit att refaktorera all mockup data.
+
+1. Dokument sidan är fortfarande mock-up data.
+2. På innehav sidan kortet "Exponering & Spriding" är mock-up. Vi har planerat att fetcha från market stack nya endpoints för att kunna färdig ställa kortet.
+
+### Nya notiser är bara nuvarande och kan inte bli "dissmised"
+
+Anledning till det är att vi inte sparar ner till databasen nya notiser som kommer. Därför kan vi inte skapa funktion där man skulle kunna "Avvisa" nya notiser.
+
+### Valuta switch
+
+Vi har planerat att skapa funktionalitet till att switcha mellan olika valutor för hela klientens portfölj. Men vi har inte haft tid till att implementera det.
+
+## Kända problem från V1 ↓ | Byt till hur vi har refaktorarat
 
 - **SQL-injektion** i login-formuläret (`AuthController.java`)
 - **MD5-lösenord** utan salt
