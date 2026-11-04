@@ -99,6 +99,7 @@ rör aldrig `docker-compose.yml`, se [DRIFT.md](DRIFT.md) för plattformskontrak
 ## Alla dokumentations filer
 
 - [docs/architecture.md](docs/architecture.md) — systembeskrivning för v1
+- [docs/KvalDemoPlan.md](docs/KvalDemoPlan.md) — demo-upplägg, kärnflöde, plan B och kundfrågor
 - [docs/known-bugs.md](docs/known-bugs.md) — kända fel/antipatterns (uppgiftslista)
 - [docs/README-pain-points.md](docs/README-pain-points.md) — vad som spricker vid skala
 - [docs/v2-targets.md](docs/v2-targets.md) — målarkitektur för v2
