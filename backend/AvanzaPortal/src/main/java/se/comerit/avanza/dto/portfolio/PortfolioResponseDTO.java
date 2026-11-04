@@ -18,5 +18,7 @@ public record PortfolioResponseDTO(
                 List<AlertsResponseDTO> recentAlerts,
                 boolean anyDrift,
                 double usdToSek,
-                Double portfolioSharpeRatio) {
+                Double portfolioSharpeRatio,
+                List<AccountAllocationDTO> accountAllocations,
+                PortfolioAllocationDTO portfolioAllocation) {
 }

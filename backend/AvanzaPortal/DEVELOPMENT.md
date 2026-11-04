@@ -184,8 +184,9 @@ erik@example.com / password123
 
 | Metod | Endpoint                  | Beskrivning                           |
 | ----- | ------------------------- | ------------------------------------- |
-| `GET` | `/api/target-allocations` | Hämtar användarens målallokering.     |
-| `PUT` | `/api/target-allocations` | Uppdaterar användarens målallokering. |
+| `GET` | `/api/target-allocations` | Hämtar målallokeringar, inklusive mål per konto. |
+| `PUT` | `/api/target-allocations` | Uppdaterar portföljens kontoandelar. |
+| `PUT` | `/api/target-allocations/accounts/{accountId}` | Uppdaterar fördelningen mellan Aktier och Fonder för ett konto; summan ska vara 100 %. |
 
 ### Marknadsdata
 

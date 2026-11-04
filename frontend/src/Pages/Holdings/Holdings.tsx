@@ -40,6 +40,8 @@ interface ApiHolding {
     quantity: number | string;
     avg_buy_price: number | string | null;
     currency: string | null;
+    category: string | null;
+    account_id: number | null;
     account_type: string | null;
     account_name: string | null;
     currentPrice: number | null;
@@ -64,9 +66,11 @@ interface HoldingsResponse {
 
 // Extends the existing frontend model with additional backend properties.
 interface HoldingViewItem extends HoldingItem {
+    accountId: number | null;
     accountType: string;
     accountName: string;
     currency: string;
+    category: string;
     pnl: number | null;
 }
 
@@ -101,22 +105,10 @@ const formatAccountTypeLabel = (accountType: string): string =>
 // Accounts that drift more than this many percentage points from their target are flagged.
 const DRIFT_WARNING_THRESHOLD = 10;
 
-// TODO: mock data — backend holdings don't carry an asset type (Aktie/Fond) yet,
-// so the Aktier/Fonder split per account can't be computed from real data.
-const MOCK_AKTIER_FONDER_SPLIT: Record<
-    string,
-    { target: { aktier: number; fonder: number }; actual: { aktier: number; fonder: number } }
-> = {
-    ISK: { target: { aktier: 70, fonder: 30 }, actual: { aktier: 82, fonder: 18 } },
-    KF: { target: { aktier: 40, fonder: 60 }, actual: { aktier: 41, fonder: 59 } },
-    Depa: { target: { aktier: 50, fonder: 50 }, actual: { aktier: 52, fonder: 48 } },
-};
+// Used when an account has no saved Aktier/Fonder target yet.
+const DEFAULT_SPLIT = { aktier: 50, fonder: 50 };
 
-const getMockSplit = (accountType: string) =>
-    MOCK_AKTIER_FONDER_SPLIT[accountType] ?? {
-        target: { aktier: 50, fonder: 50 },
-        actual: { aktier: 50, fonder: 50 },
-    };
+const roundOneDecimal = (value: number): number => Math.round(value * 10) / 10;
 
 const Holdings = () => {
     const [searchParams] = useSearchParams();
@@ -132,6 +124,12 @@ const Holdings = () => {
 
     // Stores the holdings retrieved from the backend.
     const [holdings, setHoldings] = useState<HoldingViewItem[]>([]);
+
+    // All of the user's accounts, so accounts without holdings still appear in the allocation card.
+    const [accounts, setAccounts] = useState<HoldingsResponse['accounts']>([]);
+
+    // Bumped after a rebalance so holdings are fetched again.
+    const [reloadKey, setReloadKey] = useState(0);
 
     // Tracks the loading state and any API errors.
     const [loading, setLoading] = useState(true);
@@ -214,9 +212,11 @@ const Holdings = () => {
                             shares: quantity,
                             value: marketValue,
                             returnPercent,
+                            accountId: holding.account_id ?? null,
                             accountType: holding.account_type ?? '',
                             accountName: holding.account_name ?? '',
                             currency: holding.currency ?? 'SEK',
+                            category: holding.category ?? 'Aktier',
                             pnl,
                         };
                     });
@@ -224,6 +224,7 @@ const Holdings = () => {
                 // Update the component state only if the request is still active.
                 if (!controller.signal.aborted) {
                     setHoldings(mappedHoldings);
+                    setAccounts(data.accounts ?? []);
                 }
             } catch (err) {
                 // Ignore errors caused by intentionally cancelled requests.
@@ -253,7 +254,7 @@ const Holdings = () => {
         return () => {
             controller.abort();
         };
-    }, []);
+    }, [reloadKey]);
 
     // Fetches the authenticated user's target allocations when the component mounts.
     useEffect(() => {
@@ -339,51 +340,86 @@ const Holdings = () => {
     const returnClass =
         totalReturn >= 0 ? 'positive' : 'negative';
 
-    // Groups holdings by account type and compares actual vs. target allocation.
+    // Groups holdings per account: actual Aktier/Fonder split from the holdings' categories,
+    // target split from the account's saved allocation in Settings.
     const accountAllocationData = useMemo(() => {
-        const totalsByAccount = new Map<string, number>();
+        const byAccount = new Map<
+            number,
+            { accountType: string; accountName: string; aktier: number; fonder: number }
+        >();
+
+        // Seed from all accounts so accounts without holdings are still listed.
+        accounts.forEach((account) => {
+            byAccount.set(account.id, {
+                accountType: account.account_type,
+                accountName: account.account_name,
+                aktier: 0,
+                fonder: 0,
+            });
+        });
 
         holdings.forEach((holding) => {
-            if (!holding.accountType) {
+            if (holding.accountId === null) {
                 return;
             }
 
-            totalsByAccount.set(
-                holding.accountType,
-                (totalsByAccount.get(holding.accountType) ?? 0) + holding.value,
-            );
+            const entry = byAccount.get(holding.accountId) ?? {
+                accountType: holding.accountType,
+                accountName: holding.accountName,
+                aktier: 0,
+                fonder: 0,
+            };
+
+            if (normalize(holding.category) === 'fonder') {
+                entry.fonder += holding.value;
+            } else {
+                entry.aktier += holding.value;
+            }
+
+            byAccount.set(holding.accountId, entry);
         });
 
-        const grandTotal = Array.from(totalsByAccount.values()).reduce(
-            (total, value) => total + value,
+        const grandTotal = Array.from(byAccount.values()).reduce(
+            (total, entry) => total + entry.aktier + entry.fonder,
             0,
         );
 
-        if (grandTotal === 0) {
-            return [];
-        }
+        return Array.from(byAccount.entries()).map(([accountId, entry]) => {
+            const value = entry.aktier + entry.fonder;
+            const actualPct = grandTotal > 0 ? (value / grandTotal) * 100 : 0;
 
-        return Array.from(totalsByAccount.entries()).map(([accountType, value]) => {
-            const actualPct = (value / grandTotal) * 100;
-            const target = targetAllocations.find((t) => t.accountType === accountType);
-            const targetPct = target?.targetPercentage ?? actualPct;
+            const aktierShare = value > 0 ? (entry.aktier / value) * 100 : 0;
+            const actual = value > 0
+                ? {
+                    aktier: roundOneDecimal(aktierShare),
+                    fonder: roundOneDecimal(100 - aktierShare),
+                }
+                : { aktier: 0, fonder: 0 };
 
-            const split = getMockSplit(accountType);
+            const accountTargets = targetAllocations.filter((t) => t.accountId === accountId);
+            const aktierTarget = accountTargets.find((t) => t.accountType === 'Aktier');
+            const fonderTarget = accountTargets.find((t) => t.accountType === 'Fonder');
+            const target = {
+                aktier: aktierTarget?.targetPercentage ?? DEFAULT_SPLIT.aktier,
+                fonder: fonderTarget?.targetPercentage ?? DEFAULT_SPLIT.fonder,
+            };
+
             const isWarning =
-                Math.abs(split.actual.aktier - split.target.aktier) >= DRIFT_WARNING_THRESHOLD;
+                value > 0 && Math.abs(actual.aktier - target.aktier) >= DRIFT_WARNING_THRESHOLD;
 
             return {
-                id: accountType,
-                accountName: formatAccountTypeLabel(accountType),
+                id: String(accountId),
+                accountType: entry.accountType,
+                accountName: entry.accountName || formatAccountTypeLabel(entry.accountType),
+                subtitle: formatAccountTypeLabel(entry.accountType),
                 actualPct,
-                targetPct,
-                target: split.target,
-                actual: split.actual,
+                target,
+                actual,
                 valueSek: value,
                 isWarning,
             };
         });
-    }, [holdings, targetAllocations]);
+    }, [accounts, holdings, targetAllocations]);
 
     // Finds the account currently selected for rebalancing, if any.
     const rebalanceAccount = accountAllocationData.find(
@@ -462,21 +498,19 @@ const Holdings = () => {
                     accounts={accountAllocationData}
                     onRebalance={(accountId) => setRebalanceAccountType(accountId)}
                 />
-                <ExposureCard />
+                <ExposureCard holdings={holdings} />
             </div>
 
             {rebalanceAccount && (
                 <RebalanceModal
                     key={rebalanceAccount.id}
-                    accountType={rebalanceAccount.id}
-                    accountLabel={rebalanceAccount.accountName}
-                    actualPct={rebalanceAccount.actualPct}
-                    allocations={targetAllocations}
-                    assetSplit={{ target: rebalanceAccount.target, actual: rebalanceAccount.actual }}
+                    accountId={Number(rebalanceAccount.id)}
+                    actual={rebalanceAccount.actual}
+                    target={rebalanceAccount.target}
                     onClose={() => setRebalanceAccountType(null)}
-                    onSaved={(updated) => {
-                        setTargetAllocations(updated);
+                    onApplied={() => {
                         setRebalanceAccountType(null);
+                        setReloadKey((key) => key + 1);
                     }}
                 />
             )}

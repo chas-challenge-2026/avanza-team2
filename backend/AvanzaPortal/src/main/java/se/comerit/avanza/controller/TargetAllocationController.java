@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -62,6 +63,26 @@ public class TargetAllocationController {
                 .updateTargetAllocationsForAuthenticatedUser(authentication.getName(), request);
 
         // Return the updated allocations in the response
+        return ResponseEntity.ok(allocations);
+    }
+
+    /**
+     * Updates target allocations for one account owned by the authenticated user.
+     *
+     * @param accountId     the account whose allocation is being updated
+     * @param request       the requested allocation split
+     * @param authentication the authenticated user's details
+     * @return the updated account target allocations
+     */
+    @PutMapping("/accounts/{accountId}")
+    public ResponseEntity<List<TargetAllocationResponseDTO>> updateAccountTargetAllocations(
+            @PathVariable Long accountId,
+            @Valid @RequestBody UpdateTargetAllocationsRequestDTO request,
+            Authentication authentication) {
+
+        List<TargetAllocationResponseDTO> allocations = targetAllocationService
+                .updateAccountTargetAllocationsForAuthenticatedUser(authentication.getName(), accountId, request);
+
         return ResponseEntity.ok(allocations);
     }
 

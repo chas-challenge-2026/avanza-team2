@@ -47,6 +47,20 @@ interface PortfolioResponse {
   anyDrift: boolean
   usdToSek: number
   portfolioSharpeRatio: number | null
+  accountAllocations: {
+    accountId: number
+    accountType: string
+    accountName: string
+    valueSek: number
+    actualAktierPct: number
+    targetAktierPct: number
+    driftPct: number
+    overThreshold: boolean
+  }[]
+  portfolioAllocation: {
+    aktierPct: number
+    fonderPct: number
+  }
 }
 
 interface AlertsResponse {
@@ -72,17 +86,6 @@ const numberFormatter = new Intl.NumberFormat('sv-SE', {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 })
-
-// TODO: mock data — backend holdings don't carry asset type/country/sector yet.
-const mockDistribution = [
-  { label: 'Aktier', value: 65, color: '#00a36c' },
-  { label: 'Fonder', value: 35, color: '#2e9bf0' },
-]
-
-const mockSpread = [
-  { label: 'Land: Sverige', value: 45 },
-  { label: 'Bransch: Teknik', value: 30 },
-]
 
 const formatAccountType = (accountType: string) =>
   accountType === 'Depa' ? 'Depå' : accountType
@@ -215,16 +218,37 @@ export const Overview = () => {
     0,
   )
 
-  const driftedAccountTypes = portfolio.allocationRows
-    .filter((row) => row.overThreshold)
-    .map((row) => formatAccountType(row.accountType))
+  const accountAllocations = portfolio.accountAllocations ?? []
 
-  const accounts = portfolio.accountSummary.map((account) => ({
+  const driftedAccounts = accountAllocations.filter((row) => row.overThreshold)
+
+  const accounts = accountAllocations.map((account) => ({
+    id: account.accountId,
     name: account.accountName,
     type: formatAccountType(account.accountType),
-    value: numberFormatter.format(account.totalValueSek),
+    value: numberFormatter.format(account.valueSek),
+    drifting: account.overThreshold,
   }))
 
+  const distribution = [
+    {
+      label: 'Aktier',
+      value: portfolio.portfolioAllocation?.aktierPct ?? 0,
+      color: '#00a36c',
+    },
+    {
+      label: 'Fonder',
+      value: portfolio.portfolioAllocation?.fonderPct ?? 0,
+      color: '#2e9bf0',
+    },
+  ]
+
+  const driftMessage = driftedAccounts
+    .map(
+      (account) =>
+        `${account.accountName} (${Math.round(account.actualAktierPct)} % aktier, mål ${Math.round(account.targetAktierPct)} %)`,
+    )
+    .join(', ')
 
   const driftNotificationsEnabled = areDriftNotificationsEnabled()
 
@@ -269,20 +293,19 @@ export const Overview = () => {
           currencyLabel={`USD/SEK ${numberFormatter.format(portfolio.usdToSek)}`}
         />
 
-        {portfolio.anyDrift && driftNotificationsEnabled && (
+        {driftedAccounts.length > 0 && driftNotificationsEnabled && (
           <WariningBanner
-            message={
-              driftedAccountTypes.length > 0
-                ? `${driftedAccountTypes.join(', ')} avviker mer än tillåtet från målfördelningen.`
-                : 'En eller flera kontotyper avviker mer än tillåtet från målfördelningen.'
-            }
+            message={`${driftMessage} avviker mer än tillåtet från målfördelningen.`}
           />
         )}
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <AccountsTable accounts={accounts} />
+          <AccountsTable
+            accounts={accounts}
+            sharpeRatio={portfolio.portfolioSharpeRatio ?? null}
+          />
 
-          <DistributionSpreadCard allocation={mockDistribution} spread={mockSpread} />
+          <DistributionSpreadCard allocation={distribution} spread={[]} />
         </div>
 
         <RecentActivity title="Senaste aviseringar" items={activity} />

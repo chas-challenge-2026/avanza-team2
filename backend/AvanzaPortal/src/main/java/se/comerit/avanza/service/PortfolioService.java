@@ -15,7 +15,9 @@ import org.springframework.stereotype.Service;
 
 import se.comerit.avanza.config.DriftTresholdConfig;
 import se.comerit.avanza.dto.alerts.AlertsResponseDTO;
+import se.comerit.avanza.dto.portfolio.AccountAllocationDTO;
 import se.comerit.avanza.dto.portfolio.AccountSummaryDTO;
+import se.comerit.avanza.dto.portfolio.PortfolioAllocationDTO;
 import se.comerit.avanza.dto.portfolio.AllocationRowDTO;
 import se.comerit.avanza.dto.portfolio.EnrichedHoldingDTO;
 import se.comerit.avanza.entity.Account;
@@ -81,7 +83,6 @@ public class PortfolioService {
 
     /**
      * Query 2: Get ALL holdings
-     * // TODO: pagination in v2
      * 
      * @param pageable the pagination information for retrieving holdings.
      * @return a list of all holdings across all accounts.
@@ -366,6 +367,7 @@ public class PortfolioService {
 
         // Build target map
         Map<String, Double> targetMap = targets.stream()
+                .filter(target -> target.getAccount() == null)
                 .collect(Collectors.toMap(
                         TargetAllocations::getAccount_type,
                         t -> (double) t.getTarget_pct()));
@@ -387,6 +389,72 @@ public class PortfolioService {
         }
 
         return allocationRows;
+    }
+
+    /**
+     * Builds the Aktier/Fonder split for every account and compares it with the
+     * account's own target (defaults to 50/50 when none is saved).
+     */
+    public List<AccountAllocationDTO> buildAccountAllocations(List<Account> accounts,
+            List<Holdings> holdings,
+            Map<String, Double> prices,
+            List<TargetAllocations> targets) {
+
+        Map<Long, double[]> valuesByAccount = new HashMap<>();
+        for (Holdings holding : holdings) {
+            Double valueSek = enrichSingleHolding(holding, prices).valueSek();
+            if (valueSek == null || holding.getAccount() == null) {
+                continue;
+            }
+            double[] values = valuesByAccount.computeIfAbsent(holding.getAccount().getId(), id -> new double[2]);
+            int index = "Fonder".equalsIgnoreCase(holding.getCategory()) ? 1 : 0;
+            values[index] += valueSek;
+        }
+
+        double thresholdPct = getDriftThreshold() * 100.0;
+
+        return accounts.stream().map(account -> {
+            double[] values = valuesByAccount.getOrDefault(account.getId(), new double[2]);
+            double total = values[0] + values[1];
+
+            double target = targets.stream()
+                    .filter(t -> t.getAccount() != null && account.getId().equals(t.getAccount().getId()))
+                    .filter(t -> "Aktier".equalsIgnoreCase(t.getAccount_type()))
+                    .mapToDouble(t -> t.getTarget_pct().doubleValue())
+                    .findFirst()
+                    .orElse(50.0);
+
+            double actual = total > 0 ? values[0] / total * 100.0 : target;
+            double drift = Math.abs(actual - target);
+
+            return new AccountAllocationDTO(
+                    account.getId(),
+                    account.getAccount_type(),
+                    account.getAccount_name(),
+                    Math.round(total * 100.0) / 100.0,
+                    Math.round(values[0] * 100.0) / 100.0,
+                    Math.round(values[1] * 100.0) / 100.0,
+                    Math.round(actual * 10.0) / 10.0,
+                    target,
+                    Math.round(drift * 10.0) / 10.0,
+                    total > 0 && drift > thresholdPct);
+        }).collect(Collectors.toList());
+    }
+
+    /**
+     * Aggregates all accounts into one portfolio-level Aktier/Fonder split.
+     */
+    public PortfolioAllocationDTO buildPortfolioAllocation(List<AccountAllocationDTO> accountAllocations) {
+        double aktier = accountAllocations.stream().mapToDouble(AccountAllocationDTO::aktierValueSek).sum();
+        double fonder = accountAllocations.stream().mapToDouble(AccountAllocationDTO::fonderValueSek).sum();
+        double total = aktier + fonder;
+
+        if (total <= 0) {
+            return new PortfolioAllocationDTO(0.0, 0.0);
+        }
+
+        double aktierPct = Math.round(aktier / total * 1000.0) / 10.0;
+        return new PortfolioAllocationDTO(aktierPct, Math.round((100.0 - aktierPct) * 10.0) / 10.0);
     }
 
     /**

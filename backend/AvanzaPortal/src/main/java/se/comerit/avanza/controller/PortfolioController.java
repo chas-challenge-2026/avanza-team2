@@ -10,7 +10,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import se.comerit.avanza.dto.portfolio.EnrichedHoldingDTO;
 import se.comerit.avanza.dto.portfolio.PortfolioResponseDTO;
+import se.comerit.avanza.dto.portfolio.AccountAllocationDTO;
 import se.comerit.avanza.dto.portfolio.AllocationRowDTO;
+import se.comerit.avanza.dto.portfolio.PortfolioAllocationDTO;
 import se.comerit.avanza.dto.alerts.AlertsResponseDTO;
 import se.comerit.avanza.dto.portfolio.AccountSummaryDTO;
 import se.comerit.avanza.entity.Account;
@@ -88,6 +90,11 @@ public class PortfolioController {
                                 accounts, accountTypeTotals, totalPortfolioValue);
                 Double portfolioSharpeRatio = portfolioService.calculateSharpeFromSnapshots(userId);
 
+                List<AccountAllocationDTO> accountAllocations = portfolioService.buildAccountAllocations(
+                                accounts, holdings, prices, targets);
+                PortfolioAllocationDTO portfolioAllocation = portfolioService
+                                .buildPortfolioAllocation(accountAllocations);
+
                 /**
                  * creates an instance of PortfolioResponseDTO with all the necessary portfolio
                  * data.
@@ -98,9 +105,11 @@ public class PortfolioController {
                                 allocationRows,
                                 totalPortfolioValue,
                                 recentAlerts,
-                                allocationRows.stream().anyMatch(AllocationRowDTO::overThreshold),
+                                accountAllocations.stream().anyMatch(AccountAllocationDTO::overThreshold),
                                 portfolioService.getUsdToSekRate(),
-                                portfolioSharpeRatio);
+                                portfolioSharpeRatio,
+                                accountAllocations,
+                                portfolioAllocation);
 
                 return ResponseEntity.ok(response);
         }

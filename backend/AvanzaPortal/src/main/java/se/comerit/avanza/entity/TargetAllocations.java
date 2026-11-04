@@ -35,6 +35,10 @@ public class TargetAllocations {
     @JoinColumn(name = "user_id")
     private User user;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "account_id")
+    private Account account;
+
     // Constructors
     public TargetAllocations() {
     }
@@ -43,6 +47,13 @@ public class TargetAllocations {
         this.account_type = account_type;
         this.target_pct = target_pct;
         this.user = user;
+    }
+
+    public TargetAllocations(String account_type, Double target_pct, User user, Account account) {
+        this.account_type = account_type;
+        this.target_pct = target_pct;
+        this.user = user;
+        this.account = account;
     }
 
     // Getters and Setters
@@ -76,5 +87,13 @@ public class TargetAllocations {
 
     public void setUser(User user) {
         this.user = user;
+    }
+
+    public Account getAccount() {
+        return account;
+    }
+
+    public void setAccount(Account account) {
+        this.account = account;
     }
 }

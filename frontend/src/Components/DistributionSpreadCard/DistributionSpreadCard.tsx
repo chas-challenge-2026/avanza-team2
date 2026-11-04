@@ -77,6 +77,7 @@ export const DistributionSpreadCard = ({
         </ul>
       </div>
 
+      {spread.length > 0 && (
       <div className="mt-5 flex flex-col gap-4 border-t border-neutral-100 pt-4">
         {spread.map((row) => (
           <div key={row.label}>
@@ -93,6 +94,7 @@ export const DistributionSpreadCard = ({
           </div>
         ))}
       </div>
+      )}
     </div>
   )
 }

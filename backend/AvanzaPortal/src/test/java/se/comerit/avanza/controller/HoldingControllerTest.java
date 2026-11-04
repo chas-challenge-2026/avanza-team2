@@ -52,7 +52,7 @@ class HoldingControllerTest {
     void shouldPreserveExistingJsonFieldNames() throws Exception {
         // Typed DTOs must not silently change the frontend's JSON contract.
         var holding = new HoldingItemDTO(15L, "AAPL", "Apple", new BigDecimal("5"),
-                new BigDecimal("180.50"), "USD", "ISK", "My account", 187.32, 936.60, 34.10);
+                new BigDecimal("180.50"), "USD", "Aktier", 3L, "ISK", "My account", 187.32, 936.60, 34.10);
         var response = new HoldingResponseDTO("Anna", List.of(holding),
                 List.of(new HoldingAccountDTO(3L, "ISK", "My account")), 0, 10, 1, 1);
         var json = new ObjectMapper().valueToTree(response);

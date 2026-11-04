@@ -6,7 +6,32 @@ const SECTOR_COLORS = {
     finance: '#8B5CF6',   
 };
 
-const ExposureCard = () => {
+type ExposureHolding = {
+    currency: string;
+    value: number;
+};
+
+type ExposureCardProps = {
+    holdings?: ExposureHolding[];
+};
+
+// The backend has no country data, so the listing currency decides the country.
+const COUNTRIES = [
+    { key: 'SEK', flag: '🇸🇪', name: 'Sverige' },
+    { key: 'USD', flag: '🇺🇸', name: 'USA' },
+    { key: 'OTHER', flag: '🌍', name: 'Övriga' },
+];
+
+const ExposureCard = ({ holdings = [] }: ExposureCardProps) => {
+    const totals: Record<string, number> = { SEK: 0, USD: 0, OTHER: 0 };
+    for (const holding of holdings) {
+        const key = holding.currency in totals ? holding.currency : 'OTHER';
+        totals[key] += holding.value;
+    }
+    const totalValue = totals.SEK + totals.USD + totals.OTHER;
+    const countryPct = (key: string) =>
+        totalValue > 0 ? Math.round((totals[key] / totalValue) * 100) : 0;
+
     return (
         <div style={styles.card}>
             <h3 style={styles.title}>Exponering & Spridning</h3>
@@ -15,21 +40,13 @@ const ExposureCard = () => {
             <div style={styles.section}>
                 <span style={styles.sectionLabel}>Största länder</span>
                 <div style={styles.tagGrid}>
-                    <div style={styles.tag}>
-                        <span style={styles.flag}>🇸🇪</span>
-                        <span style={styles.tagName}>Sverige</span>
-                        <span style={styles.tagPercent}>50%</span>
-                    </div>
-                    <div style={styles.tag}>
-                        <span style={styles.flag}>🇺🇸</span>
-                        <span style={styles.tagName}>USA</span>
-                        <span style={styles.tagPercent}>30%</span>
-                    </div>
-                    <div style={styles.tag}>
-                        <span style={styles.flag}>🌍</span>
-                        <span style={styles.tagName}>Globalt</span>
-                        <span style={styles.tagPercent}>20%</span>
-                    </div>
+                    {COUNTRIES.map((country) => (
+                        <div key={country.key} style={styles.tag}>
+                            <span style={styles.flag}>{country.flag}</span>
+                            <span style={styles.tagName}>{country.name}</span>
+                            <span style={styles.tagPercent}>{countryPct(country.key)}%</span>
+                        </div>
+                    ))}
                 </div>
             </div>
 

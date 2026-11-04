@@ -10,6 +10,8 @@ public record HoldingItemDTO(
         BigDecimal quantity,
         @JsonProperty("avg_buy_price") BigDecimal avgBuyPrice,
         String currency,
+        String category,
+        @JsonProperty("account_id") Long accountId,
         @JsonProperty("account_type") String accountType,
         @JsonProperty("account_name") String accountName,
         Double currentPrice, Double marketValue, Double pnl) {
