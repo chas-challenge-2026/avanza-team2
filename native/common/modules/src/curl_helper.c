@@ -94,7 +94,7 @@ int curl_get_response(Curl_Data* _Data, const char* _url)
 void curl_dispose(Curl_Data* _Data)
 {
   if (_Data->addr != NULL) {
-    printf("Disposing curl\n");
+    // printf("Disposing curl\n");
     free(_Data->addr);
     _Data->addr = NULL;
   }

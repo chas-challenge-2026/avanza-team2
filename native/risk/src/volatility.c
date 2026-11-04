@@ -175,7 +175,7 @@ double risk_calc_volatility_double_simd(const double* _data, size_t _n)
   // Won't matter if dereffed values aren't inited etc. but guards a lil
   if (!_data || _n < SIMD_D_LEN) return 0.0;
 
-  printf("Calculating volatility using SIMD level: %s\n", SIMD_LEVEL);
+  // printf("Calculating volatility using SIMD level: %s\n", SIMD_LEVEL); // dbg
 
   size_t i;
   double sum_sq_diff;
@@ -246,7 +246,7 @@ float risk_calc_volatility_float_simd(const float* _data, size_t _n)
   // Won't matter if dereffed values aren't inited etc. but guards a lil
   if (!_data || _n < SIMD_F_LEN) return 0.0;
 
-  printf("Calculating volatility using SIMD level: %s\n", SIMD_LEVEL);
+  // printf("Calculating volatility using SIMD level: %s\n", SIMD_LEVEL); // dbg
 
   size_t i;
   float sum_sq_diff;
@@ -316,13 +316,13 @@ float risk_calc_volatility_float_simd(const float* _data, size_t _n)
 
 }
 
-#if ONE_PLUS_ONE_EQUALS_FIVE
+#if ONE_PLUS_ONE_EQUALS_FIVE // (Not in use)
 double risk_calc_volatility_int32_simd(const int32_t* _data, size_t _n)
 {
   // Won't matter if dereffed values aren't inited etc. but guards a lil
   if (!_data || _n < 2) return 0.0;
 
-  printf("Calculating volatility using SIMD level: %s\n", SIMD_LEVEL);
+  // printf("Calculating volatility using SIMD level: %s\n", SIMD_LEVEL);
 
   size_t i;
   int32_t sum_sq_diff;

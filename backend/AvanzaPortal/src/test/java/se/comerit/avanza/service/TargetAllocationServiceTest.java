@@ -1,6 +1,7 @@
 package se.comerit.avanza.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -23,9 +24,12 @@ import org.springframework.security.authentication.BadCredentialsException;
 import se.comerit.avanza.dto.targetallocation.TargetAllocationRequestDTO;
 import se.comerit.avanza.dto.targetallocation.TargetAllocationResponseDTO;
 import se.comerit.avanza.dto.targetallocation.UpdateTargetAllocationsRequestDTO;
+import se.comerit.avanza.entity.Account;
 import se.comerit.avanza.entity.TargetAllocations;
 import se.comerit.avanza.entity.User;
 import se.comerit.avanza.exception.InvalidRequestException;
+import se.comerit.avanza.exception.ResourceNotFoundException;
+import se.comerit.avanza.repository.AccountRepository;
 import se.comerit.avanza.repository.TargetRepository;
 import se.comerit.avanza.repository.UserRepository;
 
@@ -41,17 +45,21 @@ class TargetAllocationServiceTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private AccountRepository accountRepository;
+
     private TargetAllocationService targetAllocationService;
 
     @BeforeEach
     void setUp() {
-        targetAllocationService = new TargetAllocationService(targetRepository, userRepository);
+        targetAllocationService = new TargetAllocationService(targetRepository, userRepository, accountRepository);
     }
 
     @Test
     void shouldReturnTargetAllocationsForAuthenticatedUser() {
         User user = createUser();
-        TargetAllocations allocation = new TargetAllocations("ISK", 60.0, user);
+        Account account = createAccount(user);
+        TargetAllocations allocation = new TargetAllocations("Aktier", 60.0, user, account);
         allocation.setId(10L);
 
         when(userRepository.findByEmail(USER_EMAIL)).thenReturn(Optional.of(user));
@@ -62,33 +70,38 @@ class TargetAllocationServiceTest {
 
         assertEquals(1, result.size());
         assertEquals(10L, result.get(0).id());
-        assertEquals("ISK", result.get(0).accountType());
+        assertEquals(20L, result.get(0).accountId());
+        assertEquals("Aktier", result.get(0).accountType());
         assertEquals(0, new BigDecimal("60.0").compareTo(result.get(0).targetPercentage()));
         verify(userRepository).findByEmail(USER_EMAIL);
         verify(targetRepository).findByUser_Id(USER_ID);
     }
 
     @Test
-    void shouldReplaceAllocationsForAuthenticatedUser() {
+    void shouldReplaceOnlySelectedAccountsAllocations() {
         User user = createUser();
+        Account account = createAccount(user);
         List<TargetAllocations> existingAllocations = List.of(
-                new TargetAllocations("ISK", 100.0, user));
+                new TargetAllocations("Aktier", 100.0, user, account));
         UpdateTargetAllocationsRequestDTO request = request(
-                allocation("isk", "60.00"),
-                allocation("depå", "40.00"));
+                allocation("aktier", "60.00"),
+                allocation("fonder", "40.00"));
 
         when(userRepository.findByEmail(USER_EMAIL)).thenReturn(Optional.of(user));
-        when(targetRepository.findByUser_Id(USER_ID)).thenReturn(existingAllocations);
+        when(accountRepository.findByIdAndUser_Id(20L, USER_ID))
+                .thenAnswer(invocation -> Optional.of(account));
+        when(targetRepository.findByAccount_IdAndUser_Id(20L, USER_ID)).thenReturn(existingAllocations);
         when(targetRepository.saveAll(anyList()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         List<TargetAllocationResponseDTO> result = targetAllocationService
-                .updateTargetAllocationsForAuthenticatedUser(USER_EMAIL, request);
+                .updateAccountTargetAllocationsForAuthenticatedUser(USER_EMAIL, 20L, request);
 
         assertEquals(2, result.size());
-        assertEquals("ISK", result.get(0).accountType());
-        assertEquals("Depa", result.get(1).accountType());
+        assertEquals("Aktier", result.get(0).accountType());
+        assertEquals("Fonder", result.get(1).accountType());
         verify(targetRepository).deleteAll(existingAllocations);
+        verify(targetRepository).findByAccount_IdAndUser_Id(20L, USER_ID);
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<TargetAllocations>> captor = ArgumentCaptor.forClass(List.class);
@@ -98,10 +111,39 @@ class TargetAllocationServiceTest {
         assertEquals(2, savedAllocations.size());
         assertSame(user, savedAllocations.get(0).getUser());
         assertSame(user, savedAllocations.get(1).getUser());
-        assertEquals("ISK", savedAllocations.get(0).getAccount_type());
-        assertEquals("Depa", savedAllocations.get(1).getAccount_type());
+        assertSame(account, savedAllocations.get(0).getAccount());
+        assertSame(account, savedAllocations.get(1).getAccount());
+        assertEquals("Aktier", savedAllocations.get(0).getAccount_type());
+        assertEquals("Fonder", savedAllocations.get(1).getAccount_type());
         assertEquals(60.0, savedAllocations.get(0).getTarget_pct());
         assertEquals(40.0, savedAllocations.get(1).getTarget_pct());
+    }
+
+    @Test
+    void shouldUpdatePortfolioAllocationsWithoutReplacingAccountTargets() {
+        User user = createUser();
+        List<TargetAllocations> existingAllocations = List.of(
+                new TargetAllocations("ISK", 60.0, user),
+                new TargetAllocations("KF", 40.0, user));
+        UpdateTargetAllocationsRequestDTO request = request(
+                allocation("ISK", "50.00"),
+                allocation("KF", "50.00"));
+
+        when(userRepository.findByEmail(USER_EMAIL)).thenReturn(Optional.of(user));
+        when(targetRepository.findByUser_IdAndAccountIsNull(USER_ID)).thenReturn(existingAllocations);
+        when(targetRepository.saveAll(anyList()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        targetAllocationService.updateTargetAllocationsForAuthenticatedUser(USER_EMAIL, request);
+
+        verify(targetRepository).deleteAll(existingAllocations);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<TargetAllocations>> captor = ArgumentCaptor.forClass(List.class);
+        verify(targetRepository).saveAll(captor.capture());
+        assertEquals(2, captor.getValue().size());
+        assertSame(user, captor.getValue().get(0).getUser());
+        assertNull(captor.getValue().get(0).getAccount());
+        verifyNoInteractions(accountRepository);
     }
 
     @Test
@@ -116,7 +158,7 @@ class TargetAllocationServiceTest {
                         .updateTargetAllocationsForAuthenticatedUser(USER_EMAIL, request));
 
         assertEquals("Target allocation percentages must total 100", exception.getMessage());
-        verifyNoInteractions(userRepository, targetRepository);
+        verifyNoInteractions(userRepository, targetRepository, accountRepository);
     }
 
     @Test
@@ -131,7 +173,7 @@ class TargetAllocationServiceTest {
                         .updateTargetAllocationsForAuthenticatedUser(USER_EMAIL, request));
 
         assertEquals("Duplicate account type: isk", exception.getMessage());
-        verifyNoInteractions(userRepository, targetRepository);
+        verifyNoInteractions(userRepository, targetRepository, accountRepository);
     }
 
     @Test
@@ -145,7 +187,7 @@ class TargetAllocationServiceTest {
                         .updateTargetAllocationsForAuthenticatedUser(USER_EMAIL, request));
 
         assertEquals("Unsupported account type: Savings", exception.getMessage());
-        verifyNoInteractions(userRepository, targetRepository);
+        verifyNoInteractions(userRepository, targetRepository, accountRepository);
     }
 
     @Test
@@ -160,7 +202,7 @@ class TargetAllocationServiceTest {
                         .updateTargetAllocationsForAuthenticatedUser(USER_EMAIL, request));
 
         verify(userRepository).findByEmail(USER_EMAIL);
-        verifyNoInteractions(targetRepository);
+        verifyNoInteractions(targetRepository, accountRepository);
     }
 
     @Test
@@ -176,11 +218,47 @@ class TargetAllocationServiceTest {
         verifyNoInteractions(targetRepository);
     }
 
+    @Test
+    void shouldRejectUpdateForAnotherUsersAccount() {
+        UpdateTargetAllocationsRequestDTO request = request(
+                allocation("Aktier", "60.00"),
+                allocation("Fonder", "40.00"));
+        when(userRepository.findByEmail(USER_EMAIL)).thenReturn(Optional.of(createUser()));
+        when(accountRepository.findByIdAndUser_Id(20L, USER_ID)).thenReturn(Optional.empty());
+
+        assertThrows(
+                ResourceNotFoundException.class,
+                () -> targetAllocationService
+                        .updateAccountTargetAllocationsForAuthenticatedUser(USER_EMAIL, 20L, request));
+
+        verifyNoInteractions(targetRepository);
+    }
+
+    @Test
+    void shouldRequireBothAssetTypesForAccountAllocations() {
+        UpdateTargetAllocationsRequestDTO request = request(allocation("Aktier", "100.00"));
+
+        InvalidRequestException exception = assertThrows(
+                InvalidRequestException.class,
+                () -> targetAllocationService
+                        .updateAccountTargetAllocationsForAuthenticatedUser(USER_EMAIL, 20L, request));
+
+        assertEquals("Account allocations must include Aktier and Fonder", exception.getMessage());
+        verifyNoInteractions(userRepository, targetRepository, accountRepository);
+    }
+
     private User createUser() {
         User user = new User();
         user.setId(USER_ID);
         user.setEmail(USER_EMAIL);
         return user;
+    }
+
+    private Account createAccount(User user) {
+        Account account = new Account();
+        account.setId(20L);
+        account.setUser(user);
+        return account;
     }
 
     private TargetAllocationRequestDTO allocation(String accountType, String percentage) {

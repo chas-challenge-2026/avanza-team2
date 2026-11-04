@@ -184,8 +184,9 @@ erik@example.com / password123
 
 | Metod | Endpoint                  | Beskrivning                           |
 | ----- | ------------------------- | ------------------------------------- |
-| `GET` | `/api/target-allocations` | Hämtar användarens målallokering.     |
-| `PUT` | `/api/target-allocations` | Uppdaterar användarens målallokering. |
+| `GET` | `/api/target-allocations` | Hämtar målallokeringar, inklusive mål per konto. |
+| `PUT` | `/api/target-allocations` | Uppdaterar portföljens kontoandelar. |
+| `PUT` | `/api/target-allocations/accounts/{accountId}` | Uppdaterar fördelningen mellan Aktier och Fonder för ett konto; summan ska vara 100 %. |
 
 ### Marknadsdata
 
@@ -369,7 +370,7 @@ hur backend körs eller används.
 - Marketstack ger end-of-day-priser och inte realtidskurser.
 - Endast ett begränsat antal tickers stöds av den nuvarande marknadskonfigurationen.
 - Backtest kräver historiska priser i databasen.
-- Historisk import startas från sidan Analyser, högst en gång per 24 timmar och webbläsare. Importen körs inte schemalagt, och endpointen kräver autentisering.
+- Backenden importerar historiska priser och sparar position snapshots automatiskt på vardagar kl. 07:00 i tidszonen `Europe/Stockholm`. Den väljer det senaste gemensamma handelsdatumet med priser för användarens innehav inom de senaste 14 dagarna. `POST /api/market/history/import` finns kvar för manuell import och används även som fallback från sidan Analyser.
 - Live-driftaviseringar beräknas vid API-anrop och sparas inte i databasen. Endast lagrade aviseringar kan avfärdas via `PUT /api/alerts/{id}/dismiss`.
 - Inställningen för driftaviseringar är webbläsarlokal och styr bara vad som visas i frontend; den ändrar inte backendens beräkning eller API-svar.
 - Portföljöversikten är en aggregerad vy och hämtar därför samtliga innehav utan pagination.

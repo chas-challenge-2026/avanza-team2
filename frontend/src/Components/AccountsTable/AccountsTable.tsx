@@ -3,13 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { DropdownBtn } from '../DropdownBtn/DropdownBtn';
 
 interface Account {
+  id?: number;
   name: string;
   type: string;
   value: string;
+  drifting?: boolean;
 }
 
 interface AccountsTableProps {
   accounts: Account[];
+  sharpeRatio?: number | null;
   className?: string;
 }
 
@@ -22,6 +25,7 @@ const typeFilterOptions = [
 
 export const AccountsTable = ({
   accounts,
+  sharpeRatio,
   className,
 }: AccountsTableProps) => {
   const [typeFilter, setTypeFilter] = useState('alla');
@@ -47,9 +51,9 @@ export const AccountsTable = ({
         className ? ` ${className}` : ''
       }`}
     >
-      <div className="m-4 flex items-center justify-between">
+      <div className="mb-3 flex items-center justify-between">
         <h3 className="text-lg font-bold text-neutral-900">
-          Konton
+          Mina konton
         </h3>
 
         <DropdownBtn
@@ -60,12 +64,12 @@ export const AccountsTable = ({
         />
       </div>
 
-      <table className="mt-4 w-full border-collapse text-sm">
+      <table className="w-full border-collapse text-sm">
         <thead>
-          <tr className="border-b border-t border-neutral-100 bg-neutral-50 px-4 py-4 text-left text-xs font-semibold text-neutral-900">
-            <th className="px-4 py-4 font-semibold">Konto</th>
-            <th className="px-4 py-4 font-semibold">Typ</th>
-            <th className="px-4 py-4 font-semibold">
+          <tr className="border-b border-t border-neutral-100 bg-neutral-50 text-left text-xs font-semibold text-neutral-900">
+            <th className="px-4 py-2.5 font-semibold">Konto</th>
+            <th className="px-4 py-2.5 font-semibold">Typ</th>
+            <th className="px-4 py-2.5 font-semibold">
               Värde (SEK)
             </th>
             <th className="w-6" />
@@ -75,7 +79,7 @@ export const AccountsTable = ({
         <tbody>
           {visibleAccounts.map((account) => (
             <tr
-              key={account.name}
+              key={account.id ?? account.name}
               onClick={() => handleAccountClick(account)}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' || event.key === ' ') {
@@ -88,27 +92,51 @@ export const AccountsTable = ({
               aria-label={`Visa innehav för ${account.name}`}
               className="cursor-pointer border-b border-neutral-100 text-left transition-colors last:border-0 hover:bg-neutral-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
             >
-              <td className="px-4 py-4 font-medium text-neutral-900">
-                {account.name}
+              <td className="px-4 py-2.5 font-medium text-neutral-900">
+                <span className="inline-flex items-center gap-2">
+                  {account.drifting && (
+                    <span
+                      className="h-2.5 w-2.5 flex-shrink-0 rounded-full bg-amber-500"
+                      title="Avviker från målfördelningen"
+                      role="img"
+                      aria-label="Avviker från målfördelningen"
+                    />
+                  )}
+                  {account.name}
+                </span>
               </td>
 
-              <td className="px-4 py-4">
+              <td className="px-4 py-2.5">
                 <span className="rounded-md bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
                   {account.type}
                 </span>
               </td>
 
-              <td className="px-4 py-4 text-neutral-900">
+              <td className="px-4 py-2.5 text-neutral-900">
                 {account.value}
               </td>
 
-              <td className="px-4 py-4 text-right text-neutral-300">
+              <td className="px-4 py-2.5 text-right text-neutral-300">
                 <i className="fa-solid fa-chevron-right text-xs" />
               </td>
             </tr>
           ))}
         </tbody>
       </table>
+
+      {sharpeRatio !== undefined && (
+        <div className="mt-3 flex items-center justify-between border-t border-neutral-100 pt-3 text-sm">
+          <span className="text-neutral-500">Sharpe-kvot (portfölj)</span>
+          <span className="font-semibold text-neutral-900">
+            {sharpeRatio === null
+              ? 'Otillräcklig data'
+              : sharpeRatio.toLocaleString('sv-SE', {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+          </span>
+        </div>
+      )}
     </div>
   );
 };

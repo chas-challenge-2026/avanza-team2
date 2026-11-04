@@ -12,6 +12,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
+import se.comerit.avanza.config.DriftTresholdConfig;
 import se.comerit.avanza.dto.alerts.LiveDriftAlertDTO;
 import se.comerit.avanza.entity.Account;
 import se.comerit.avanza.entity.Alerts;
@@ -191,6 +192,10 @@ public class AlertService {
 
         // Convert target allocations list to a map for easy lookup
         for (TargetAllocations target : targets) {
+            if (target.getAccount() != null) {
+                continue;
+            }
+
             targetMap.put(
                     target.getAccount_type(),
                     target.getTarget_pct());

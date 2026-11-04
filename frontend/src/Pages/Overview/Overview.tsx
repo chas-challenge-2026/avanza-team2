@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Title } from '../../Components/Title/Title.tsx'
-import { StatCard } from '../../Components/StatCard/StatCard.tsx'
+import { PortfolioSummaryCard } from '../../Components/PortfolioSummaryCard/PortfolioSummaryCard.tsx'
 import { WariningBanner } from '../../Components/WariningBanner/WariningBanner.tsx'
 import { AccountsTable } from '../../Components/AccountsTable/AccountsTable.tsx'
-import { DonutChart } from '../../Components/DonutChart/DonutChart.tsx'
+import { DistributionSpreadCard } from '../../Components/DistributionSpreadCard/DistributionSpreadCard.tsx'
 import { RecentActivity } from '../../Components/RecentActivity/RecentActivity.tsx'
 import { areDriftNotificationsEnabled } from '../../utils/driftNotificationPreference.ts'
 
@@ -47,6 +46,21 @@ interface PortfolioResponse {
   }[]
   anyDrift: boolean
   usdToSek: number
+  portfolioSharpeRatio: number | null
+  accountAllocations: {
+    accountId: number
+    accountType: string
+    accountName: string
+    valueSek: number
+    actualAktierPct: number
+    targetAktierPct: number
+    driftPct: number
+    overThreshold: boolean
+  }[]
+  portfolioAllocation: {
+    aktierPct: number
+    fonderPct: number
+  }
 }
 
 interface AlertsResponse {
@@ -72,12 +86,6 @@ const numberFormatter = new Intl.NumberFormat('sv-SE', {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 })
-
-const allocationColors: Record<string, string> = {
-  ISK: '#059669',
-  KF: '#2563eb',
-  Depa: '#d97706',
-}
 
 const formatAccountType = (accountType: string) =>
   accountType === 'Depa' ? 'Depå' : accountType
@@ -106,6 +114,22 @@ export const Overview = () => {
 
     const loadPortfolio = async () => {
       try {
+        try {
+          const snapshotResponse = await fetch(`${API_URL}/api/portfolio/snapshot`, {
+            method: 'POST',
+            credentials: 'include',
+            signal: controller.signal,
+          })
+
+          if (!snapshotResponse.ok) {
+            throw new Error(`Snapshot request failed: ${snapshotResponse.status}`)
+          }
+        } catch {
+          if (!controller.signal.aborted) {
+            console.warn('Kunde inte spara portföljens dagsvärde.')
+          }
+        }
+
         const response = await fetch(`${API_URL}/api/portfolio`, {
           credentials: 'include',
           signal: controller.signal,
@@ -166,8 +190,7 @@ export const Overview = () => {
   if (isLoading) {
     return (
       <div className="p-6" role="status">
-        <Title>Översikt</Title>
-        <p className="mx-auto mt-6 max-w-4xl text-sm text-neutral-600">
+        <p className="mx-auto mt-2 max-w-4xl text-sm text-neutral-600">
           Hämtar portfölj...
         </p>
       </div>
@@ -177,7 +200,6 @@ export const Overview = () => {
   if (!portfolio) {
     return (
       <div className="p-6" role="alert">
-        <Title>Översikt</Title>
         <p className="mx-auto mt-6 max-w-4xl text-sm text-red-700">
           {error ?? 'Portföljdata saknas.'}
         </p>
@@ -196,23 +218,37 @@ export const Overview = () => {
     0,
   )
 
-  const driftedAccountTypes = portfolio.allocationRows
-    .filter((row) => row.overThreshold)
-    .map((row) => formatAccountType(row.accountType))
+  const accountAllocations = portfolio.accountAllocations ?? []
 
-  const accounts = portfolio.accountSummary.map((account) => ({
+  const driftedAccounts = accountAllocations.filter((row) => row.overThreshold)
+
+  const accounts = accountAllocations.map((account) => ({
+    id: account.accountId,
     name: account.accountName,
     type: formatAccountType(account.accountType),
-    value: numberFormatter.format(account.totalValueSek),
+    value: numberFormatter.format(account.valueSek),
+    drifting: account.overThreshold,
   }))
 
-  const allocation = portfolio.allocationRows
-    .filter((row) => row.accountType !== 'Pension')
-    .map((row) => ({
-      label: formatAccountType(row.accountType),
-      value: row.actual,
-      color: allocationColors[row.accountType] ?? '#64748b',
-    }))
+  const distribution = [
+    {
+      label: 'Aktier',
+      value: portfolio.portfolioAllocation?.aktierPct ?? 0,
+      color: '#00a36c',
+    },
+    {
+      label: 'Fonder',
+      value: portfolio.portfolioAllocation?.fonderPct ?? 0,
+      color: '#2e9bf0',
+    },
+  ]
+
+  const driftMessage = driftedAccounts
+    .map(
+      (account) =>
+        `${account.accountName} (${Math.round(account.actualAktierPct)} % aktier, mål ${Math.round(account.targetAktierPct)} %)`,
+    )
+    .join(', ')
 
   const driftNotificationsEnabled = areDriftNotificationsEnabled()
 
@@ -243,46 +279,34 @@ export const Overview = () => {
   const activity = [...liveActivities, ...storedActivities].slice(0, 3)
 
   return (
-    <div className="p-6">
-      <Title>Översikt</Title>
-
-      <div className="mx-auto mt-6 flex max-w-4xl flex-col gap-4">
+    <div className="p-4">
+      <div className="mx-auto mt-3 flex max-w-4xl flex-col gap-3">
         {error && (
           <p className="text-sm text-red-700" role="status">
             {error} Visar senast hämtade data.
           </p>
         )}
 
-        <StatCard
-          tone="accent"
-          title="Totalt värde"
-          value={formatSek(portfolio.totalPortfolioValue)}
+        <PortfolioSummaryCard
+          totalValue={formatSek(portfolio.totalPortfolioValue)}
+          investedValue={formatSek(investedValue)}
+          currencyLabel={`USD/SEK ${numberFormatter.format(portfolio.usdToSek)}`}
         />
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <StatCard title="Totalt investerat" value={formatSek(investedValue)} />
-          <StatCard title="USD/SEK" value={numberFormatter.format(portfolio.usdToSek)} />
-        </div>
-
-        {portfolio.anyDrift && driftNotificationsEnabled && (
+        {driftedAccounts.length > 0 && driftNotificationsEnabled && (
           <WariningBanner
-            message={
-              driftedAccountTypes.length > 0
-                ? `${driftedAccountTypes.join(', ')} avviker mer än tillåtet från målfördelningen.`
-                : 'En eller flera kontotyper avviker mer än tillåtet från målfördelningen.'
-            }
+            message={`${driftMessage} avviker mer än tillåtet från målfördelningen.`}
           />
         )}
 
-        <AccountsTable accounts={accounts} />
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <AccountsTable
+            accounts={accounts}
+            sharpeRatio={portfolio.portfolioSharpeRatio ?? null}
+          />
 
-        <DonutChart
-          title="Fördelning per kontotyp"
-          data={allocation}
-          centerLabel={`${numberFormatter.format(
-            allocation.reduce((total, slice) => total + slice.value, 0),
-          )}%`}
-        />
+          <DistributionSpreadCard allocation={distribution} spread={[]} />
+        </div>
 
         <RecentActivity title="Senaste aviseringar" items={activity} />
       </div>

@@ -51,14 +51,15 @@ class TargetAllocationControllerTest {
     @Test
     void shouldReturnTargetAllocationsForAuthenticatedUser() throws Exception {
         List<TargetAllocationResponseDTO> response = List.of(
-                new TargetAllocationResponseDTO(10L, "ISK", new BigDecimal("60.00")));
+                new TargetAllocationResponseDTO(10L, 20L, "Aktier", new BigDecimal("60.00")));
         when(targetAllocationService.getTargetAllocationsForAuthenticatedUser(USER_EMAIL))
                 .thenReturn(response);
 
         mockMvc.perform(get("/api/target-allocations").principal(authentication))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(10))
-                .andExpect(jsonPath("$[0].accountType").value("ISK"))
+                .andExpect(jsonPath("$[0].accountId").value(20))
+                .andExpect(jsonPath("$[0].accountType").value("Aktier"))
                 .andExpect(jsonPath("$[0].targetPercentage").value(60.00));
 
         verify(targetAllocationService).getTargetAllocationsForAuthenticatedUser(USER_EMAIL);
@@ -70,8 +71,8 @@ class TargetAllocationControllerTest {
                 allocation("ISK", "60.00"),
                 allocation("KF", "40.00"));
         List<TargetAllocationResponseDTO> response = List.of(
-                new TargetAllocationResponseDTO(10L, "ISK", new BigDecimal("60.00")),
-                new TargetAllocationResponseDTO(11L, "KF", new BigDecimal("40.00")));
+                new TargetAllocationResponseDTO(10L, null, "ISK", new BigDecimal("60.00")),
+                new TargetAllocationResponseDTO(11L, null, "KF", new BigDecimal("40.00")));
 
         when(targetAllocationService.updateTargetAllocationsForAuthenticatedUser(USER_EMAIL, request))
                 .thenReturn(response);
@@ -86,6 +87,31 @@ class TargetAllocationControllerTest {
 
         verify(targetAllocationService)
                 .updateTargetAllocationsForAuthenticatedUser(USER_EMAIL, request);
+    }
+
+    @Test
+    void shouldUpdateTargetAllocationsForOneAccount() throws Exception {
+        UpdateTargetAllocationsRequestDTO request = request(
+                allocation("Aktier", "60.00"),
+                allocation("Fonder", "40.00"));
+        List<TargetAllocationResponseDTO> response = List.of(
+                new TargetAllocationResponseDTO(10L, 20L, "Aktier", new BigDecimal("60.00")),
+                new TargetAllocationResponseDTO(11L, 20L, "Fonder", new BigDecimal("40.00")));
+        when(targetAllocationService.updateAccountTargetAllocationsForAuthenticatedUser(
+                USER_EMAIL, 20L, request))
+                .thenReturn(response);
+
+        mockMvc.perform(put("/api/target-allocations/accounts/20")
+                        .principal(authentication)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].accountId").value(20))
+                .andExpect(jsonPath("$[0].accountType").value("Aktier"))
+                .andExpect(jsonPath("$[1].accountType").value("Fonder"));
+
+        verify(targetAllocationService)
+                .updateAccountTargetAllocationsForAuthenticatedUser(USER_EMAIL, 20L, request);
     }
 
     @Test

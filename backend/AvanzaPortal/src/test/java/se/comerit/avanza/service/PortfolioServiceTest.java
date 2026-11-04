@@ -1,6 +1,7 @@
 package se.comerit.avanza.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -8,9 +9,11 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,11 +22,13 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
+import se.comerit.avanza.config.DriftTresholdConfig;
 import se.comerit.avanza.dto.alerts.AlertsResponseDTO;
 import se.comerit.avanza.dto.market.FxRateResponseDTO;
 import se.comerit.avanza.dto.portfolio.AccountSummaryDTO;
@@ -32,12 +37,14 @@ import se.comerit.avanza.dto.portfolio.EnrichedHoldingDTO;
 import se.comerit.avanza.entity.Account;
 import se.comerit.avanza.entity.Alerts;
 import se.comerit.avanza.entity.Holdings;
+import se.comerit.avanza.entity.PositionSnapshot;
 import se.comerit.avanza.entity.TargetAllocations;
 import se.comerit.avanza.repository.AccountRepository;
 import se.comerit.avanza.repository.UserRepository;
 import se.comerit.avanza.repository.AlertsRepository;
 import se.comerit.avanza.repository.HoldingsRepository;
 import se.comerit.avanza.repository.TargetRepository;
+import se.comerit.avanza.repository.PositionSnapshotRepository;
 import se.comerit.avanza.nativebridge.RiskLibrary;
 import se.comerit.avanza.entity.User;
 
@@ -64,6 +71,9 @@ class PortfolioServiceTest {
 
         @Mock
         private UserRepository userRepository;
+
+        @Mock
+        private PositionSnapshotRepository snapshotRepository;
 
         @Mock
         private DriftTresholdConfig tresholdConfig;
@@ -406,7 +416,9 @@ class PortfolioServiceTest {
 
                 List<TargetAllocations> targets = List.of(
                                 new TargetAllocations("ISK", 50.0, null),
-                                new TargetAllocations("KF", 50.0, null));
+                                new TargetAllocations("KF", 50.0, null),
+                                new TargetAllocations("Aktier", 60.0, null, new Account()),
+                                new TargetAllocations("Aktier", 40.0, null, new Account()));
 
                 // Act
                 List<AllocationRowDTO> result = portfolioService.detectDrift(
@@ -424,6 +436,51 @@ class PortfolioServiceTest {
                 assertEquals(50.0, iskRow.target(), 0.001);
                 assertEquals(10.0, iskRow.drift(), 0.001);
                 assertTrue(iskRow.overThreshold());
+        }
+
+        @Test
+        void shouldBuildPerAccountAndPortfolioAllocations() {
+                when(tresholdConfig.getDriftThreshold()).thenReturn(0.05);
+
+                Account isk = new Account();
+                isk.setId(1L);
+                isk.setAccount_type("ISK");
+                isk.setAccount_name("My ISK");
+                Account kf = new Account();
+                kf.setId(2L);
+                kf.setAccount_type("KF");
+                kf.setAccount_name("My KF");
+
+                Holdings stock = new Holdings("AAA", "Stock", new BigDecimal("10"), new BigDecimal("10"), "SEK", isk);
+                stock.setCategory("Aktier");
+                Holdings fund = new Holdings("BBB", "Fund", new BigDecimal("10"), new BigDecimal("10"), "SEK", isk);
+                fund.setCategory("Fonder");
+                Holdings kfStock = new Holdings("AAA", "Stock", new BigDecimal("10"), new BigDecimal("10"), "SEK", kf);
+                kfStock.setCategory("Aktier");
+
+                Map<String, Double> prices = Map.of("AAA", 60.0, "BBB", 40.0);
+                List<TargetAllocations> targets = List.of(
+                                new TargetAllocations("Aktier", 60.0, null, isk),
+                                new TargetAllocations("Aktier", 50.0, null, kf),
+                                new TargetAllocations("ISK", 100.0, null));
+
+                List<se.comerit.avanza.dto.portfolio.AccountAllocationDTO> result = portfolioService
+                                .buildAccountAllocations(List.of(isk, kf), List.of(stock, fund, kfStock), prices,
+                                                targets);
+
+                assertEquals(60.0, result.get(0).actualAktierPct(), 0.001);
+                assertEquals(60.0, result.get(0).targetAktierPct(), 0.001);
+                assertFalse(result.get(0).overThreshold());
+                assertEquals(1000.0, result.get(0).valueSek(), 0.001);
+                assertEquals(600.0, result.get(1).valueSek(), 0.001);
+                assertEquals(100.0, result.get(1).actualAktierPct(), 0.001);
+                assertEquals(50.0, result.get(1).driftPct(), 0.001);
+                assertTrue(result.get(1).overThreshold());
+
+                se.comerit.avanza.dto.portfolio.PortfolioAllocationDTO portfolio = portfolioService
+                                .buildPortfolioAllocation(result);
+                assertEquals(75.0, portfolio.aktierPct(), 0.001);
+                assertEquals(25.0, portfolio.fonderPct(), 0.001);
         }
 
         @Test
@@ -484,6 +541,43 @@ class PortfolioServiceTest {
 
                 // Assert
                 assertEquals(1.75, result, 0.001);
+        }
+
+        @Test
+        void shouldCalculatePortfolioSharpeFromDailySnapshotTotals() {
+                LocalDate firstDate = LocalDate.of(2026, 10, 26);
+                LocalDate secondDate = firstDate.plusDays(1);
+                LocalDate thirdDate = secondDate.plusDays(1);
+                when(snapshotRepository.findByUserIdOrderByPriceDateAsc(1L)).thenReturn(List.of(
+                                snapshot(10L, "ERIC-B", firstDate, "100.000000"),
+                                snapshot(11L, "AAPL", firstDate, "200.000000"),
+                                snapshot(10L, "ERIC-B", secondDate, "330.000000"),
+                                snapshot(10L, "ERIC-B", thirdDate, "315.000000")));
+                when(riskLibrary.risk_calc_sharpe_ratio_double(
+                                any(double[].class), anyLong(), eq(0.0), eq(252L)))
+                                .thenReturn(1.25);
+
+                Double result = portfolioService.calculateSharpeFromSnapshots(1L);
+
+                assertEquals(1.25, result, 0.001);
+                ArgumentCaptor<double[]> returnsCaptor = ArgumentCaptor.forClass(double[].class);
+                verify(riskLibrary).risk_calc_sharpe_ratio_double(
+                                returnsCaptor.capture(), eq(2L), eq(0.0), eq(252L));
+                assertArrayEquals(new double[] { 0.1, (315.0 / 330.0) - 1.0 }, returnsCaptor.getValue(), 0.000001);
+        }
+
+        private PositionSnapshot snapshot(Long accountId, String ticker, LocalDate date, String sekValue) {
+                return new PositionSnapshot(
+                                1L,
+                                accountId,
+                                ticker,
+                                "SEK",
+                                new BigDecimal("100.000000"),
+                                BigDecimal.ONE,
+                                date,
+                                new BigDecimal(sekValue),
+                                BigDecimal.ONE,
+                                null);
         }
 
         @Test

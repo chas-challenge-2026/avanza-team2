@@ -38,12 +38,12 @@ export const RecentActivity = ({
 
   return (
     <div
-      className={`rounded-2xl border border-neutral-200 bg-white p-5${
+      className={`min-h-[220px] rounded-2xl border border-neutral-200 bg-white p-5${
         className ? ` ${className}` : ''
       }`}
     >
-      <div className="flex items-center justify-between m-4">
-        <h3 className="text-lg font-bold text-neutral-900 text-left m-4">{title}</h3>
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-lg font-bold text-neutral-900 text-left">{title}</h3>
         <DropdownBtn
           options={categoryFilterOptions}
           value={categoryFilter}
@@ -52,9 +52,9 @@ export const RecentActivity = ({
         />
       </div>
 
-      <ul className="m-4 flex flex-col text-left">
+      <ul className="flex flex-col text-left">
         {visibleItems.map((item, index) => (
-          <li key={`${item.label}-${index}`} className="flex items-center gap-3 px-4 py-4 rounded-lg hover:bg-neutral-50">
+          <li key={`${item.label}-${index}`} className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-neutral-50">
             <span
               className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full"
               style={{ backgroundColor: `${item.color}1a` }}
