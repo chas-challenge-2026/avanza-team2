@@ -1,75 +1,30 @@
-# React + TypeScript + Vite
+# Frontend – Investerings- & Portföljöversikt
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## 🚀 Installation, Körning & Testning
 
-Currently, two official plugins are available:
+För att köra frontend-applikationen lokalt behöver du Node.js installerat. 
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+1. Navigera först in i frontend-mappen:
+   ```bash
+   cd frontend
 
-## React Compiler
+   1. Installera alla beroenden:
+   npm install
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+   2. Starta utvecklingsservern:
+   npm run dev
 
-## Expanding the ESLint configuration
+## Testning & Kodvalidering
+Stå kvar i frontend-mappen för att köra tester och typkontroller:
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+  Kör testsviten (Jest): 
+  npm run test
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+  Kör TypeScript-typkontroll: 
+  npm run typecheck
+  
+##  Kända brister och avgränsningar
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+* **Målallokering i inställningar:** Gränssnitt för att ändra mål för varje konto har lagts till under inställningar, men funktionaliteten är i dagsläget inte helt färdigställd.
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
-```
-
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
-```
+* **Användning av mockad data:** För vissa funktioner och vyer används i dagsläget mockdata i frontend. Detta är gjort för att kunna demonstrera den tänkta funktionaliteten och visningen i gränssnittet även där backend-integrationen inte är helt färdigställd.
